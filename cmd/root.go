@@ -11,12 +11,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootFlags app.Flags
+var (
+	rootFlags   app.Flags
+	showVersion bool
+)
 
-var rootCmd = &cobra.Command{
-	Use:   "gx",
-	Short: "Semantic code navigation for AI agents",
-}
+var rootCmd *cobra.Command
 
 func Execute() int {
 	if err := rootCmd.Execute(); err != nil {
@@ -29,23 +29,47 @@ func Execute() int {
 }
 
 func init() {
-	rootCmd.SilenceUsage = true
-	rootCmd.SetOut(rootCmd.OutOrStdout())
-	rootCmd.SetErr(rootCmd.ErrOrStderr())
+	rootCmd = newRootCmd()
+}
 
-	rootCmd.PersistentFlags().StringVar(&rootFlags.Root, "root", "", "Project root (default: git root from cwd, then cwd)")
-	rootCmd.PersistentFlags().BoolVar(&rootFlags.JSON, "json", false, "Emit JSON instead of TOON")
-	rootCmd.PersistentFlags().BoolVar(&rootFlags.Verbose, "verbose", false, "Emit debug progress to stderr")
+func newRootCmd() *cobra.Command {
+	command := &cobra.Command{
+		Use:   "gx",
+		Short: "Semantic code navigation for AI agents",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if showVersion {
+				return app.PrintVersion(cmd.OutOrStdout(), rootFlags.JSON)
+			}
+			return cmd.Help()
+		},
+	}
 
-	rootCmd.AddCommand(
+	command.SilenceUsage = true
+	command.SetOut(command.OutOrStdout())
+	command.SetErr(command.ErrOrStderr())
+
+	command.PersistentFlags().StringVar(&rootFlags.Root, "root", "", "Project root (default: git root from cwd, then cwd)")
+	command.PersistentFlags().BoolVar(&rootFlags.JSON, "json", false, "Emit JSON instead of TOON")
+	command.PersistentFlags().BoolVar(&rootFlags.Verbose, "verbose", false, "Emit debug progress to stderr")
+
+	command.Flags().BoolVar(&showVersion, "version", false, "Print gx version and exit")
+	command.Flags().BoolVarP(&showVersion, "version-lower-short", "v", false, "Print gx version and exit")
+	command.Flags().BoolVarP(&showVersion, "version-upper-short", "V", false, "Print gx version and exit")
+	_ = command.Flags().MarkHidden("version-lower-short")
+	_ = command.Flags().MarkHidden("version-upper-short")
+
+	command.AddCommand(
 		newOverviewCmd(),
 		newSymbolsCmd(),
 		newDefinitionCmd(),
 		newReferencesCmd(),
 		newLangCmd(),
+		newVersionCmd(),
 		newSkillCmd(),
 		newCacheCmd(),
 	)
+
+	return command
 }
 
 func resolveRoot() (string, error) {

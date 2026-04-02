@@ -35,6 +35,15 @@ make build
 go run . --help
 ```
 
+输出当前 CLI 版本：
+
+```bash
+gx version
+gx --version
+gx -V
+gx -v
+```
+
 运行标准校验：
 
 ```bash
@@ -69,6 +78,12 @@ Linux 和 Windows 目标使用 `zig cc`。在 macOS 上可以通过 `make cross-
 
 ```bash
 gx --help
+```
+
+查看当前版本：
+
+```bash
+gx version
 ```
 
 先看目录结构，再决定读哪些文件：
@@ -174,6 +189,7 @@ flowchart TD
 ### Agent 集成
 
 - `gx skill`：把内置的 agent 使用说明输出到标准输出。
+- `gx version`：输出当前 `gx` 版本。
 
 ## 输出模式
 
@@ -183,6 +199,13 @@ flowchart TD
 
 ```bash
 gx symbols --name 'new*' --json
+```
+
+版本命令和版本标志同样支持 JSON 输出：
+
+```bash
+gx version --json
+gx --json --version
 ```
 
 如果你想查询的不是当前工作目录对应的项目，可以使用 `--root <path>` 指定根目录。

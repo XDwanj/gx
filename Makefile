@@ -4,6 +4,8 @@ BINARY_NAME := gx
 DIST_DIR := dist
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
+VERSION ?= dev
+GO_LDFLAGS := -X gx/internal/app.Version=$(VERSION)
 
 HOST_GOOS := $(shell $(GO) env GOOS)
 HOST_GOARCH := $(shell $(GO) env GOARCH)
@@ -25,7 +27,7 @@ CC_WINDOWS_AMD64 ?= zig cc -target x86_64-windows-gnu
 .PHONY: build test lint clean cross cross-darwin
 
 build:
-	$(GO) build -o $(LOCAL_BINARY) .
+	$(GO) build -ldflags "$(GO_LDFLAGS)" -o $(LOCAL_BINARY) .
 
 test:
 	$(GO) test ./... -timeout 60s
@@ -58,7 +60,7 @@ cross:
 		fi; \
 		output="$(DIST_DIR)/$(BINARY_NAME)-$$goos-$$goarch$$ext"; \
 		echo "building $$output"; \
-		CGO_ENABLED=1 CC="$$cc" GOOS="$$goos" GOARCH="$$goarch" $(GO) build -o "$$output" .; \
+		CGO_ENABLED=1 CC="$$cc" GOOS="$$goos" GOARCH="$$goarch" $(GO) build -ldflags "$(GO_LDFLAGS)" -o "$$output" .; \
 	done
 
 cross-darwin:

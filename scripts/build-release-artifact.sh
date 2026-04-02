@@ -16,6 +16,7 @@ normalized_version="$(printf '%s' "${version}" | sed 's/^v//')"
 archive_base_name="${PROJECT_NAME}_${normalized_version}_${target_os}_${target_arch}"
 build_root="$(mktemp -d "${TEMP_DIR_TEMPLATE}")"
 package_dir="${build_root}/${archive_base_name}"
+go_ldflags="-X gx/internal/app.Version=${version}"
 
 cleanup() {
 	rm -rf "${build_root}"
@@ -31,7 +32,7 @@ if [ "${target_os}" = "${WINDOWS_OS}" ]; then
 	binary_file_name="${BINARY_NAME}${WINDOWS_EXTENSION}"
 fi
 
-GOOS="${target_os}" GOARCH="${target_arch}" CGO_ENABLED=1 go build -trimpath -o "${package_dir}/${binary_file_name}" .
+GOOS="${target_os}" GOARCH="${target_arch}" CGO_ENABLED=1 go build -trimpath -ldflags "${go_ldflags}" -o "${package_dir}/${binary_file_name}" .
 cp README.md LICENSE "${package_dir}/"
 
 if [ "${target_os}" = "${WINDOWS_OS}" ]; then

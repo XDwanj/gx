@@ -35,6 +35,15 @@ Run directly without building:
 go run . --help
 ```
 
+Print the CLI version:
+
+```bash
+gx version
+gx --version
+gx -V
+gx -v
+```
+
 Run the standard checks:
 
 ```bash
@@ -71,6 +80,12 @@ See the top-level command list:
 
 ```bash
 gx --help
+```
+
+Check the running version:
+
+```bash
+gx version
 ```
 
 Explore a directory before opening files:
@@ -176,6 +191,7 @@ Supported symbol kinds:
 ### Agent integration
 
 - `gx skill`: Print the embedded agent skill guide to stdout.
+- `gx version`: Print the current `gx` version.
 
 ## Output modes
 
@@ -185,6 +201,13 @@ For machine-readable output, add `--json`:
 
 ```bash
 gx symbols --name 'new*' --json
+```
+
+The version command and version flags also support JSON output:
+
+```bash
+gx version --json
+gx --json --version
 ```
 
 Use `--root <path>` if you want to query a project other than the current working tree.
