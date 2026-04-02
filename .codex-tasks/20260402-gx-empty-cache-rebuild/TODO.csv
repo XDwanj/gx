@@ -1,0 +1,5 @@
+id,task,status,completed_at,notes
+1,Confirm empty-cache root cause,DONE,2026-04-02T10:06:00+08:00,Empty cached index is reused after grammar installation because needsUpdate treats empty entries as fresh
+2,Fix empty-cache rebuild detection,DONE,2026-04-02T10:10:00+08:00,Empty cache now rebuilds when the project contains files for installed grammars
+3,Add regression tests and update CLAUDE rule,DONE,2026-04-02T10:12:00+08:00,Added installed and missing grammar cache tests and documented cache-first diagnosis rule
+4,Run tests and command verification,DONE,2026-04-02T10:14:00+08:00,Passed go test ./... -timeout 60s and verified go run . overview internal/app rebuilds the empty cache

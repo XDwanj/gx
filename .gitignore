@@ -1,0 +1,8 @@
+# Ignore Mac system files
+.Ds_Store
+.DS_Store
+*DS_Store
+
+# bin
+/gx
+/gx*

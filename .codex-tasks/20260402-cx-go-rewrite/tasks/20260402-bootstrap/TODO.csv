@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Create go module and main entry,DONE,go.mod and main.go exist,test -f go.mod && test -f main.go,2026-04-02 02:18,0,
+2,Create Cobra root command and package skeleton,DONE,Root command compiles and help runs,go run . --help,2026-04-02 02:18,0,
+3,Run baseline test validation,DONE,All current packages compile under go test,go test ./...,2026-04-02 02:18,0,

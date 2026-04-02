@@ -1,0 +1,116 @@
+version: "2"
+
+# run: 控制 golangci-lint 的运行行为（不是具体规则，而是执行时策略）。
+run:
+  # modules-download-mode: readonly
+  # 含义：读取 Go 模块依赖时使用只读模式，不允许自动修改 go.mod / go.sum。
+  # 作用：在 CI 或团队协作中避免“lint 顺手改依赖文件”的副作用，保证结果可复现。
+  # 取值影响：如果依赖声明不完整，这里不会帮你修复，命令会直接失败并提醒你先整理依赖。
+  modules-download-mode: readonly
+
+# linters: 具体要启用哪些静态检查器，以及它们的参数和排除策略。
+linters:
+  # default: none
+  # 含义：关闭 golangci-lint 的“默认启用集”。
+  # 目的：让规则集合完全显式化，避免工具升级后默认规则变化导致结果突然波动。
+  # 维护建议：新增或删除规则时，都在 enable 列表中明确记录，便于代码评审追踪质量策略变化。
+  default: none
+  enable:
+    - bodyclose # 检查 HTTP 响应体是否正确关闭，防止连接泄漏。
+    - dogsled # 检查 `_` 被过度使用的场景（例如一次性丢弃多个返回值），提醒可读性问题。
+    - durationcheck # 检查涉及 time.Duration 的常见误用，避免时间单位写错。
+    - errcheck # 检查 error 返回值是否被处理，避免静默失败。
+    - goconst # 提示可提取为常量的重复字面量，减少魔法值扩散。
+    - gocyclo # 计算圈复杂度，约束函数逻辑分支过多的问题。
+    - ineffassign # 检测无效赋值（赋值后值从未被读取）。
+    - lll # 限制单行长度，提升评审和终端阅读体验。
+    - misspell # 检测拼写错误，减少注释/字符串中的低级笔误。
+    - mnd # 检查未命名数字常量，推动语义化常量定义。
+    - prealloc # 提示可预分配切片容量的场景，减少扩容开销。
+    - revive # 高可配置的风格/质量检查器，替代部分 golint 能力。
+    - staticcheck # 高质量语义级静态分析，覆盖大量真实 bug 模式。
+    - govet # Go 官方 vet 检查，偏正确性问题。
+    - unconvert # 检查不必要的类型转换，减少噪音代码。
+    - unused # 检测未使用的变量、函数、类型等死代码。
+    - wastedassign # 检测“被覆盖前从未使用”的赋值。
+    - whitespace # 检查多余空行、格式空白等可读性问题。
+  # settings: 针对单个 linter 的参数微调。
+  settings:
+    gocyclo:
+      # min-complexity: 50
+      # 只有圈复杂度 >= 50 的函数才报错。
+      # 当前阈值偏宽松：主要拦截极复杂函数，不会频繁打断普通重构流程。
+      min-complexity: 50
+    govet:
+      # enable.shadow：启用变量遮蔽检查（如内层同名变量覆盖外层变量）。
+      # 这是 Go 项目中常见的隐蔽 bug 来源之一，建议保持开启。
+      enable:
+        - shadow
+    lll:
+      # line-length: 160
+      # 单行最大长度 160 字符。相比 80/100 更宽松，适合兼顾可读性与 Go 链式调用场景。
+      line-length: 160
+    misspell:
+      # locale: US
+      # 拼写词典采用美式英语（例如 color 而非 colour）。
+      locale: US
+    mnd:
+      # checks: 指定在哪些语法位置检查“魔法数字”。
+      # 未包含的场景（如部分赋值）不会被该规则报告。
+      checks:
+        - case # switch case 中的数字常量。
+        - condition # 条件判断中的数字常量。
+        - return # 返回值中的数字常量。
+    whitespace:
+      # multi-func: true
+      # 允许并检查多函数场景下的空白规范，避免函数间空白风格混乱。
+      multi-func: true
+  # exclusions: 统一排除策略，减少误报和非业务目录噪声。
+  exclusions:
+    # generated: lax
+    # 对“生成文件”采用宽松判定并倾向排除，避免将机器生成代码纳入人工风格约束。
+    generated: lax
+    # presets: 官方内置排除模板集合。
+    # comments：与注释相关的常见误报
+    # common-false-positives：社区常见误报模式
+    # legacy：历史兼容场景
+    # std-error-handling：标准错误处理写法中的误报
+    presets:
+      - comments # 与注释相关的常见误报。
+      - common-false-positives # 社区常见误报模式。
+      - legacy # 历史兼容场景。
+      - std-error-handling # 标准错误处理写法中的误报。
+    # rules: 精细化排除规则（按 linter + 路径匹配）。
+    rules:
+      - linters:
+          - goconst # 测试文件中常见重复字面量（测试数据）通常可接受，因此对 goconst 放宽。
+        # path 使用正则匹配 *_test.go 文件。
+        path: (.+)_test\.go
+      - linters:
+          - revive
+        path: internal/grammars/.+\.go
+    # paths: 整个路径层面的全量排除（正则）。
+    # 这些目录通常是外部、内建或示例代码，不作为主业务质量门禁对象。
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+# formatters: 代码格式化器配置，通常与 lint 一起在 CI 中执行。
+formatters:
+  # enable: 同时启用三种格式化器，覆盖 gofmt 基础格式、gofumpt 强化规则、goimports 导入管理。
+  enable:
+    - gofmt # Go 官方基础格式化规则。
+    - gofumpt # 在 gofmt 基础上执行更严格的风格整理。
+    - goimports # 自动整理和分组导入。
+  # settings: 格式化器参数。
+  settings: {}
+  # exclusions: 格式化阶段的排除策略，避免改写生成代码或无关目录。
+  exclusions:
+    # generated: lax 与 linter 一致，宽松识别并排除生成文件。
+    generated: lax
+    # paths 与 linter 保持一致，避免“lint 不看但 formatter 改了”的不一致行为。
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
