@@ -42,6 +42,17 @@ make test
 make lint
 ```
 
+通过版本 tag 自动发布 GitHub Release：
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+推送 `v*` tag 后，GitHub Actions 会自动构建多平台发布产物、上传压缩包和
+`checksums.txt`，再通过 `gh` 发布 GitHub Release。Release 页面会同时包含一段固定介绍，
+以及 GitHub 根据本次 release 自动生成的提交与 PR 变更记录。
+
 将交叉编译产物输出到 `dist/`：
 
 ```bash

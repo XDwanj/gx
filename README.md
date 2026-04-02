@@ -42,6 +42,18 @@ make test
 make lint
 ```
 
+Create a GitHub Release from a version tag:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Pushing a `v*` tag triggers GitHub Actions to run multi-platform release builds,
+upload archives and `checksums.txt`, then publish a GitHub Release with a short
+overview plus auto-generated changelog entries for the commits and pull
+requests included in that release.
+
 Build cross-compilation artifacts under `dist/`:
 
 ```bash
