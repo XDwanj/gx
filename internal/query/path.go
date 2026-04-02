@@ -11,6 +11,13 @@ func displayPath(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
 
+func displayScopePath(path string) string {
+	if path == "" {
+		return "."
+	}
+	return displayPath(path)
+}
+
 func normalizeRelativePath(path string, root string) string {
 	if filepath.IsAbs(path) {
 		rel, err := filepath.Rel(root, path)

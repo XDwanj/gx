@@ -7,7 +7,7 @@ import (
 )
 
 func newSymbolsCmd() *cobra.Command {
-	var file string
+	var scope string
 	var name string
 	var kind string
 
@@ -21,16 +21,16 @@ func newSymbolsCmd() *cobra.Command {
 				return err
 			}
 
-			debugf(rootCmd.ErrOrStderr(), "symbols file=%s name=%s kind=%s", file, name, kind)
+			debugf(rootCmd.ErrOrStderr(), "symbols scope=%s name=%s kind=%s", scope, name, kind)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
 
-			var filePtr *string
-			if file != "" {
-				filePtr = &file
+			var scopePtr *string
+			if scope != "" {
+				scopePtr = &scope
 			}
 
 			var namePtr *string
@@ -47,11 +47,11 @@ func newSymbolsCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Symbols(idx, filePtr, namePtr, kindPtr)
+			return runtime.Query.Symbols(idx, scopePtr, namePtr, kindPtr)
 		},
 	}
 
-	command.Flags().StringVar(&file, "file", "", "Filter to a specific file")
+	command.Flags().StringVar(&scope, "scope", "", "Filter to a specific file or directory")
 	command.Flags().StringVar(&name, "name", "", "Glob pattern to match symbol names")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
 	return command

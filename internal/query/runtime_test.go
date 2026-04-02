@@ -50,9 +50,9 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	file := "src/main.rs"
+	scope := "src/main.rs"
 
-	if err := service.Symbols(idx, &file, nil, nil); err != nil {
+	if err := service.Symbols(idx, &scope, nil, nil); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -62,6 +62,46 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	}
 	if !strings.Contains(output, "main,fn") {
 		t.Fatalf("missing main symbol: %s", output)
+	}
+	if strings.Contains(output, "src/main.rs") {
+		t.Fatalf("single-file scope should omit file column: %s", output)
+	}
+}
+
+func TestSymbolsDirectoryScopeOutput(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs":    "fn main() {}\n",
+		"src/helper.rs":  "fn helper() {}\n",
+		"other/extra.rs": "fn extra() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	scope := "src"
+
+	if err := service.Symbols(idx, &scope, nil, nil); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "{file,name,kind,signature}:") {
+		t.Fatalf("directory scope should include file column: %s", output)
+	}
+	if !strings.Contains(output, "src/main.rs,main,fn") {
+		t.Fatalf("missing src/main.rs symbol: %s", output)
+	}
+	if !strings.Contains(output, "src/helper.rs,helper,fn") {
+		t.Fatalf("missing src/helper.rs symbol: %s", output)
+	}
+	if strings.Contains(output, "other/extra.rs") {
+		t.Fatalf("directory scope should exclude files outside scope: %s", output)
 	}
 }
 
@@ -90,5 +130,143 @@ func TestDefinitionOutput(t *testing.T) {
 	}
 	if !strings.Contains(output, "fn main()") {
 		t.Fatalf("missing function body: %s", output)
+	}
+}
+
+func TestDefinitionSupportsGlobName(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn build_runtime() {}\nfn helper() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Definition(idx, "build*", nil, nil, 200); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "fn build_runtime()") {
+		t.Fatalf("missing glob-matched function body: %s", output)
+	}
+}
+
+func TestDefinitionScopeFiltersResults(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs":   "fn build_runtime() {}\n",
+		"other/main.rs": "fn build_runtime() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	scope := "src"
+
+	if err := service.Definition(idx, "build*", &scope, nil, 200); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "file: src/main.rs") {
+		t.Fatalf("missing scoped definition: %s", output)
+	}
+	if strings.Contains(output, "file: other/main.rs") {
+		t.Fatalf("scope should exclude definitions outside directory: %s", output)
+	}
+}
+
+func TestReferencesSupportsGlobName(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn build_runtime() {}\nfn build_helper() {}\nfn main() { build_runtime(); build_helper(); }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.References(idx, "build*", nil, false); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "build_runtime") {
+		t.Fatalf("missing build_runtime reference: %s", output)
+	}
+	if !strings.Contains(output, "build_helper") {
+		t.Fatalf("missing build_helper reference: %s", output)
+	}
+}
+
+func TestReferencesScopeFiltersResults(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs":   "fn build_runtime() {}\nfn main() { build_runtime(); }\n",
+		"other/main.rs": "fn build_runtime() {}\nfn main() { build_runtime(); }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	scope := "src/main.rs"
+
+	if err := service.References(idx, "build*", &scope, false); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "src/main.rs") {
+		t.Fatalf("missing scoped reference: %s", output)
+	}
+	if strings.Contains(output, "other/main.rs") {
+		t.Fatalf("scope should exclude references outside file: %s", output)
+	}
+}
+
+func TestMissingScopeReturnsError(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	scope := "missing"
+
+	err = service.Symbols(idx, &scope, nil, nil)
+	if err == nil {
+		t.Fatal("expected missing scope to return an error")
+	}
+	if !strings.Contains(err.Error(), "gx: scope not found: missing") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

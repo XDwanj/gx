@@ -7,12 +7,12 @@ import (
 )
 
 func newDefinitionCmd() *cobra.Command {
-	var from string
+	var scope string
 	var kind string
 	var maxLines int
 
 	command := &cobra.Command{
-		Use:     "definition --name <name>",
+		Use:     "definition --name <glob>",
 		Aliases: []string{"d"},
 		Short:   "Get a function or type body without reading the whole file",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -26,16 +26,16 @@ func newDefinitionCmd() *cobra.Command {
 				return err
 			}
 
-			debugf(rootCmd.ErrOrStderr(), "definition name=%s", name)
+			debugf(rootCmd.ErrOrStderr(), "definition name=%s scope=%s", name, scope)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
 
-			var fromPtr *string
-			if from != "" {
-				fromPtr = &from
+			var scopePtr *string
+			if scope != "" {
+				scopePtr = &scope
 			}
 
 			var kindPtr *index.SymbolKind
@@ -47,12 +47,12 @@ func newDefinitionCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Definition(idx, name, fromPtr, kindPtr, maxLines)
+			return runtime.Query.Definition(idx, name, scopePtr, kindPtr, maxLines)
 		},
 	}
 
-	command.Flags().String("name", "", "Symbol name to look up")
-	command.Flags().StringVar(&from, "from", "", "Disambiguate by source file")
+	command.Flags().String("name", "", "Glob pattern to match symbol names")
+	command.Flags().StringVar(&scope, "scope", "", "Limit search to a specific file or directory")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
 	command.Flags().IntVar(&maxLines, "max-lines", 200, "Max lines for body output")
 	_ = command.MarkFlagRequired("name")

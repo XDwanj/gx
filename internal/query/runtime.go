@@ -79,6 +79,17 @@ type UniqueCallerRow struct {
 	Line   int    `json:"line"`
 }
 
+type definitionMatch struct {
+	path   string
+	symbol index.Symbol
+}
+
+type scopeFilter struct {
+	relPath string
+	isFile  bool
+	paths   map[string]struct{}
+}
+
 type DirOverviewRow struct {
 	File    string `json:"file"`
 	Symbols string `json:"symbols"`
@@ -91,24 +102,24 @@ type DirOverviewFullRow struct {
 	Signature string `json:"signature"`
 }
 
-func (service *Service) Symbols(idx *index.Index, file *string, nameGlob *string, kind *index.SymbolKind) error {
-	relPath := ""
-	if file != nil {
-		relPath = normalizeRelativePath(*file, idx.Root)
-		if _, ok := idx.Entries[relPath]; !ok {
-			return service.fileLookupError(relPath, idx.Root)
-		}
+func (service *Service) Symbols(idx *index.Index, scope *string, nameGlob *string, kind *index.SymbolKind) error {
+	filter, err := service.resolveScope(idx, scope)
+	if err != nil {
+		return err
 	}
 
 	rows := make([]SymbolRow, 0)
 	for path, data := range idx.Entries {
-		if relPath != "" && path != relPath {
+		if filter != nil && !filter.contains(path) {
 			continue
 		}
 		for _, symbol := range data.Symbols {
 			if nameGlob != nil {
 				ok, err := globMatch(*nameGlob, symbol.Name)
-				if err != nil || !ok {
+				if err != nil {
+					return err
+				}
+				if !ok {
 					continue
 				}
 			}
@@ -120,7 +131,7 @@ func (service *Service) Symbols(idx *index.Index, file *string, nameGlob *string
 				Kind:      string(symbol.Kind),
 				Signature: symbol.Signature,
 			}
-			if relPath == "" {
+			if filter == nil || !filter.isFile {
 				row.File = displayPath(path)
 			}
 			rows = append(rows, row)
@@ -145,40 +156,25 @@ func (service *Service) Symbols(idx *index.Index, file *string, nameGlob *string
 	return output.PrintTOON(service.stdout, rows)
 }
 
-func (service *Service) Definition(idx *index.Index, name string, from *string, kind *index.SymbolKind, maxLines int) error {
-	fromRel := ""
-	if from != nil {
-		fromRel = normalizeRelativePath(*from, idx.Root)
+func (service *Service) Definition(idx *index.Index, nameGlob string, scope *string, kind *index.SymbolKind, maxLines int) error {
+	filter, err := service.resolveScope(idx, scope)
+	if err != nil {
+		return err
 	}
 
-	type definitionMatch struct {
-		path   string
-		symbol index.Symbol
+	matches, err := findDefinitionMatches(idx, nameGlob, kind)
+	if err != nil {
+		return err
 	}
 
-	matches := make([]definitionMatch, 0)
-	for path, data := range idx.Entries {
-		for _, symbol := range data.Symbols {
-			if symbol.Name != name {
-				continue
-			}
-			if kind != nil && symbol.Kind != *kind {
-				continue
-			}
-			matches = append(matches, definitionMatch{path: path, symbol: symbol})
-		}
-	}
-
-	if fromRel != "" {
+	if filter != nil {
 		filtered := make([]definitionMatch, 0)
 		for _, match := range matches {
-			if match.path == fromRel {
+			if filter.contains(match.path) {
 				filtered = append(filtered, match)
 			}
 		}
-		if len(filtered) > 0 {
-			matches = filtered
-		}
+		matches = filtered
 	}
 
 	if len(matches) == 0 {
@@ -234,47 +230,62 @@ func (service *Service) Definition(idx *index.Index, name string, from *string, 
 	return nil
 }
 
-func (service *Service) References(idx *index.Index, name string, file *string, unique bool) error {
-	relPath := ""
-	if file != nil {
-		relPath = normalizeRelativePath(*file, idx.Root)
-		if _, ok := idx.Entries[relPath]; !ok {
-			return service.fileLookupError(relPath, idx.Root)
-		}
+func (service *Service) References(idx *index.Index, nameGlob string, scope *string, unique bool) error {
+	filter, err := service.resolveScope(idx, scope)
+	if err != nil {
+		return err
+	}
+
+	matchedNames, err := findMatchingSymbolNames(idx, nameGlob)
+	if err != nil {
+		return err
+	}
+	if len(matchedNames) == 0 {
+		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+		return nil
 	}
 
 	rows := make([]ReferenceRow, 0)
-	nameBytes := []byte(name)
+	nameBytes := make([][]byte, 0, len(matchedNames))
+	for _, matchedName := range matchedNames {
+		nameBytes = append(nameBytes, []byte(matchedName))
+	}
 	for path, data := range idx.Entries {
-		if relPath != "" && path != relPath {
+		if filter != nil && !filter.contains(path) {
 			continue
 		}
 
 		source, err := os.ReadFile(filepath.Join(idx.Root, path))
-		if err != nil || !bytes.Contains(source, nameBytes) {
-			continue
-		}
-
-		references, err := language.FindReferences(data.Meta.Language, source, filepath.Join(idx.Root, path), name)
-		if err != nil {
-			if language.IsNotInstalled(err) {
-				return err
-			}
+		if err != nil || !containsAnyName(source, nameBytes) {
 			continue
 		}
 
 		lines := splitLines(source)
-		for _, reference := range references {
-			context := ""
-			if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
-				context = strings.TrimSpace(lines[reference.Line-1])
+		for indexValue, matchedName := range matchedNames {
+			if !bytes.Contains(source, nameBytes[indexValue]) {
+				continue
 			}
-			rows = append(rows, ReferenceRow{
-				File:    displayPath(path),
-				Line:    reference.Line,
-				Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
-				Context: context,
-			})
+
+			references, findErr := language.FindReferences(data.Meta.Language, source, filepath.Join(idx.Root, path), matchedName)
+			if findErr != nil {
+				if language.IsNotInstalled(findErr) {
+					return findErr
+				}
+				continue
+			}
+
+			for _, reference := range references {
+				context := ""
+				if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
+					context = strings.TrimSpace(lines[reference.Line-1])
+				}
+				rows = append(rows, ReferenceRow{
+					File:    displayPath(path),
+					Line:    reference.Line,
+					Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
+					Context: context,
+				})
+			}
 		}
 	}
 
@@ -333,6 +344,58 @@ func (service *Service) References(idx *index.Index, name string, file *string, 
 		return output.PrintJSON(service.stdout, deduped)
 	}
 	return output.PrintTOON(service.stdout, deduped)
+}
+
+func findDefinitionMatches(idx *index.Index, nameGlob string, kind *index.SymbolKind) ([]definitionMatch, error) {
+	matches := make([]definitionMatch, 0)
+	for path, data := range idx.Entries {
+		for _, symbol := range data.Symbols {
+			ok, err := globMatch(nameGlob, symbol.Name)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			if kind != nil && symbol.Kind != *kind {
+				continue
+			}
+			matches = append(matches, definitionMatch{path: path, symbol: symbol})
+		}
+	}
+	return matches, nil
+}
+
+func findMatchingSymbolNames(idx *index.Index, nameGlob string) ([]string, error) {
+	names := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, data := range idx.Entries {
+		for _, symbol := range data.Symbols {
+			ok, err := globMatch(nameGlob, symbol.Name)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			if _, exists := seen[symbol.Name]; exists {
+				continue
+			}
+			seen[symbol.Name] = struct{}{}
+			names = append(names, symbol.Name)
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func containsAnyName(source []byte, names [][]byte) bool {
+	for _, name := range names {
+		if bytes.Contains(source, name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (service *Service) DirectoryOverview(idx *index.Index, dir string, full bool) error {
@@ -474,6 +537,60 @@ func (service *Service) fileLookupError(relPath string, root string) error {
 		return fmt.Errorf("gx: unsupported file type: .%s", strings.TrimPrefix(filepath.Ext(absPath), "."))
 	}
 	return fmt.Errorf("gx: file not in index: %s", displayPath(relPath))
+}
+
+func (service *Service) resolveScope(idx *index.Index, scope *string) (*scopeFilter, error) {
+	if scope == nil || *scope == "" {
+		return nil, nil
+	}
+
+	relPath := normalizeRelativePath(*scope, idx.Root)
+	absPath := filepath.Join(idx.Root, relPath)
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("gx: scope not found: %s", displayScopePath(relPath))
+	}
+
+	if info.IsDir() {
+		prefix := relPath
+		if prefix == "." {
+			prefix = ""
+		}
+
+		paths := make(map[string]struct{})
+		for path := range idx.Entries {
+			if prefix == "" || path == prefix || strings.HasPrefix(path, prefix+string(filepath.Separator)) {
+				paths[path] = struct{}{}
+			}
+		}
+		if len(paths) == 0 {
+			return nil, fmt.Errorf("gx: no indexed files under %s", displayScopePath(relPath))
+		}
+		return &scopeFilter{
+			relPath: relPath,
+			isFile:  false,
+			paths:   paths,
+		}, nil
+	}
+
+	if _, ok := idx.Entries[relPath]; !ok {
+		return nil, service.fileLookupError(relPath, idx.Root)
+	}
+	return &scopeFilter{
+		relPath: relPath,
+		isFile:  true,
+		paths: map[string]struct{}{
+			relPath: {},
+		},
+	}, nil
+}
+
+func (filter *scopeFilter) contains(path string) bool {
+	if filter == nil {
+		return true
+	}
+	_, ok := filter.paths[path]
+	return ok
 }
 
 func readBody(root string, file string, symbol index.Symbol) (string, int, bool) {

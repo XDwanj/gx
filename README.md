@@ -106,6 +106,9 @@ Find matching symbols across the project:
 gx symbols --name 'new*'
 ```
 
+`gx --name` filters use shell-style glob patterns such as `'new*'`,
+`'*Runtime'`, and `'*build*'`.
+
 Read one symbol body directly:
 
 ```bash
@@ -167,15 +170,22 @@ The index is file-oriented: each indexed file stores its language, modification 
 
 - `gx overview <path>`: Show a table of contents for a file or directory.
 - `gx overview <dir> --full`: Show a fuller per-file directory overview.
-- `gx symbols [--file PATH] [--name GLOB] [--kind KIND]`: Search symbols across the project.
-- `gx definition --name NAME [--from PATH] [--kind KIND] [--max-lines N]`: Print a symbol body.
-- `gx references --name NAME [--file PATH] [--unique]`: Find symbol usages.
+- `gx symbols [--scope PATH] [--name GLOB] [--kind KIND]`: Search symbols across the project. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
+- `gx definition --name GLOB [--scope PATH] [--kind KIND] [--max-lines N]`: Print matching symbol bodies.
+- `gx references --name GLOB [--scope PATH] [--unique]`: Find usages for matching symbol names.
 
 Short aliases: `gx o`, `gx s`, `gx d`, `gx r`
 
 Supported symbol kinds:
 
 `fn`, `method`, `struct`, `enum`, `trait`, `type`, `const`, `class`, `interface`, `module`, `event`
+
+Match mode notes:
+
+- `gx symbols --name` uses glob matching.
+- `gx definition --name` uses glob matching.
+- `gx references --name` uses glob matching.
+- `--scope` accepts either a file path or a directory path.
 
 ### Language management
 
