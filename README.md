@@ -26,7 +26,7 @@ Use `gx lang list` to see which grammars are currently installed in your local c
 Build a local binary:
 
 ```bash
-go build -o gx .
+make build
 ```
 
 Run directly without building:
@@ -34,6 +34,24 @@ Run directly without building:
 ```bash
 go run . --help
 ```
+
+Run the standard checks:
+
+```bash
+make test
+make lint
+```
+
+Build cross-compilation artifacts under `dist/`:
+
+```bash
+make cross
+```
+
+For non-Darwin targets, the project needs a cgo-capable cross compiler. The
+default `Makefile` configuration expects `zig cc` for Linux and Windows targets.
+On macOS, `make cross-darwin` builds both `darwin/arm64` and `darwin/amd64`
+artifacts with `clang`.
 
 ## Quick start
 

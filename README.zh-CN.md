@@ -26,7 +26,7 @@
 构建本地二进制：
 
 ```bash
-go build -o gx .
+make build
 ```
 
 不构建直接运行：
@@ -34,6 +34,23 @@ go build -o gx .
 ```bash
 go run . --help
 ```
+
+运行标准校验：
+
+```bash
+make test
+make lint
+```
+
+将交叉编译产物输出到 `dist/`：
+
+```bash
+make cross
+```
+
+非 Darwin 目标需要支持 cgo 的交叉 C 编译器。当前 `Makefile` 默认对
+Linux 和 Windows 目标使用 `zig cc`。在 macOS 上可以通过 `make cross-darwin`
+构建 `darwin/arm64` 和 `darwin/amd64` 两种产物。
 
 ## 快速开始
 

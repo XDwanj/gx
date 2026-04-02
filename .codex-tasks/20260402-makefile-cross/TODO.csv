@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Inspect existing build flow and cross-compilation constraints,DONE,Current build entrypoints and cgo constraints are identified,test -f .codex-tasks/20260402-makefile-cross/SPEC.md,2026-04-02T00:00:00Z,0,Verified local build works and non-darwin cross builds require an explicit cgo-capable cross compiler.
+2,Add Makefile targets for build test lint clean and cross artifacts,DONE,Makefile supports the required targets,make build,2026-04-02T00:00:00Z,0,Added build/test/lint/clean/cross/cross-darwin with dist output and explicit CC toolchain handling.
+3,Update ignore rules and README build instructions,DONE,Generated artifacts are ignored and docs mention Makefile usage,test -f README.md,2026-04-02T00:00:00Z,0,Updated .gitignore plus English and Chinese build instructions.
+4,Run validation commands and verify at least one cross target,DONE,Build/test/lint pass and a cross build is exercised,go test ./... -timeout 60s,2026-04-02T00:00:00Z,0,Validated make build, make cross-darwin, go test, and golangci-lint.
