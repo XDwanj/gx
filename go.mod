@@ -1,6 +1,6 @@
 module gx
 
-go 1.26.1
+go 1.24.5
 
 require (
 	github.com/gobwas/glob v0.2.3
