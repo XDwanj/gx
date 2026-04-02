@@ -270,3 +270,68 @@ func TestMissingScopeReturnsError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestMarkdownOverviewOutput(t *testing.T) {
+	root := tempProject(t, map[string]string{
+		"README.md": "# Title\n\n## Section\n\n### Deep Dive\n\n#### Level Four\n\n##### Level Five\n\n###### Level Six\n",
+	})
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.MarkdownOverview("README.md"); err != nil {
+		t.Fatalf("markdown overview: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "{level,heading}:") {
+		t.Fatalf("unexpected output: %s", output)
+	}
+	for _, expected := range []string{
+		"1,Title",
+		"2,Section",
+		"3,Deep Dive",
+		"4,Level Four",
+		"5,Level Five",
+		"6,Level Six",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("missing heading %q in output %s", expected, output)
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestMarkdownOverviewIgnoresFencedCodeAndSupportsSetext(t *testing.T) {
+	root := tempProject(t, map[string]string{
+		"guide.markdown": "Document Title\n===============\n\n```md\n# not a heading\n## still not a heading\n```\n\nSection\n-------\n\n### Real Heading\n",
+	})
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.MarkdownOverview("guide.markdown"); err != nil {
+		t.Fatalf("markdown overview: %v", err)
+	}
+
+	output := stdout.String()
+	for _, expected := range []string{
+		"1,Document Title",
+		"2,Section",
+		"3,Real Heading",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("missing heading %q in output %s", expected, output)
+		}
+	}
+	if strings.Contains(output, "not a heading") {
+		t.Fatalf("fenced code heading should be ignored: %s", output)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}

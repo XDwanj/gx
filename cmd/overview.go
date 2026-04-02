@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"gx/internal/query"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -20,18 +21,25 @@ func newOverviewCmd() *cobra.Command {
 				return err
 			}
 
-			debugf(rootCmd.ErrOrStderr(), "overview target=%s", args[0])
+			target := args[0]
+			debugf(rootCmd.ErrOrStderr(), "overview target=%s", target)
+
+			abs := resolveTargetPath(target, runtime.Root)
+			info, err := os.Stat(abs)
+			if err == nil && info.IsDir() {
+				idx, loadErr := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
+				if loadErr != nil {
+					return loadErr
+				}
+				return runtime.Query.DirectoryOverview(idx, target, full)
+			}
+			if err == nil && query.IsMarkdownPath(abs) {
+				return runtime.Query.MarkdownOverview(target)
+			}
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
-			}
-
-			target := args[0]
-			abs := resolveTargetPath(target, runtime.Root)
-			info, err := os.Stat(abs)
-			if err == nil && info.IsDir() {
-				return runtime.Query.DirectoryOverview(idx, target, full)
 			}
 			return runtime.Query.Symbols(idx, &target, nil, nil)
 		},

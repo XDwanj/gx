@@ -7,6 +7,7 @@ This project is derived from `cx`, but its public command name in this repositor
 ## What it does
 
 - Gives a file or directory overview before you read source files in full.
+- Shows Markdown heading outlines for `.md` and `.markdown` files in `gx overview`.
 - Searches symbols across the project with kind and glob filters.
 - Prints the body of a symbol directly, so you can inspect one function or type without opening the whole file.
 - Finds references for a symbol, with an optional unique-per-caller view to estimate refactor blast radius.
@@ -94,6 +95,12 @@ Explore a directory before opening files:
 gx overview cmd
 ```
 
+Inspect a Markdown document outline:
+
+```bash
+gx overview README.md
+```
+
 Inspect the structure of a single file:
 
 ```bash
@@ -163,6 +170,8 @@ flowchart TD
 ```
 
 The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols. `definition` uses stored byte ranges to slice the original source file directly, while `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
+
+Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, or `references`.
 
 ## Commands
 
