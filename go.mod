@@ -6,6 +6,7 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/cobra v1.10.2
+	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	github.com/tree-sitter-grammars/tree-sitter-lua v0.5.0
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-bash v0.25.1

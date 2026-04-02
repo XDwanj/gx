@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"strings"
+
+	toon "github.com/toon-format/toon-go"
 )
 
 type rowData struct {
@@ -34,18 +35,28 @@ func PrintTOON(writer io.Writer, value any) error {
 	}
 
 	headers := rows[0].Headers
-	var builder strings.Builder
-	_, _ = fmt.Fprintf(&builder, "[%d]{%s}:\n", len(rows), strings.Join(headers, ","))
+	tabularRows := make([]toon.Object, 0, len(rows))
 	for _, row := range rows {
-		values := make([]string, 0, len(headers))
-		for _, key := range headers {
-			values = append(values, encodeValue(row.Values[key]))
-		}
-		builder.WriteString("  " + strings.Join(values, ",") + "\n")
+		tabularRows = append(tabularRows, toTOONRow(headers, row.Values))
 	}
 
-	_, err = io.WriteString(writer, builder.String())
+	encoded, err := toon.Marshal(tabularRows)
+	if err != nil {
+		return fmt.Errorf("gx: toon encoding error: %w", err)
+	}
+	_, err = fmt.Fprintln(writer, string(encoded))
 	return err
+}
+
+func toTOONRow(headers []string, values map[string]any) toon.Object {
+	fields := make([]toon.Field, 0, len(headers))
+	for _, key := range headers {
+		fields = append(fields, toon.Field{
+			Key:   key,
+			Value: values[key],
+		})
+	}
+	return toon.NewObject(fields...)
 }
 
 func normalizeRows(value any) ([]rowData, error) {
@@ -114,25 +125,6 @@ func structToRow(value reflect.Value) (rowData, error) {
 	}
 
 	return rowData{Headers: headers, Values: values}, nil
-}
-
-func encodeValue(value any) string {
-	switch typed := value.(type) {
-	case string:
-		if strings.ContainsAny(typed, ",\"\n") {
-			return strconv.Quote(typed)
-		}
-		return typed
-	case fmt.Stringer:
-		return encodeValue(typed.String())
-	case bool:
-		if typed {
-			return "true"
-		}
-		return "false"
-	default:
-		return fmt.Sprint(value)
-	}
 }
 
 func isEmptyValue(value reflect.Value) bool {

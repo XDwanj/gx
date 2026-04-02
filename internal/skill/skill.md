@@ -1,7 +1,5 @@
 # gx — Semantic Code Navigation
 
-`gx` is derived from `cx`. When `gx` is available in the project, prefer it over reading files directly.
-
 ## Escalation hierarchy: directory overview → file overview → symbols → definition / references → read
 
 - **Explore a directory** → `gx overview <dir>` (~20 tokens per entry)
