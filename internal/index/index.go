@@ -1,6 +1,7 @@
 package index
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"gx/internal/language"
@@ -20,13 +21,10 @@ const IndexVersion = 5
 const (
 	verboseProgressEveryFiles = 25
 	verboseSlowFileThreshold  = 250 * time.Millisecond
+	sqliteDriverName          = "sqlite"
+	sqliteBusyTimeoutMillis   = 5_000
+	cacheFileExtension        = ".sqlite3"
 )
-
-type Store struct {
-	Version int                 `json:"version"`
-	Root    string              `json:"root"`
-	Entries map[string]FileData `json:"entries"`
-}
 
 type Index struct {
 	Root    string
@@ -101,7 +99,7 @@ func LoadOrBuildWithOptions(root string, options LoadOptions) (*Index, error) {
 }
 
 func CachePathFor(root string) string {
-	return filepath.Join(cacheDir(), "indexes", sanitizeRoot(root)+".json")
+	return filepath.Join(cacheDir(), "indexes", sanitizeRoot(root)+cacheFileExtension)
 }
 
 func cacheDir() string {
@@ -125,19 +123,66 @@ func (entry FileEntry) MTime() time.Time {
 }
 
 func loadEntries(path string) (map[string]FileData, error) {
-	bytes, err := os.ReadFile(path)
+	if !fileExists(path) {
+		return nil, os.ErrNotExist
+	}
+
+	db, err := openStore(path)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = db.Close()
+	}()
 
-	store := &Store{}
-	if err := json.Unmarshal(bytes, store); err != nil {
+	version, _, err := loadMeta(db)
+	if err != nil {
 		return nil, err
 	}
-	if store.Version != IndexVersion {
+	if version != IndexVersion {
 		return nil, fmt.Errorf("version mismatch")
 	}
-	return store.Entries, nil
+
+	rows, err := db.Query(`
+		SELECT path, mtime_secs, mtime_nanos, language, symbols_json
+		FROM file_entries
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	entries := map[string]FileData{}
+	for rows.Next() {
+		var (
+			path       string
+			mtimeSecs  int64
+			mtimeNanos int64
+			language   string
+			symbolsRaw []byte
+			symbols    []Symbol
+		)
+		if err := rows.Scan(&path, &mtimeSecs, &mtimeNanos, &language, &symbolsRaw); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(symbolsRaw, &symbols); err != nil {
+			return nil, err
+		}
+		entries[path] = FileData{
+			Meta: FileEntry{
+				MTimeSecs:  mtimeSecs,
+				MTimeNanos: mtimeNanos,
+				Language:   language,
+			},
+			Symbols: symbols,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 func saveStore(root string, entries map[string]FileData) error {
@@ -145,16 +190,130 @@ func saveStore(root string, entries map[string]FileData) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	payload := Store{
-		Version: IndexVersion,
-		Root:    root,
-		Entries: entries,
-	}
-	bytes, err := json.Marshal(payload)
+
+	db, err := openStore(path)
 	if err != nil {
-		return fmt.Errorf("gx: failed to encode index: %w", err)
+		return err
 	}
-	return os.WriteFile(path, bytes, 0o644)
+	defer func() {
+		_ = db.Close()
+	}()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, execErr := tx.Exec(`DELETE FROM store_meta`); execErr != nil {
+		return execErr
+	}
+	if _, execErr := tx.Exec(
+		`INSERT INTO store_meta (id, version, root) VALUES (1, ?, ?)`,
+		IndexVersion,
+		root,
+	); execErr != nil {
+		return execErr
+	}
+	if _, execErr := tx.Exec(`DELETE FROM file_entries`); execErr != nil {
+		return execErr
+	}
+
+	statement, err := tx.Prepare(`
+		INSERT INTO file_entries (path, mtime_secs, mtime_nanos, language, symbols_json)
+		VALUES (?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = statement.Close()
+	}()
+
+	for path, data := range entries {
+		symbolsJSON, err := json.Marshal(data.Symbols)
+		if err != nil {
+			return fmt.Errorf("gx: failed to encode index: %w", err)
+		}
+		if _, err := statement.Exec(
+			path,
+			data.Meta.MTimeSecs,
+			data.Meta.MTimeNanos,
+			data.Meta.Language,
+			symbolsJSON,
+		); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func openStore(path string) (*sql.DB, error) {
+	db, err := sql.Open(sqliteDriverName, path)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	if _, err := db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d", sqliteBusyTimeoutMillis)); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	if err := initStore(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func initStore(db *sql.DB) error {
+	schema := []string{
+		`
+			CREATE TABLE IF NOT EXISTS store_meta (
+				id INTEGER PRIMARY KEY CHECK (id = 1),
+				version INTEGER NOT NULL,
+				root TEXT NOT NULL
+			)
+		`,
+		`
+			CREATE TABLE IF NOT EXISTS file_entries (
+				path TEXT PRIMARY KEY,
+				mtime_secs INTEGER NOT NULL,
+				mtime_nanos INTEGER NOT NULL,
+				language TEXT NOT NULL,
+				symbols_json BLOB NOT NULL
+			)
+		`,
+	}
+	for _, statement := range schema {
+		if _, err := db.Exec(statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadMeta(db *sql.DB) (int, string, error) {
+	var (
+		version int
+		root    string
+	)
+	err := db.QueryRow(`
+		SELECT version, root
+		FROM store_meta
+		WHERE id = 1
+	`).Scan(&version, &root)
+	if err != nil {
+		return 0, "", err
+	}
+	return version, root, nil
 }
 
 func needsUpdate(root string, entries map[string]FileData) bool {
