@@ -116,7 +116,7 @@ flowchart TD
     E --> F{缓存是否有效}
     F -->|是| G[直接使用缓存条目]
     F -->|否| H[遍历项目文件]
-    H --> I[应用 .gitignore 与 .gx-ignore 规则]
+    H --> I[应用 .gitignore、.ignore 与 .gx-ignore 规则]
     I --> J[按文件扩展名识别语言]
     J --> K[检查 grammar 安装清单]
     K --> L[使用 Tree-sitter 解析源码]

@@ -68,6 +68,212 @@ func TestWalkSkipsDirectoriesWithGxIgnore(t *testing.T) {
 	}
 }
 
+func TestWalkRespectsRootDotIgnore(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".ignore"), []byte("*.go\n!keep.go\nbuild/\n"), 0o644); err != nil {
+		t.Fatalf("write .ignore: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "build"), 0o755); err != nil {
+		t.Fatalf("mkdir build: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ignored.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write ignored.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "build", "skip.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write build/skip.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "build", "keep.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write build/keep.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "keep.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write keep.go: %v", err)
+	}
+
+	visited := map[string]bool{}
+	if err := walk(root, func(candidate fileCandidate) error {
+		visited[candidate.RelPath] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	if visited["ignored.go"] {
+		t.Fatalf("expected ignored.go to be skipped, visited=%v", visited)
+	}
+	if visited[filepath.Join("build", "skip.go")] {
+		t.Fatalf("expected build/skip.go to be skipped, visited=%v", visited)
+	}
+	if visited[filepath.Join("build", "keep.go")] {
+		t.Fatalf("expected build/keep.go to remain skipped after directory ignore, visited=%v", visited)
+	}
+	if !visited["keep.go"] {
+		t.Fatalf("expected keep.go to be visited, visited=%v", visited)
+	}
+}
+
+func TestWalkRespectsScopedDotIgnore(t *testing.T) {
+	root := t.TempDir()
+	scopedDir := filepath.Join(root, "pkg")
+	if err := os.MkdirAll(filepath.Join(scopedDir, "nested"), 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scopedDir, ".ignore"), []byte("generated.go\nnested/\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/.ignore: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scopedDir, "generated.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/generated.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scopedDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/keep.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scopedDir, "nested", "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/nested/skip.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "generated.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write root generated.go: %v", err)
+	}
+
+	visited := map[string]bool{}
+	if err := walk(root, func(candidate fileCandidate) error {
+		visited[candidate.RelPath] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	if !visited["generated.go"] {
+		t.Fatalf("expected root generated.go to remain visible, visited=%v", visited)
+	}
+	if visited[filepath.Join("pkg", "generated.go")] {
+		t.Fatalf("expected pkg/generated.go to be skipped, visited=%v", visited)
+	}
+	if visited[filepath.Join("pkg", "nested", "skip.go")] {
+		t.Fatalf("expected pkg/nested/skip.go to be skipped, visited=%v", visited)
+	}
+	if !visited[filepath.Join("pkg", "keep.go")] {
+		t.Fatalf("expected pkg/keep.go to be visited, visited=%v", visited)
+	}
+}
+
+func TestWalkCombinesGitignoreAndDotIgnore(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("vendor/\n"), 0o644); err != nil {
+		t.Fatalf("write .gitignore: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".ignore"), []byte("tmp.go\n"), 0o644); err != nil {
+		t.Fatalf("write .ignore: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "vendor"), 0o755); err != nil {
+		t.Fatalf("mkdir vendor: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "vendor", "skip.go"), []byte("package vendor\n"), 0o644); err != nil {
+		t.Fatalf("write vendor/skip.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tmp.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write tmp.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+
+	visited := map[string]bool{}
+	if err := walk(root, func(candidate fileCandidate) error {
+		visited[candidate.RelPath] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	if visited[filepath.Join("vendor", "skip.go")] {
+		t.Fatalf("expected vendor/skip.go to be skipped by .gitignore, visited=%v", visited)
+	}
+	if visited["tmp.go"] {
+		t.Fatalf("expected tmp.go to be skipped by .ignore, visited=%v", visited)
+	}
+	if !visited["main.go"] {
+		t.Fatalf("expected main.go to be visited, visited=%v", visited)
+	}
+}
+
+func TestWalkRespectsScopedGitignore(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "pkg")
+	if err := os.MkdirAll(filepath.Join(pkgDir, "nested"), 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, ".gitignore"), []byte("generated.go\nnested/\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/.gitignore: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "generated.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/generated.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/keep.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "nested", "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/nested/skip.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "generated.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write root generated.go: %v", err)
+	}
+
+	visited := map[string]bool{}
+	if err := walk(root, func(candidate fileCandidate) error {
+		visited[candidate.RelPath] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	if !visited["generated.go"] {
+		t.Fatalf("expected root generated.go to remain visible, visited=%v", visited)
+	}
+	if visited[filepath.Join("pkg", "generated.go")] {
+		t.Fatalf("expected pkg/generated.go to be skipped, visited=%v", visited)
+	}
+	if visited[filepath.Join("pkg", "nested", "skip.go")] {
+		t.Fatalf("expected pkg/nested/skip.go to be skipped, visited=%v", visited)
+	}
+	if !visited[filepath.Join("pkg", "keep.go")] {
+		t.Fatalf("expected pkg/keep.go to be visited, visited=%v", visited)
+	}
+}
+
+func TestWalkScopedDotIgnoreOverridesScopedGitignore(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "pkg")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("mkdir pkg: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, ".gitignore"), []byte("keep.go\nskip.go\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/.gitignore: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, ".ignore"), []byte("!keep.go\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/.ignore: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/keep.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatalf("write pkg/skip.go: %v", err)
+	}
+
+	visited := map[string]bool{}
+	if err := walk(root, func(candidate fileCandidate) error {
+		visited[candidate.RelPath] = true
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+
+	if !visited[filepath.Join("pkg", "keep.go")] {
+		t.Fatalf("expected pkg/keep.go to be restored by pkg/.ignore, visited=%v", visited)
+	}
+	if visited[filepath.Join("pkg", "skip.go")] {
+		t.Fatalf("expected pkg/skip.go to remain skipped, visited=%v", visited)
+	}
+}
+
 func TestWalkDoesNotTreatCxIgnoreAsSpecial(t *testing.T) {
 	root := t.TempDir()
 	legacyDir := filepath.Join(root, "legacy")

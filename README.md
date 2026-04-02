@@ -117,7 +117,7 @@ flowchart TD
     E --> F{Cache valid?}
     F -->|Yes| G[Use cached entries]
     F -->|No| H[Walk project files]
-    H --> I[Apply .gitignore and .gx-ignore rules]
+    H --> I[Apply .gitignore, .ignore and .gx-ignore rules]
     I --> J[Detect language from file extension]
     J --> K[Check grammar install manifest]
     K --> L[Parse source with Tree-sitter]

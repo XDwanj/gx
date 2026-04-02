@@ -22,6 +22,10 @@ const (
 	sqliteDriverName          = "sqlite"
 	sqliteBusyTimeoutMillis   = 5_000
 	cacheFileExtension        = ".sqlite3"
+	gitDirName                = ".git"
+	gitIgnoreFileName         = ".gitignore"
+	dotIgnoreFileName         = ".ignore"
+	gxIgnoreFileName          = ".gx-ignore"
 )
 
 type Index struct {
@@ -43,6 +47,11 @@ type fileCandidate struct {
 	AbsPath string
 	RelPath string
 	Info    os.FileInfo
+}
+
+type walkState struct {
+	patterns []string
+	matcher  *ignore.GitIgnore
 }
 
 func LoadOrBuild(root string) (*Index, error) {
@@ -312,35 +321,43 @@ func logIndexProgress(logger *debugLogger, processedCount int, entryCount int, s
 }
 
 func walk(root string, visit func(fileCandidate) error) error {
-	gitignoreMatcher := compileIgnore(filepath.Join(root, ".gitignore"))
+	cleanRoot := filepath.Clean(root)
+	states := map[string]walkState{}
 
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(cleanRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
 
+		if path == cleanRoot {
+			states[path] = buildWalkState(cleanRoot, cleanRoot, walkState{})
+			return nil
+		}
+
 		name := info.Name()
-		if name == ".git" {
+		if name == gitDirName {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		if info.IsDir() && fileExists(filepath.Join(path, ".gx-ignore")) {
+		if info.IsDir() && fileExists(filepath.Join(path, gxIgnoreFileName)) {
 			return filepath.SkipDir
 		}
 
-		relPath, relErr := filepath.Rel(root, path)
+		relPath, relErr := filepath.Rel(cleanRoot, path)
 		if relErr != nil {
 			return nil
 		}
 		relPath = filepath.Clean(relPath)
-		if relPath == "." {
+
+		parentState, ok := states[filepath.Dir(path)]
+		if !ok {
 			return nil
 		}
 
-		if gitignoreMatcher != nil && gitignoreMatcher.MatchesPath(strings.ReplaceAll(relPath, "\\", "/")) {
+		if parentState.matches(relPath, info.IsDir()) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -348,6 +365,7 @@ func walk(root string, visit func(fileCandidate) error) error {
 		}
 
 		if info.IsDir() {
+			states[path] = buildWalkState(cleanRoot, path, parentState)
 			return nil
 		}
 
@@ -359,12 +377,103 @@ func walk(root string, visit func(fileCandidate) error) error {
 	})
 }
 
-func compileIgnore(path string) *ignore.GitIgnore {
-	matcher, err := ignore.CompileIgnoreFile(path)
-	if err != nil {
-		return nil
+func buildWalkState(root string, dir string, parent walkState) walkState {
+	nextPatterns := parent.patterns
+	scope := ignoreScope(root, dir)
+
+	nextPatterns = appendIgnoreFilePatterns(nextPatterns, scope, filepath.Join(dir, gitIgnoreFileName))
+	nextPatterns = appendIgnoreFilePatterns(nextPatterns, scope, filepath.Join(dir, dotIgnoreFileName))
+
+	if len(nextPatterns) == len(parent.patterns) {
+		return parent
 	}
-	return matcher
+
+	statePatterns := append([]string(nil), nextPatterns...)
+	return walkState{
+		patterns: statePatterns,
+		matcher:  ignore.CompileIgnoreLines(statePatterns...),
+	}
+}
+
+func appendIgnoreFilePatterns(patterns []string, scope string, path string) []string {
+	lines, err := os.ReadFile(path)
+	if err != nil {
+		return patterns
+	}
+
+	result := patterns
+	for _, line := range strings.Split(string(lines), "\n") {
+		result = append(result, rewriteScopedIgnoreLine(scope, line))
+	}
+	return result
+}
+
+func rewriteScopedIgnoreLine(scope string, line string) string {
+	if scope == "" {
+		return line
+	}
+
+	trimmed := strings.TrimRight(line, "\r")
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return line
+	}
+
+	negated := strings.HasPrefix(trimmed, "!")
+	pattern := trimmed
+	if negated {
+		pattern = trimmed[1:]
+	}
+
+	if pattern == "" {
+		return line
+	}
+
+	if strings.Contains(pattern, "/") {
+		pattern = "/" + joinIgnoreScope(scope, strings.TrimPrefix(pattern, "/"))
+	} else {
+		pattern = "/" + joinIgnoreScope(scope, "**", pattern)
+	}
+
+	if negated {
+		return "!" + pattern
+	}
+	return pattern
+}
+
+func joinIgnoreScope(parts ...string) string {
+	filtered := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		filtered = append(filtered, strings.Trim(part, "/"))
+	}
+	return strings.Join(filtered, "/")
+}
+
+func ignoreScope(root string, dir string) string {
+	if dir == root {
+		return ""
+	}
+
+	relPath, err := filepath.Rel(root, dir)
+	if err != nil {
+		return ""
+	}
+	return strings.ReplaceAll(filepath.Clean(relPath), "\\", "/")
+}
+
+func (state walkState) matches(relPath string, isDir bool) bool {
+	if state.matcher == nil {
+		return false
+	}
+
+	candidate := strings.ReplaceAll(relPath, "\\", "/")
+	if isDir && !strings.HasSuffix(candidate, "/") {
+		candidate += "/"
+	}
+	return state.matcher.MatchesPath(candidate)
 }
 
 func fileExists(path string) bool {
