@@ -26,7 +26,9 @@ func newDefinitionCmd() *cobra.Command {
 				return err
 			}
 
-			idx, err := index.LoadOrBuild(runtime.Root)
+			debugf(rootCmd.ErrOrStderr(), "definition name=%s", name)
+
+			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

@@ -21,30 +21,34 @@ const (
 )
 
 type Runtime struct {
-	Root  string
-	JSON  bool
-	Query *Service
+	Root    string
+	JSON    bool
+	Verbose bool
+	Query   *Service
 }
 
-func NewRuntime(root string, json bool) *Runtime {
+func NewRuntime(root string, json bool, verbose bool) *Runtime {
 	service := &Service{
-		root:   filepath.Clean(root),
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		json:   json,
+		root:    filepath.Clean(root),
+		stdout:  os.Stdout,
+		stderr:  os.Stderr,
+		json:    json,
+		verbose: verbose,
 	}
 	return &Runtime{
-		Root:  filepath.Clean(root),
-		JSON:  json,
-		Query: service,
+		Root:    filepath.Clean(root),
+		JSON:    json,
+		Verbose: verbose,
+		Query:   service,
 	}
 }
 
 type Service struct {
-	root   string
-	stdout io.Writer
-	stderr io.Writer
-	json   bool
+	root    string
+	stdout  io.Writer
+	stderr  io.Writer
+	json    bool
+	verbose bool
 }
 
 type SymbolRow struct {

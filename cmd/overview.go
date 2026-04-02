@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"gx/internal/index"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -21,7 +20,9 @@ func newOverviewCmd() *cobra.Command {
 				return err
 			}
 
-			idx, err := index.LoadOrBuild(runtime.Root)
+			debugf(rootCmd.ErrOrStderr(), "overview target=%s", args[0])
+
+			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

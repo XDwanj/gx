@@ -1,6 +1,7 @@
 package index
 
 import (
+	"bytes"
 	"gx/internal/lang"
 	"os"
 	"path/filepath"
@@ -109,5 +110,44 @@ func TestNeedsUpdateKeepsEmptyCacheWhenNoInstalledLanguageFilesExist(t *testing.
 
 	if needsUpdate(root, map[string]FileData{}) {
 		t.Fatalf("expected empty cache to remain unchanged when matching grammar is not installed")
+	}
+}
+
+func TestLoadOrBuildVerboseLogsStages(t *testing.T) {
+	cacheHome := t.TempDir()
+	t.Setenv("HOME", cacheHome)
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := lang.Add(os.Stdout, os.Stderr, []string{"go"}); err != nil {
+		t.Fatalf("install go grammar: %v", err)
+	}
+
+	var stderr bytes.Buffer
+	idx, err := LoadOrBuildWithOptions(root, LoadOptions{
+		Verbose: true,
+		Stderr:  &stderr,
+	})
+	if err != nil {
+		t.Fatalf("load verbose index: %v", err)
+	}
+	if len(idx.Entries) != 1 {
+		t.Fatalf("expected 1 indexed file, got %d", len(idx.Entries))
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "gx: debug: index root=") {
+		t.Fatalf("expected root log, got %q", output)
+	}
+	if !strings.Contains(output, "gx: debug: starting full index crawl") {
+		t.Fatalf("expected crawl log, got %q", output)
+	}
+	if !strings.Contains(output, "gx: debug: indexing main.go (go)") {
+		t.Fatalf("expected file log, got %q", output)
+	}
+	if !strings.Contains(output, "gx: debug: saved index cache with 1 entries") {
+		t.Fatalf("expected save log, got %q", output)
 	}
 }

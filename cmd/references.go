@@ -1,10 +1,6 @@
 package cmd
 
-import (
-	"gx/internal/index"
-
-	"github.com/spf13/cobra"
-)
+import "github.com/spf13/cobra"
 
 func newReferencesCmd() *cobra.Command {
 	var file string
@@ -25,7 +21,9 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			idx, err := index.LoadOrBuild(runtime.Root)
+			debugf(rootCmd.ErrOrStderr(), "references name=%s file=%s unique=%t", name, file, unique)
+
+			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

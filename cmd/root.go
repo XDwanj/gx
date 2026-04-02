@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"gx/internal/app"
+	"gx/internal/index"
 	"gx/internal/query"
+	"io"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -33,6 +35,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&rootFlags.Root, "root", "", "Project root (default: git root from cwd, then cwd)")
 	rootCmd.PersistentFlags().BoolVar(&rootFlags.JSON, "json", false, "Emit JSON instead of TOON")
+	rootCmd.PersistentFlags().BoolVar(&rootFlags.Verbose, "verbose", false, "Emit debug progress to stderr")
 
 	rootCmd.AddCommand(
 		newOverviewCmd(),
@@ -61,5 +64,20 @@ func buildRuntime() (*query.Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	return query.NewRuntime(root, rootFlags.JSON), nil
+	debugf(rootCmd.ErrOrStderr(), "resolved root %s", root)
+	return query.NewRuntime(root, rootFlags.JSON, rootFlags.Verbose), nil
+}
+
+func loadIndex(root string, stderr io.Writer) (*index.Index, error) {
+	return index.LoadOrBuildWithOptions(root, index.LoadOptions{
+		Verbose: rootFlags.Verbose,
+		Stderr:  stderr,
+	})
+}
+
+func debugf(stderr io.Writer, format string, args ...any) {
+	if !rootFlags.Verbose {
+		return
+	}
+	_, _ = fmt.Fprintf(stderr, "gx: debug: "+format+"\n", args...)
 }

@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Design verbose flag and logging path,DONE,Verbose design is mapped onto existing cmd and internal layers,test -f cmd/root.go,2026-04-02T11:11:00+08:00,0,Added root-level verbose flag and index load helper to centralize stderr debug output
+2,Implement verbose plumbing and index progress logs,DONE,Verbose mode prints root cache and index build stages with actionable progress,go test ./... -timeout 60s,2026-04-02T11:11:00+08:00,0,Root/cache/full-crawl/per-file/progress logs now emit to stderr only in verbose mode
+3,Reproduce hang with verbose and fix root cause,DONE,`gx o cmd/definition.go` no longer appears stuck on this repo,go test ./... -timeout 60s,2026-04-02T11:12:00+08:00,0,Verbose output identified internal/grammars parser sources as the bottleneck; internal/grammars/.gx-ignore now excludes that tree
+4,Run lint and final verification,DONE,Tests and golangci-lint both pass,golangci-lint run ./...,2026-04-02T11:13:00+08:00,0,Passed go test ./... -timeout 60s and golangci-lint run ./...; fresh-cache overview command now succeeds

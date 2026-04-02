@@ -8,8 +8,9 @@ import (
 )
 
 type Flags struct {
-	Root string
-	JSON bool
+	Root    string
+	JSON    bool
+	Verbose bool
 }
 
 func ResolveRoot(root string) (string, error) {
@@ -24,6 +25,6 @@ func ResolveRoot(root string) (string, error) {
 	return git.FindProjectRoot(cwd), nil
 }
 
-func NewQuery(root string, json bool) *query.Runtime {
-	return query.NewRuntime(root, json)
+func NewQuery(root string, json bool, verbose bool) *query.Runtime {
+	return query.NewRuntime(root, json, verbose)
 }

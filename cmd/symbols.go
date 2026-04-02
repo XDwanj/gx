@@ -21,7 +21,9 @@ func newSymbolsCmd() *cobra.Command {
 				return err
 			}
 
-			idx, err := index.LoadOrBuild(runtime.Root)
+			debugf(rootCmd.ErrOrStderr(), "symbols file=%s name=%s kind=%s", file, name, kind)
+
+			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}

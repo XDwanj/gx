@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gx/internal/language"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,11 @@ import (
 
 const IndexVersion = 5
 
+const (
+	verboseProgressEveryFiles = 25
+	verboseSlowFileThreshold  = 250 * time.Millisecond
+)
+
 type Store struct {
 	Version int                 `json:"version"`
 	Root    string              `json:"root"`
@@ -27,6 +33,16 @@ type Index struct {
 	Entries map[string]FileData
 }
 
+type LoadOptions struct {
+	Verbose bool
+	Stderr  io.Writer
+}
+
+type debugLogger struct {
+	enabled bool
+	stderr  io.Writer
+}
+
 type fileCandidate struct {
 	AbsPath string
 	RelPath string
@@ -34,11 +50,25 @@ type fileCandidate struct {
 }
 
 func LoadOrBuild(root string) (*Index, error) {
+	return LoadOrBuildWithOptions(root, LoadOptions{})
+}
+
+func LoadOrBuildWithOptions(root string, options LoadOptions) (*Index, error) {
 	cleanRoot := filepath.Clean(root)
 	cachePath := CachePathFor(cleanRoot)
+	logger := newDebugLogger(options)
+	logger.Printf("index root=%s", cleanRoot)
+	logger.Printf("index cache=%s", cachePath)
+
 	entries, err := loadEntries(cachePath)
 	if err == nil && !needsUpdate(cleanRoot, entries) {
+		logger.Printf("using cached index with %d entries", len(entries))
 		return &Index{Root: cleanRoot, Entries: entries}, nil
+	}
+	if err != nil {
+		logger.Printf("cache load miss or rebuild required: %v", err)
+	} else {
+		logger.Printf("cached index stale; rebuilding from %d entries", len(entries))
 	}
 
 	idx := &Index{
@@ -50,18 +80,23 @@ func LoadOrBuild(root string) (*Index, error) {
 	}
 
 	if len(idx.Entries) == 0 {
-		if err := idx.fullCrawl(); err != nil {
+		logger.Printf("starting full index crawl")
+		if err := idx.fullCrawl(logger); err != nil {
 			return nil, err
 		}
+		logger.Printf("finished full index crawl with %d entries", len(idx.Entries))
 	} else {
-		if err := idx.incrementalUpdate(); err != nil {
+		logger.Printf("starting incremental index update from %d entries", len(idx.Entries))
+		if err := idx.incrementalUpdate(logger); err != nil {
 			return nil, err
 		}
+		logger.Printf("finished incremental index update with %d entries", len(idx.Entries))
 	}
 
 	if err := saveStore(cleanRoot, idx.Entries); err != nil {
 		return nil, err
 	}
+	logger.Printf("saved index cache with %d entries", len(idx.Entries))
 	return idx, nil
 }
 
@@ -176,8 +211,9 @@ func hasInstalledIndexableFiles(root string) bool {
 	return found
 }
 
-func (idx *Index) fullCrawl() error {
+func (idx *Index) fullCrawl(logger *debugLogger) error {
 	missingLanguages := map[string]int{}
+	processedCount := 0
 
 	return walk(idx.Root, func(candidate fileCandidate) error {
 		languageName := language.DetectLanguage(candidate.AbsPath)
@@ -185,18 +221,24 @@ func (idx *Index) fullCrawl() error {
 			return nil
 		}
 
+		processedCount++
+		logger.Printf("indexing %s (%s)", candidate.RelPath, languageName)
+
 		source, err := os.ReadFile(candidate.AbsPath)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "gx: warning: failed to read %s: %v\n", candidate.AbsPath, err)
 			return nil
 		}
 
+		startedAt := time.Now()
 		symbols, err := language.ParseAndExtract(languageName, source, candidate.AbsPath)
 		if err != nil {
 			if language.IsNotInstalled(err) {
 				missingLanguages[languageName]++
+				logger.Printf("skipping %s: %v", candidate.RelPath, err)
 				return nil
 			}
+			logger.Printf("failed to parse %s: %v", candidate.RelPath, err)
 			return nil
 		}
 
@@ -204,13 +246,16 @@ func (idx *Index) fullCrawl() error {
 			Meta:    NewFileEntry(candidate.Info.ModTime(), languageName),
 			Symbols: toIndexSymbols(symbols),
 		}
+		logIndexedFile(logger, candidate.RelPath, time.Since(startedAt), len(symbols))
+		logIndexProgress(logger, processedCount, len(idx.Entries), "full crawl")
 		return nil
 	})
 }
 
-func (idx *Index) incrementalUpdate() error {
+func (idx *Index) incrementalUpdate(logger *debugLogger) error {
 	onDisk := map[string]fileCandidate{}
 	missingLanguages := map[string]bool{}
+	processedCount := 0
 
 	if err := walk(idx.Root, func(candidate fileCandidate) error {
 		languageName := language.DetectLanguage(candidate.AbsPath)
@@ -241,14 +286,19 @@ func (idx *Index) incrementalUpdate() error {
 
 		source, err := os.ReadFile(candidate.AbsPath)
 		if err != nil {
+			logger.Printf("failed to read %s: %v", relPath, err)
 			continue
 		}
 
+		processedCount++
+		logger.Printf("re-indexing %s (%s)", relPath, languageName)
+		startedAt := time.Now()
 		symbols, err := language.ParseAndExtract(languageName, source, candidate.AbsPath)
 		if err != nil {
 			if language.IsNotInstalled(err) {
 				missingLanguages[languageName] = true
 			}
+			logger.Printf("failed to parse %s: %v", relPath, err)
 			continue
 		}
 
@@ -256,12 +306,46 @@ func (idx *Index) incrementalUpdate() error {
 			Meta:    NewFileEntry(candidate.Info.ModTime(), languageName),
 			Symbols: toIndexSymbols(symbols),
 		}
+		logIndexedFile(logger, relPath, time.Since(startedAt), len(symbols))
+		logIndexProgress(logger, processedCount, len(idx.Entries), "incremental update")
 	}
 
 	for languageName := range missingLanguages {
 		_, _ = fmt.Fprintf(os.Stderr, "gx: skipping .%s files — install with: gx lang add %s\n", language.PrimaryExtension(languageName), languageName)
 	}
 	return nil
+}
+
+func newDebugLogger(options LoadOptions) *debugLogger {
+	stderr := options.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+	return &debugLogger{
+		enabled: options.Verbose,
+		stderr:  stderr,
+	}
+}
+
+func (logger *debugLogger) Printf(format string, args ...any) {
+	if !logger.enabled {
+		return
+	}
+	_, _ = fmt.Fprintf(logger.stderr, "gx: debug: "+format+"\n", args...)
+}
+
+func logIndexedFile(logger *debugLogger, relPath string, duration time.Duration, symbolCount int) {
+	if duration < verboseSlowFileThreshold {
+		return
+	}
+	logger.Printf("indexed %s in %s (%d symbols)", relPath, duration.Round(time.Millisecond), symbolCount)
+}
+
+func logIndexProgress(logger *debugLogger, processedCount int, entryCount int, stage string) {
+	if processedCount == 0 || processedCount%verboseProgressEveryFiles != 0 {
+		return
+	}
+	logger.Printf("%s progress: processed %d files, %d indexed entries", stage, processedCount, entryCount)
 }
 
 func walk(root string, visit func(fileCandidate) error) error {
