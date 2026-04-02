@@ -97,6 +97,43 @@ Estimate blast radius by caller:
 gx references --name buildRuntime --unique
 ```
 
+## How it works
+
+`gx` follows a shared pipeline for most navigation commands:
+
+1. Parse CLI flags and resolve the project root.
+2. Load the cached project index from SQLite, or rebuild/update it if files changed.
+3. During indexing, walk the project tree, detect languages by extension, and parse supported files with Tree-sitter.
+4. Extract symbols such as functions, methods, structs, traits, and types, then persist them with file mtimes.
+5. Run `overview`, `symbols`, `definition`, or `references` against the in-memory index and print TOON or JSON output.
+
+```mermaid
+flowchart TD
+    A[User runs gx command] --> B[Cobra command layer]
+    B --> C[Resolve project root]
+    C --> D{Command type}
+
+    D -->|overview / symbols /\ndefinition / references| E[Load SQLite index cache]
+    E --> F{Cache valid?}
+    F -->|Yes| G[Use cached entries]
+    F -->|No| H[Walk project files]
+    H --> I[Apply .gitignore and .gx-ignore rules]
+    I --> J[Detect language from file extension]
+    J --> K[Check grammar install manifest]
+    K --> L[Parse source with Tree-sitter]
+    L --> M[Extract symbols and byte ranges]
+    M --> N[Save refreshed index to SQLite]
+    G --> O[Run query service]
+    N --> O
+    O --> P[Format output as TOON or JSON]
+
+    D -->|lang| Q[Update or inspect grammar manifest]
+    D -->|cache| R[Inspect or remove index cache]
+    D -->|skill| S[Print embedded agent guide]
+```
+
+The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols. `definition` uses stored byte ranges to slice the original source file directly, while `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
+
 ## Commands
 
 ### Navigation

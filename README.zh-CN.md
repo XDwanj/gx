@@ -96,6 +96,43 @@ gx references --name buildRuntime
 gx references --name buildRuntime --unique
 ```
 
+## 工作原理
+
+`gx` 的大多数导航命令都走同一条执行链路：
+
+1. 解析命令行参数并确定项目根目录。
+2. 从 SQLite 读取项目索引缓存；如果缓存缺失或文件已变化，就重建或增量更新。
+3. 建索引时遍历项目文件，按扩展名识别语言，并用 Tree-sitter 解析受支持的源码文件。
+4. 提取函数、方法、结构体、trait、类型等符号，并连同文件 mtime 一起写入索引。
+5. 最后由 `overview`、`symbols`、`definition`、`references` 在内存索引上执行查询，并输出 TOON 或 JSON。
+
+```mermaid
+flowchart TD
+    A[用户执行 gx 命令] --> B[Cobra 命令层]
+    B --> C[解析项目根目录]
+    C --> D{命令类型}
+
+    D -->|overview / symbols /\ndefinition / references| E[加载 SQLite 索引缓存]
+    E --> F{缓存是否有效}
+    F -->|是| G[直接使用缓存条目]
+    F -->|否| H[遍历项目文件]
+    H --> I[应用 .gitignore 与 .gx-ignore 规则]
+    I --> J[按文件扩展名识别语言]
+    J --> K[检查 grammar 安装清单]
+    K --> L[使用 Tree-sitter 解析源码]
+    L --> M[提取符号与字节范围]
+    M --> N[将刷新后的索引写回 SQLite]
+    G --> O[执行查询服务]
+    N --> O
+    O --> P[格式化为 TOON 或 JSON 输出]
+
+    D -->|lang| Q[查看或更新 grammar 清单]
+    D -->|cache| R[查看或删除索引缓存]
+    D -->|skill| S[输出内置 agent 指南]
+```
+
+索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
+
 ## 命令说明
 
 ### 导航相关

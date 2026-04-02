@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/gobwas/glob v0.2.3
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/cobra v1.10.2
 	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c

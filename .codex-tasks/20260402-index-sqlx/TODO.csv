@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Establish task artifacts and migration boundaries,DONE,"Task files describe sqlx-only store migration scope and validations","test -f .codex-tasks/20260402-index-sqlx/SPEC.md && test -f .codex-tasks/20260402-index-sqlx/TODO.csv && test -f .codex-tasks/20260402-index-sqlx/PROGRESS.md","2026-04-02 14:08",0,
+2,Migrate internal/index SQLite store access to sqlx,DONE,"internal/index uses sqlx for open/init/load/save paths while preserving schema and transaction behavior","rg -n \"sqlx|database/sql\" internal/index","2026-04-02 14:12",0,
+3,Run Go test suite with timeout,DONE,"Repository Go tests pass","go test ./... -timeout 60s","2026-04-02 14:12",0,
+4,Run golangci-lint hard gate,DONE,"Repository lint passes","golangci-lint run ./...","2026-04-02 14:16",1,"One lint retry after fixing govet shadowing in internal/index/store_sqlx.go"
