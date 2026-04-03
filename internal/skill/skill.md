@@ -1,3 +1,4 @@
+
 # gx — Semantic Code Navigation
 
 Use `gx` to narrow the target before reading a full file.
