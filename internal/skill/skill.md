@@ -57,6 +57,5 @@ Match mode: every `--name` filter uses glob matching, not regex. Common forms in
 
 ## Missing Grammars
 
-Check installed grammars: `gx lang list`
-
-Install what is missing: `gx lang add rust`
+- Check installed grammars: `gx lang list`
+- Install what is missing: `gx lang add rust`
