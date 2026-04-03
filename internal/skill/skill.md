@@ -8,7 +8,10 @@ Use `gx` to narrow the target before reading a full file.
 - Inspect a directory before opening files: `gx overview internal/query`
 - Inspect file structure without reading the whole file: `gx overview cmd/root.go`
 - Find functions or types across the project: `gx symbols --kind fn --name '*search*'`
-- `gx --name` supports glob patterns such as `prefix*`, `*suffix`, and `*contains*`
+- Match one exact symbol name: `gx symbols --name 'Search'`
+- Match by prefix, suffix, or contains: `gx symbols --name 'build*'`, `gx symbols --name '*Runtime'`, `gx symbols --name '*search*'`
+- Match multiple names with alternation: `gx symbols --name '{AliPay,WechatPay}'`
+- Quote `--name` patterns so your shell does not expand globs before `gx` receives them
 - Limit symbol search to one file: `gx symbols internal/query/search.go`
 - Read one function or type directly: `gx definition --name Search`
 - Resolve a definition from a specific file: `gx definition --name Search internal/query/search.go`
@@ -49,7 +52,7 @@ Kinds available for `gx symbols --kind` and `gx definition --kind`:
 - `module`: modules, namespaces, or similar code containers
 - `event`: event declarations in languages that expose them as symbols
 
-Match mode: every `--name` filter uses glob matching, path args accept either file paths or directory paths, and omitted paths default to the current working directory.
+Match mode: every `--name` filter uses glob matching, not regex. Common forms include exact match `'Search'`, prefix `'build*'`, suffix `'*Runtime'`, contains `'*search*'`, and alternation `'{AliPay,WechatPay}'`. Quote patterns so your shell passes them to `gx` unchanged. Path args accept either file paths or directory paths, and omitted paths default to the current working directory.
 
 ## Missing Grammars
 
