@@ -14,6 +14,7 @@ func TestOverviewCommandSupportsMarkdownFile(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatalf("mkdir .git: %v", err)
 	}
+	t.Chdir(root)
 	if err := os.WriteFile(
 		filepath.Join(root, "README.md"),
 		[]byte("# Title\n\n## Section\n"),

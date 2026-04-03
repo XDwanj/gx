@@ -14,3 +14,4 @@
 - For short user-facing guidance docs like embedded `skill.md`, prefer example-first structure over introductory explanation; keep conceptual framing to the minimum needed.
 - Treat `cx_version` only as the upstream `ind-igo/cx` commit marker; do not use it as the `gx` release or CLI version source.
 - When a user corrects remembered command behavior, verify the implementation first and update docs only after the code path is confirmed.
+- In all command docs, examples, and Cobra `Use` strings, show flags before positional args.

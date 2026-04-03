@@ -11,21 +11,24 @@ func newOverviewCmd() *cobra.Command {
 	var full bool
 
 	command := &cobra.Command{
-		Use:     "overview <path>",
+		Use:     "overview [flags] [path]",
 		Aliases: []string{"o"},
 		Short:   "Table of contents for a file or directory",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			runtime, err := buildRuntime()
 			if err != nil {
 				return err
 			}
 
-			target := args[0]
+			targets, err := resolveTargetPaths(args)
+			if err != nil {
+				return err
+			}
+			target := targets[0]
 			debugf(rootCmd.ErrOrStderr(), "overview target=%s", target)
 
-			abs := resolveTargetPath(target, runtime.Root)
-			info, err := os.Stat(abs)
+			info, err := os.Stat(target)
 			if err == nil && info.IsDir() {
 				idx, loadErr := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 				if loadErr != nil {
@@ -33,7 +36,7 @@ func newOverviewCmd() *cobra.Command {
 				}
 				return runtime.Query.DirectoryOverview(idx, target, full)
 			}
-			if err == nil && query.IsMarkdownPath(abs) {
+			if err == nil && query.IsMarkdownPath(target) {
 				return runtime.Query.MarkdownOverview(target)
 			}
 
@@ -41,7 +44,7 @@ func newOverviewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runtime.Query.Symbols(idx, &target, nil, nil)
+			return runtime.Query.Symbols(idx, []string{target}, nil, nil)
 		},
 	}
 

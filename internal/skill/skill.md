@@ -9,9 +9,9 @@ Use `gx` to narrow the target before reading a full file.
 - Inspect file structure without reading the whole file: `gx overview cmd/root.go`
 - Find functions or types across the project: `gx symbols --kind fn --name '*search*'`
 - `gx --name` supports glob patterns such as `prefix*`, `*suffix`, and `*contains*`
-- Limit symbol search to one file: `gx symbols --scope internal/query/search.go`
+- Limit symbol search to one file: `gx symbols internal/query/search.go`
 - Read one function or type directly: `gx definition --name Search`
-- Resolve a definition from a specific file: `gx definition --name Search --scope internal/query/search.go`
+- Resolve a definition from a specific file: `gx definition --name Search internal/query/search.go`
 - See where a symbol is used: `gx references --name Search`
 - Check refactor blast radius first: `gx references --name Search --unique`
 
@@ -25,10 +25,10 @@ Only fall back to Read when you need full-file context.
 
 ```text
 gx overview PATH
-gx overview DIR --full
-gx symbols [--kind K] [--name GLOB] [--scope PATH]
-gx definition --name GLOB [--scope PATH] [--kind K]
-gx references --name GLOB [--scope PATH] [--unique]
+gx overview --full DIR
+gx symbols [--kind K] [--name GLOB] [PATH ...]
+gx definition --name GLOB [--kind K] [PATH ...]
+gx references --name GLOB [--unique] [PATH ...]
 gx lang list
 gx lang add LANG [LANG...]
 ```
@@ -49,7 +49,7 @@ Kinds available for `gx symbols --kind` and `gx definition --kind`:
 - `module`: modules, namespaces, or similar code containers
 - `event`: event declarations in languages that expose them as symbols
 
-Match mode: every `--name` filter uses glob matching, and `--scope` accepts either a file path or a directory path.
+Match mode: every `--name` filter uses glob matching, path args accept either file paths or directory paths, and omitted paths default to the current working directory.
 
 ## Missing Grammars
 

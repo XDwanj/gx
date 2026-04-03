@@ -85,9 +85,8 @@ type definitionMatch struct {
 }
 
 type scopeFilter struct {
-	relPath string
-	isFile  bool
-	paths   map[string]struct{}
+	isSingleFile bool
+	paths        map[string]struct{}
 }
 
 type DirOverviewRow struct {
@@ -102,8 +101,8 @@ type DirOverviewFullRow struct {
 	Signature string `json:"signature"`
 }
 
-func (service *Service) Symbols(idx *index.Index, scope *string, nameGlob *string, kind *index.SymbolKind) error {
-	filter, err := service.resolveScope(idx, scope)
+func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind) error {
+	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
 	}
@@ -131,7 +130,7 @@ func (service *Service) Symbols(idx *index.Index, scope *string, nameGlob *strin
 				Kind:      string(symbol.Kind),
 				Signature: symbol.Signature,
 			}
-			if filter == nil || !filter.isFile {
+			if filter == nil || !filter.isSingleFile {
 				row.File = displayPath(path)
 			}
 			rows = append(rows, row)
@@ -156,8 +155,8 @@ func (service *Service) Symbols(idx *index.Index, scope *string, nameGlob *strin
 	return output.PrintTOON(service.stdout, rows)
 }
 
-func (service *Service) Definition(idx *index.Index, nameGlob string, scope *string, kind *index.SymbolKind, maxLines int) error {
-	filter, err := service.resolveScope(idx, scope)
+func (service *Service) Definition(idx *index.Index, nameGlob string, paths []string, kind *index.SymbolKind, maxLines int) error {
+	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
 	}
@@ -230,8 +229,8 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, scope *str
 	return nil
 }
 
-func (service *Service) References(idx *index.Index, nameGlob string, scope *string, unique bool) error {
-	filter, err := service.resolveScope(idx, scope)
+func (service *Service) References(idx *index.Index, nameGlob string, paths []string, unique bool) error {
+	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
 	}
@@ -539,50 +538,51 @@ func (service *Service) fileLookupError(relPath string, root string) error {
 	return fmt.Errorf("gx: file not in index: %s", displayPath(relPath))
 }
 
-func (service *Service) resolveScope(idx *index.Index, scope *string) (*scopeFilter, error) {
-	if scope == nil || *scope == "" {
+func (service *Service) resolvePaths(idx *index.Index, paths []string) (*scopeFilter, error) {
+	if len(paths) == 0 {
 		return nil, nil
 	}
 
-	relPath := normalizeRelativePath(*scope, idx.Root)
-	absPath := filepath.Join(idx.Root, relPath)
-	info, err := os.Stat(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("gx: scope not found: %s", displayScopePath(relPath))
+	filter := &scopeFilter{
+		isSingleFile: len(paths) == 1,
+		paths:        make(map[string]struct{}),
 	}
 
-	if info.IsDir() {
-		prefix := relPath
-		if prefix == "." {
-			prefix = ""
+	for _, path := range paths {
+		relPath := normalizeRelativePath(path, idx.Root)
+		absPath := filepath.Join(idx.Root, relPath)
+		info, err := os.Stat(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("gx: path not found: %s", displayScopePath(relPath))
 		}
 
-		paths := make(map[string]struct{})
-		for path := range idx.Entries {
-			if prefix == "" || path == prefix || strings.HasPrefix(path, prefix+string(filepath.Separator)) {
-				paths[path] = struct{}{}
+		if info.IsDir() {
+			filter.isSingleFile = false
+			prefix := relPath
+			if prefix == "." {
+				prefix = ""
 			}
+
+			matched := false
+			for entryPath := range idx.Entries {
+				if prefix == "" || entryPath == prefix || strings.HasPrefix(entryPath, prefix+string(filepath.Separator)) {
+					filter.paths[entryPath] = struct{}{}
+					matched = true
+				}
+			}
+			if !matched {
+				return nil, fmt.Errorf("gx: no indexed files under %s", displayScopePath(relPath))
+			}
+			continue
 		}
-		if len(paths) == 0 {
-			return nil, fmt.Errorf("gx: no indexed files under %s", displayScopePath(relPath))
+
+		if _, ok := idx.Entries[relPath]; !ok {
+			return nil, service.fileLookupError(relPath, idx.Root)
 		}
-		return &scopeFilter{
-			relPath: relPath,
-			isFile:  false,
-			paths:   paths,
-		}, nil
+		filter.paths[relPath] = struct{}{}
 	}
 
-	if _, ok := idx.Entries[relPath]; !ok {
-		return nil, service.fileLookupError(relPath, idx.Root)
-	}
-	return &scopeFilter{
-		relPath: relPath,
-		isFile:  true,
-		paths: map[string]struct{}{
-			relPath: {},
-		},
-	}, nil
+	return filter, nil
 }
 
 func (filter *scopeFilter) contains(path string) bool {

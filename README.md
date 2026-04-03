@@ -177,11 +177,11 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 
 ### Navigation
 
-- `gx overview <path>`: Show a table of contents for a file or directory.
-- `gx overview <dir> --full`: Show a fuller per-file directory overview.
-- `gx symbols [--scope PATH] [--name GLOB] [--kind KIND]`: Search symbols across the project. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
-- `gx definition --name GLOB [--scope PATH] [--kind KIND] [--max-lines N]`: Print matching symbol bodies.
-- `gx references --name GLOB [--scope PATH] [--unique]`: Find usages for matching symbol names.
+- `gx overview [path]`: Show a table of contents for a file or directory. Defaults to the current working directory.
+- `gx overview --full <dir>`: Show a fuller per-file directory overview.
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
+- `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies.
+- `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
 Short aliases: `gx o`, `gx s`, `gx d`, `gx r`
 
@@ -194,7 +194,8 @@ Match mode notes:
 - `gx symbols --name` uses glob matching.
 - `gx definition --name` uses glob matching.
 - `gx references --name` uses glob matching.
-- `--scope` accepts either a file path or a directory path.
+- Path args accept either file paths or directory paths.
+- When no path arg is supplied, `gx` uses the current working directory.
 
 ### Language management
 

@@ -163,11 +163,11 @@ flowchart TD
 
 ### 导航相关
 
-- `gx overview <path>`：输出文件或目录的目录式概览。
-- `gx overview <dir> --full`：输出更完整的目录级逐文件概览。
-- `gx symbols [--file PATH] [--name GLOB] [--kind KIND]`：在项目范围内搜索符号。
-- `gx definition --name NAME [--from PATH] [--kind KIND] [--max-lines N]`：输出符号定义体。
-- `gx references --name NAME [--file PATH] [--unique]`：查找符号引用。
+- `gx overview [path]`：输出文件或目录的目录式概览；省略路径时默认使用当前工作目录。
+- `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号。
+- `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体。
+- `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
 短别名：`gx o`、`gx s`、`gx d`、`gx r`
 

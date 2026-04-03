@@ -3,14 +3,13 @@ package cmd
 import "github.com/spf13/cobra"
 
 func newReferencesCmd() *cobra.Command {
-	var scope string
 	var unique bool
 
 	command := &cobra.Command{
-		Use:     "references --name <glob>",
+		Use:     "references [flags] [path ...]",
 		Aliases: []string{"r"},
 		Short:   "Find all usages of a symbol across the project",
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			runtime, err := buildRuntime()
 			if err != nil {
 				return err
@@ -21,24 +20,23 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			debugf(rootCmd.ErrOrStderr(), "references name=%s scope=%s unique=%t", name, scope, unique)
+			paths, err := resolveTargetPaths(args)
+			if err != nil {
+				return err
+			}
+
+			debugf(rootCmd.ErrOrStderr(), "references name=%s paths=%v unique=%t", name, paths, unique)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
 
-			var scopePtr *string
-			if scope != "" {
-				scopePtr = &scope
-			}
-
-			return runtime.Query.References(idx, name, scopePtr, unique)
+			return runtime.Query.References(idx, name, paths, unique)
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match symbol names")
-	command.Flags().StringVar(&scope, "scope", "", "Limit search to a specific file or directory")
 	command.Flags().BoolVar(&unique, "unique", false, "Deduplicate by enclosing function")
 	_ = command.MarkFlagRequired("name")
 	return command

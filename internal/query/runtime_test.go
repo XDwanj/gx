@@ -50,9 +50,9 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	scope := "src/main.rs"
+	paths := []string{"src/main.rs"}
 
-	if err := service.Symbols(idx, &scope, nil, nil); err != nil {
+	if err := service.Symbols(idx, paths, nil, nil); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -84,9 +84,9 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	scope := "src"
+	paths := []string{"src"}
 
-	if err := service.Symbols(idx, &scope, nil, nil); err != nil {
+	if err := service.Symbols(idx, paths, nil, nil); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -102,6 +102,43 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	}
 	if strings.Contains(output, "other/extra.rs") {
 		t.Fatalf("directory scope should exclude files outside scope: %s", output)
+	}
+}
+
+func TestSymbolsMultiplePathsUnionOutput(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs":    "fn main() {}\n",
+		"pkg/helper.rs":  "fn helper() {}\n",
+		"other/extra.rs": "fn extra() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	paths := []string{"src/main.rs", "pkg"}
+
+	if err := service.Symbols(idx, paths, nil, nil); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "{file,name,kind,signature}:") {
+		t.Fatalf("multiple paths should include file column: %s", output)
+	}
+	if !strings.Contains(output, "src/main.rs,main,fn") {
+		t.Fatalf("missing src/main.rs symbol: %s", output)
+	}
+	if !strings.Contains(output, "pkg/helper.rs,helper,fn") {
+		t.Fatalf("missing pkg/helper.rs symbol: %s", output)
+	}
+	if strings.Contains(output, "other/extra.rs") {
+		t.Fatalf("multiple paths should exclude files outside filters: %s", output)
 	}
 }
 
@@ -173,9 +210,9 @@ func TestDefinitionScopeFiltersResults(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	scope := "src"
+	paths := []string{"src"}
 
-	if err := service.Definition(idx, "build*", &scope, nil, 200); err != nil {
+	if err := service.Definition(idx, "build*", paths, nil, 200); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -231,9 +268,9 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	scope := "src/main.rs"
+	paths := []string{"src/main.rs"}
 
-	if err := service.References(idx, "build*", &scope, false); err != nil {
+	if err := service.References(idx, "build*", paths, false); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -246,7 +283,7 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	}
 }
 
-func TestMissingScopeReturnsError(t *testing.T) {
+func TestMissingPathReturnsError(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{
 		"src/main.rs": "fn main() {}\n",
@@ -260,13 +297,13 @@ func TestMissingScopeReturnsError(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	scope := "missing"
+	paths := []string{"missing"}
 
-	err = service.Symbols(idx, &scope, nil, nil)
+	err = service.Symbols(idx, paths, nil, nil)
 	if err == nil {
-		t.Fatal("expected missing scope to return an error")
+		t.Fatal("expected missing path to return an error")
 	}
-	if !strings.Contains(err.Error(), "gx: scope not found: missing") {
+	if !strings.Contains(err.Error(), "gx: path not found: missing") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

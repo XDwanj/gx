@@ -6,6 +6,7 @@ import (
 	"gx/internal/index"
 	"gx/internal/query"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -76,11 +77,25 @@ func resolveRoot() (string, error) {
 	return app.ResolveRoot(rootFlags.Root)
 }
 
-func resolveTargetPath(path string, root string) string {
-	if filepath.IsAbs(path) {
-		return path
+func resolveTargetPaths(paths []string) ([]string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
-	return filepath.Join(root, path)
+
+	if len(paths) == 0 {
+		return []string{cwd}, nil
+	}
+
+	resolved := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if filepath.IsAbs(path) {
+			resolved = append(resolved, filepath.Clean(path))
+			continue
+		}
+		resolved = append(resolved, filepath.Clean(filepath.Join(cwd, path)))
+	}
+	return resolved, nil
 }
 
 func buildRuntime() (*query.Runtime, error) {
