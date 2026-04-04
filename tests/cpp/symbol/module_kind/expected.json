@@ -1,6 +1,7 @@
 [
   {
     "file": "main.cpp",
+    "line": 3,
     "name": "billing",
     "kind": "module",
     "signature": "namespace billing"

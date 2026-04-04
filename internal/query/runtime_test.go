@@ -52,19 +52,19 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs"}
 
-	if err := service.Symbols(idx, paths, nil, nil); err != nil {
+	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{name,kind,signature}:") {
+	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
 		t.Fatalf("unexpected output: %s", output)
 	}
-	if !strings.Contains(output, "main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,fn") {
 		t.Fatalf("missing main symbol: %s", output)
 	}
-	if strings.Contains(output, "src/main.rs") {
-		t.Fatalf("single-file scope should omit file column: %s", output)
+	if !strings.Contains(output, "src/main.rs,2,helper,fn") {
+		t.Fatalf("missing helper symbol line: %s", output)
 	}
 }
 
@@ -86,18 +86,18 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src"}
 
-	if err := service.Symbols(idx, paths, nil, nil); err != nil {
+	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,name,kind,signature}:") {
-		t.Fatalf("directory scope should include file column: %s", output)
+	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
+		t.Fatalf("directory scope should include file and line fields: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,fn") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "src/helper.rs,helper,fn") {
+	if !strings.Contains(output, "src/helper.rs,1,helper,fn") {
 		t.Fatalf("missing src/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
@@ -123,22 +123,53 @@ func TestSymbolsMultiplePathsUnionOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs", "pkg"}
 
-	if err := service.Symbols(idx, paths, nil, nil); err != nil {
+	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,name,kind,signature}:") {
-		t.Fatalf("multiple paths should include file column: %s", output)
+	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
+		t.Fatalf("multiple paths should include file and line fields: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,fn") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "pkg/helper.rs,helper,fn") {
+	if !strings.Contains(output, "pkg/helper.rs,1,helper,fn") {
 		t.Fatalf("missing pkg/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
 		t.Fatalf("multiple paths should exclude files outside filters: %s", output)
+	}
+}
+
+func TestSymbolsJSONIncludesCoordinates(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\nfn helper() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true}
+
+	if err := service.Symbols(idx, []string{"src/main.rs"}, nil, nil, PageRequest{}); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "\"file\": \"src/main.rs\"") {
+		t.Fatalf("missing file in json output: %s", output)
+	}
+	if !strings.Contains(output, "\"line\": 1") {
+		t.Fatalf("missing line in json output: %s", output)
+	}
+	if strings.Contains(output, "\"column\"") {
+		t.Fatalf("unexpected column in json output: %s", output)
 	}
 }
 
@@ -157,7 +188,7 @@ func TestDefinitionOutput(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "main", nil, nil, 200); err != nil {
+	if err := service.Definition(idx, "main", nil, nil, 200, PageRequest{}); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -185,7 +216,7 @@ func TestDefinitionSupportsGlobName(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "build*", nil, nil, 200); err != nil {
+	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -212,7 +243,7 @@ func TestDefinitionScopeFiltersResults(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src"}
 
-	if err := service.Definition(idx, "build*", paths, nil, 200); err != nil {
+	if err := service.Definition(idx, "build*", paths, nil, 200, PageRequest{}); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -222,6 +253,163 @@ func TestDefinitionScopeFiltersResults(t *testing.T) {
 	}
 	if strings.Contains(output, "file: other/main.rs") {
 		t.Fatalf("scope should exclude definitions outside directory: %s", output)
+	}
+}
+
+func TestDefinitionSortsTypesBeforeFunctionsBeforeMethods(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\ntype buildType struct{}\n\nfunc buildFunc() {}\n\nfunc (b buildType) buildMethod() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	typeIndex := strings.Index(output, "buildType struct{}")
+	functionIndex := strings.Index(output, "func buildFunc() {}")
+	methodIndex := strings.Index(output, "func (b buildType) buildMethod() {}")
+	if typeIndex == -1 || functionIndex == -1 || methodIndex == -1 {
+		t.Fatalf("missing definitions in output: %s", output)
+	}
+	if typeIndex >= functionIndex || functionIndex >= methodIndex {
+		t.Fatalf("unexpected definition order: %s", output)
+	}
+}
+
+func TestDefinitionSortsSamePriorityByFileAndLine(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"z_last.go":  "package main\n\nfunc buildLast() {}\n",
+		"a_first.go": "package main\n\nfunc buildFirst() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	firstFileIndex := strings.Index(output, "file: a_first.go")
+	lastFileIndex := strings.Index(output, "file: z_last.go")
+	if firstFileIndex == -1 || lastFileIndex == -1 {
+		t.Fatalf("missing file headers in output: %s", output)
+	}
+	if firstFileIndex >= lastFileIndex {
+		t.Fatalf("expected a_first.go before z_last.go: %s", output)
+	}
+}
+
+func TestSymbolsPaginationWritesHintAndLimitsResults(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn alpha() {}\nfn beta() {}\nfn gamma() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Symbols(idx, []string{"src/main.rs"}, nil, nil, PageRequest{Limit: 2}); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "alpha") || !strings.Contains(output, "beta") {
+		t.Fatalf("missing paged symbols: %s", output)
+	}
+	if strings.Contains(output, "gamma") {
+		t.Fatalf("expected symbols pagination to exclude gamma: %s", output)
+	}
+	if !strings.Contains(stderr.String(), "gx: showing 1-2 of 3; narrow query, use --offset 2, or --all") {
+		t.Fatalf("expected pagination hint, got %q", stderr.String())
+	}
+}
+
+func TestDefinitionPaginationAppliesOffsetAfterPrioritySort(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\ntype buildType struct{}\n\nfunc buildFunc() {}\n\nfunc (b buildType) buildMethod() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{Limit: 1, Offset: 1}); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "func buildFunc() {}") {
+		t.Fatalf("expected second sorted definition, got %s", output)
+	}
+	if strings.Contains(output, "buildType struct{}") || strings.Contains(output, "buildMethod") {
+		t.Fatalf("unexpected definition in paged output: %s", output)
+	}
+	if !strings.Contains(stderr.String(), "gx: showing 2-2 of 3; narrow query, use --offset 2, or --all") {
+		t.Fatalf("expected pagination hint, got %q", stderr.String())
+	}
+}
+
+func TestDirectoryOverviewPaginationWritesHint(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/a.rs": "fn alpha() {}\n",
+		"src/b.rs": "fn beta() {}\n",
+		"src/c.rs": "fn gamma() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.DirectoryOverview(idx, "src", false, PageRequest{Limit: 2}); err != nil {
+		t.Fatalf("directory overview query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "src/a.rs") || !strings.Contains(output, "src/b.rs") {
+		t.Fatalf("missing expected directory rows: %s", output)
+	}
+	if strings.Contains(output, "src/c.rs") {
+		t.Fatalf("expected overview pagination to exclude src/c.rs: %s", output)
+	}
+	if !strings.Contains(stderr.String(), "gx: showing 1-2 of 3; narrow query, use --offset 2, or --all") {
+		t.Fatalf("expected pagination hint, got %q", stderr.String())
 	}
 }
 
@@ -240,7 +428,7 @@ func TestReferencesSupportsGlobName(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.References(idx, "build*", nil, false); err != nil {
+	if err := service.References(idx, "build*", nil, false, PageRequest{}); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -270,7 +458,7 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs"}
 
-	if err := service.References(idx, "build*", paths, false); err != nil {
+	if err := service.References(idx, "build*", paths, false, PageRequest{}); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -299,7 +487,7 @@ func TestMissingPathReturnsError(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"missing"}
 
-	err = service.Symbols(idx, paths, nil, nil)
+	err = service.Symbols(idx, paths, nil, nil, PageRequest{})
 	if err == nil {
 		t.Fatal("expected missing path to return an error")
 	}

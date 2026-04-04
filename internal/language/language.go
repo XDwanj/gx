@@ -54,6 +54,7 @@ type Symbol struct {
 	Name      string
 	Kind      SymbolKind
 	Signature string
+	Line      int
 	ByteStart uint
 	ByteEnd   uint
 	IsTest    bool

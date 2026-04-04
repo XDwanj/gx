@@ -1,6 +1,7 @@
 [
   {
     "file": "App.java",
+    "line": 2,
     "name": "LIMIT",
     "kind": "const",
     "signature": "static final int LIMIT = 10;"

@@ -1,6 +1,7 @@
 [
   {
     "file": "main.go",
+    "line": 7,
     "name": "Store",
     "kind": "interface",
     "signature": "Store interface"

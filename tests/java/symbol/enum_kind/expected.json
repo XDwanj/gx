@@ -1,6 +1,7 @@
 [
   {
     "file": "Status.java",
+    "line": 1,
     "name": "Status",
     "kind": "enum",
     "signature": "enum Status"

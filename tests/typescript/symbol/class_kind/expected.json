@@ -1,6 +1,7 @@
 [
   {
     "file": "main.ts",
+    "line": 3,
     "name": "User",
     "kind": "class",
     "signature": "class User"

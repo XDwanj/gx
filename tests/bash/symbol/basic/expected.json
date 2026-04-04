@@ -1,6 +1,7 @@
 [
   {
     "file": "main.sh",
+    "line": 1,
     "name": "greet",
     "kind": "fn",
     "signature": "greet()"

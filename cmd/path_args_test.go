@@ -69,7 +69,7 @@ func TestSymbolsCommandDefaultsToCurrentDirectory(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,main,fn") {
+	if !strings.Contains(stdout, "src/main.rs,1,main,fn") {
 		t.Fatalf("expected current directory symbols, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -106,10 +106,10 @@ func TestSymbolsCommandSupportsMultiplePathArgs(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,main,fn") {
+	if !strings.Contains(stdout, "src/main.rs,1,main,fn") {
 		t.Fatalf("expected src/main.rs symbol, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "pkg/helper.rs,helper,fn") {
+	if !strings.Contains(stdout, "pkg/helper.rs,1,helper,fn") {
 		t.Fatalf("expected pkg/helper.rs symbol, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -229,7 +229,7 @@ func TestSymbolsCommandResolvesRelativePathAgainstExplicitRoot(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,main,fn") {
+	if !strings.Contains(stdout, "src/main.rs,1,main,fn") {
 		t.Fatalf("expected explicit root scoped symbols, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {

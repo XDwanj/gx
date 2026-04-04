@@ -20,6 +20,11 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
+			page, err := resolvePageRequest(cmd, defaultReferencesLimit)
+			if err != nil {
+				return err
+			}
+
 			paths, err := resolveTargetPaths(runtime.Root, args)
 			if err != nil {
 				return err
@@ -32,7 +37,7 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			return runtime.Query.References(idx, name, paths, unique)
+			return runtime.Query.References(idx, name, paths, unique, page)
 		},
 	}
 

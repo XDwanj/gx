@@ -23,6 +23,14 @@ func TestRootCommandExposesVerboseFlag(t *testing.T) {
 	}
 }
 
+func TestRootCommandExposesPaginationFlags(t *testing.T) {
+	for _, name := range []string{"limit", "offset", "all"} {
+		if rootCmd.PersistentFlags().Lookup(name) == nil {
+			t.Fatalf("expected %s flag to be registered", name)
+		}
+	}
+}
+
 func TestRootCommandPrintsVersionForLongFlag(t *testing.T) {
 	stdout, stderr, exitCode := executeRootForTest(t, "--version")
 	if exitCode != 0 {

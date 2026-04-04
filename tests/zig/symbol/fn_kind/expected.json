@@ -1,6 +1,7 @@
 [
   {
     "file": "main.zig",
+    "line": 10,
     "name": "buildUser",
     "kind": "fn",
     "signature": "fn buildUser() void"

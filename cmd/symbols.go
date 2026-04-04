@@ -15,8 +15,13 @@ func newSymbolsCmd() *cobra.Command {
 		Aliases: []string{"s"},
 		Short:   "Search symbols across project",
 		Long:    symbolsLongDescription(),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			runtime, err := buildRuntime()
+			if err != nil {
+				return err
+			}
+
+			page, err := resolvePageRequest(cmd, defaultSymbolsLimit)
 			if err != nil {
 				return err
 			}
@@ -47,7 +52,7 @@ func newSymbolsCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Symbols(idx, paths, namePtr, kindPtr)
+			return runtime.Query.Symbols(idx, paths, namePtr, kindPtr, page)
 		},
 	}
 

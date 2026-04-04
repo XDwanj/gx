@@ -1,20 +1,23 @@
 [
   {
     "file": "main.go",
-    "name": "StatusFailed",
+    "line": 11,
+    "name": "StatusUnknown",
     "kind": "const",
-    "signature": "StatusFailed"
+    "signature": "StatusUnknown Status = iota"
   },
   {
     "file": "main.go",
+    "line": 12,
     "name": "StatusReady",
     "kind": "const",
     "signature": "StatusReady"
   },
   {
     "file": "main.go",
-    "name": "StatusUnknown",
+    "line": 13,
+    "name": "StatusFailed",
     "kind": "const",
-    "signature": "StatusUnknown Status = iota"
+    "signature": "StatusFailed"
   }
 ]

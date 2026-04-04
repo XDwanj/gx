@@ -1,6 +1,7 @@
 [
   {
     "file": "main.go",
+    "line": 13,
     "name": "BuildUser",
     "kind": "fn",
     "signature": "func BuildUser() User"

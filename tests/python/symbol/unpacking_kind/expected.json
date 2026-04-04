@@ -1,38 +1,44 @@
 [
   {
     "file": "main.py",
-    "name": "P",
-    "kind": "const",
-    "signature": "[P, Q] = [6, 7]"
-  },
-  {
-    "file": "main.py",
-    "name": "Q",
-    "kind": "const",
-    "signature": "[P, Q] = [6, 7]"
-  },
-  {
-    "file": "main.py",
-    "name": "U",
-    "kind": "const",
-    "signature": "(U, V) = (4, 5)"
-  },
-  {
-    "file": "main.py",
-    "name": "V",
-    "kind": "const",
-    "signature": "(U, V) = (4, 5)"
-  },
-  {
-    "file": "main.py",
+    "line": 1,
     "name": "X",
     "kind": "const",
     "signature": "X, Y = (2, 3)"
   },
   {
     "file": "main.py",
+    "line": 1,
     "name": "Y",
     "kind": "const",
     "signature": "X, Y = (2, 3)"
+  },
+  {
+    "file": "main.py",
+    "line": 2,
+    "name": "U",
+    "kind": "const",
+    "signature": "(U, V) = (4, 5)"
+  },
+  {
+    "file": "main.py",
+    "line": 2,
+    "name": "V",
+    "kind": "const",
+    "signature": "(U, V) = (4, 5)"
+  },
+  {
+    "file": "main.py",
+    "line": 3,
+    "name": "P",
+    "kind": "const",
+    "signature": "[P, Q] = [6, 7]"
+  },
+  {
+    "file": "main.py",
+    "line": 3,
+    "name": "Q",
+    "kind": "const",
+    "signature": "[P, Q] = [6, 7]"
   }
 ]

@@ -57,6 +57,7 @@ type Symbol struct {
 	Name      string     `json:"name"`
 	Kind      SymbolKind `json:"kind"`
 	Signature string     `json:"signature"`
+	Line      int        `json:"line"`
 	ByteStart uint       `json:"byte_start"`
 	ByteEnd   uint       `json:"byte_end"`
 	IsTest    bool       `json:"is_test,omitempty"`

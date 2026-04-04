@@ -1,6 +1,7 @@
 [
   {
     "file": "App.java",
+    "line": 4,
     "name": "run",
     "kind": "method",
     "signature": "void run()"

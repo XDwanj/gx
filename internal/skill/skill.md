@@ -1,6 +1,6 @@
 ---
 name: gx
-description: "Strongly activate this skill as the default guide for `gx`. This skill defines how to use `gx` as an LSP-like semantic code navigation tool: how to inspect symbol structure, choose between `overview`, `symbols`, `definition`, and `references`, scope paths correctly, use `--name` glob patterns, consume `--json`, and recognize the tasks that are not a good fit for `gx`."
+description: "ALWAYS activate this skill for any task that requires reading, understanding, locating, tracing, reviewing, debugging, or modifying an existing codebase. `gx` is the default first tool for semantic code navigation and must be used before text-based tools for symbol structure, definitions, references, package layout, and architecture exploration. Only do not activate it for non-code files or pure literal text search such as logs, docs, comments, YAML, JSON, SQL, and Markdown."
 ---
 
 # GX
@@ -105,6 +105,8 @@ Use `overview` to build a fast mental model before reading code.
 - For a file, it returns that file's top-level symbols.
 - It accepts exactly one path.
 - The path can be a file or a directory.
+- Directory output supports `--limit`, `--offset`, and `--all`.
+- File and Markdown outline modes ignore pagination flags.
 
 Examples:
 
@@ -126,6 +128,8 @@ Use `symbols` to find declarations.
 - `--kind` filters by the public `gx` kind vocabulary.
 - Check the Language Coverage table before assuming a `--kind` filter should work for the target language.
 - `--name` matches symbol names with glob syntax.
+- Default result limit is `100`.
+- Use `--limit`, `--offset`, and `--all` to page through broad matches.
 
 Examples:
 
@@ -133,6 +137,7 @@ Examples:
 gx symbols --name '*Search*' internal/tmdb
 gx symbols --kind method --name 'Search' .
 gx symbols --name '{Ali*Pay,Wechat*Pay}' internal/service internal/handler
+gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 ```
 
 ### `gx definition`
@@ -145,6 +150,8 @@ Use `definition` when you already know the symbol and want the body immediately.
 - `--kind` uses the same public kind vocabulary as `symbols`.
 - If the Language Coverage table does not list that language and `kind` combination, remove `--kind` and retry.
 - `--max-lines` controls output size.
+- Default result limit is `5`.
+- `--limit` controls how many definitions you get; `--max-lines` controls how large each definition body can be.
 
 Examples:
 
@@ -152,6 +159,7 @@ Examples:
 gx definition --name 'Search' internal/tmdb
 gx definition --name 'Client' internal/tmdb/client.go
 gx definition --max-lines 80 --name '{Ali*Pay,Wechat*Pay}' internal/service
+gx definition --name '*Search*' --limit 1 --max-lines 80 internal/tmdb
 ```
 
 ### `gx references`
@@ -163,6 +171,8 @@ Use `references` to find usages and impact.
 - It accepts multiple paths.
 - Paths can be files, directories, or mixed.
 - `--unique` deduplicates by enclosing function and is usually better for quick analysis.
+- Default result limit is `50`.
+- Use `--limit`, `--offset`, and `--all` when a common name fans out widely.
 
 Examples:
 
@@ -170,6 +180,7 @@ Examples:
 gx references --name 'Search' .
 gx references --unique --name 'Search' .
 gx references --unique --name '{Ali*Pay,Wechat*Pay}' internal/service internal/handler internal/repo
+gx references --name 'Search' --limit 25 --offset 25 .
 ```
 
 ### `gx cache`

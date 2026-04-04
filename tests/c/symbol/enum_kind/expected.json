@@ -1,6 +1,7 @@
 [
   {
     "file": "main.c",
+    "line": 1,
     "name": "Color",
     "kind": "enum",
     "signature": "enum Color"

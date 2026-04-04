@@ -15,7 +15,7 @@ func newOverviewCmd() *cobra.Command {
 		Aliases: []string{"o"},
 		Short:   "Table of contents for a file or directory",
 		Args:    cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			runtime, err := buildRuntime()
 			if err != nil {
 				return err
@@ -30,11 +30,15 @@ func newOverviewCmd() *cobra.Command {
 
 			info, err := os.Stat(target)
 			if err == nil && info.IsDir() {
+				page, pageErr := resolvePageRequest(cmd, defaultDirectoryOverviewLimit)
+				if pageErr != nil {
+					return pageErr
+				}
 				idx, loadErr := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 				if loadErr != nil {
 					return loadErr
 				}
-				return runtime.Query.DirectoryOverview(idx, target, full)
+				return runtime.Query.DirectoryOverview(idx, target, full, page)
 			}
 			if err == nil && query.IsMarkdownPath(target) {
 				return runtime.Query.MarkdownOverview(target)
@@ -44,7 +48,7 @@ func newOverviewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runtime.Query.Symbols(idx, []string{target}, nil, nil)
+			return runtime.Query.Symbols(idx, []string{target}, nil, nil, query.PageRequest{})
 		},
 	}
 

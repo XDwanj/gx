@@ -26,6 +26,11 @@ func newDefinitionCmd() *cobra.Command {
 				return err
 			}
 
+			page, err := resolvePageRequest(cmd, defaultDefinitionLimit)
+			if err != nil {
+				return err
+			}
+
 			paths, err := resolveTargetPaths(runtime.Root, args)
 			if err != nil {
 				return err
@@ -47,7 +52,7 @@ func newDefinitionCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Definition(idx, name, paths, kindPtr, maxLines)
+			return runtime.Query.Definition(idx, name, paths, kindPtr, maxLines, page)
 		},
 	}
 

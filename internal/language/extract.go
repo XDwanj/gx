@@ -58,11 +58,14 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 
 		signature := buildSignature(config, definitionNode, source)
 		isTest := detectTestSymbol(config.Name, definitionNode, source)
+		position := definitionNode.StartPosition()
+		line := int(position.Row) + 1
 		for _, nameNode := range nameNodes {
 			symbols = append(symbols, Symbol{
 				Name:      nameNode.Utf8Text(source),
 				Kind:      kind,
 				Signature: signature,
+				Line:      line,
 				ByteStart: definitionNode.StartByte(),
 				ByteEnd:   definitionNode.EndByte(),
 				IsTest:    isTest,

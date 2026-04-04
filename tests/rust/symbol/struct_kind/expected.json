@@ -1,6 +1,7 @@
 [
   {
     "file": "main.rs",
+    "line": 3,
     "name": "User",
     "kind": "struct",
     "signature": "struct User;"

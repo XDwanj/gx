@@ -1,6 +1,7 @@
 [
   {
     "file": "main.ts",
+    "line": 4,
     "name": "method",
     "kind": "method",
     "signature": "method(): number"

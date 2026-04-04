@@ -1,6 +1,7 @@
 [
   {
     "file": "main.cpp",
+    "line": 18,
     "name": "Load",
     "kind": "method",
     "signature": "int Service::Load()"

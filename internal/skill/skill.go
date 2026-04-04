@@ -2,5 +2,5 @@ package skill
 
 import _ "embed"
 
-//go:embed SKILL.md
+//go:embed skill.md
 var Text string

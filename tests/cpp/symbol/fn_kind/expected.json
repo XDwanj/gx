@@ -1,6 +1,7 @@
 [
   {
     "file": "main.cpp",
+    "line": 22,
     "name": "BuildUser",
     "kind": "fn",
     "signature": "int BuildUser()"

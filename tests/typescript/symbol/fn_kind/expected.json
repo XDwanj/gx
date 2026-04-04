@@ -1,6 +1,7 @@
 [
   {
     "file": "main.ts",
+    "line": 21,
     "name": "buildUser",
     "kind": "fn",
     "signature": "function buildUser(): User"

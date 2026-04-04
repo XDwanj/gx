@@ -30,6 +30,9 @@ func TestParseAndExtractRust(t *testing.T) {
 	if symbols[0].Kind != SymbolKindFn {
 		t.Fatalf("unexpected kind: %s", symbols[0].Kind)
 	}
+	if symbols[0].Line != 1 {
+		t.Fatalf("unexpected coordinates: %+v", symbols[0])
+	}
 }
 
 func TestParseAndExtractTSX(t *testing.T) {

@@ -11,6 +11,9 @@ type Flags struct {
 	Root    string
 	JSON    bool
 	Verbose bool
+	Limit   int
+	Offset  int
+	All     bool
 }
 
 func ResolveRoot(root string) (string, error) {

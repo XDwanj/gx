@@ -19,3 +19,4 @@
 - When adding fixture tests under `tests/`, ensure every public `gx` kind is covered by the fixture matrix; do not stop at per-language happy-path cases.
 - For terminal `--help` additions, prefer compact lists over tables unless the user explicitly asks for a table.
 - When suggesting commands that use `--root`, verify how positional relative paths are resolved in the implementation first; do not assume `.` automatically follows `--root`.
+- For `gx symbols` declaration-index output, do not add a `column` field unless the user explicitly asks for it or a concrete tool integration requires it; prefer `file + line` as the default coordinate contract.

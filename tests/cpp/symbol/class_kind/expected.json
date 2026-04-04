@@ -1,6 +1,7 @@
 [
   {
     "file": "main.cpp",
+    "line": 4,
     "name": "Service",
     "kind": "class",
     "signature": "class Service"

@@ -20,6 +20,13 @@ const (
 	symbolPriorityFallback
 )
 
+const (
+	definitionPriorityTypes = iota
+	definitionPriorityFunctions
+	definitionPriorityMethods
+	definitionPriorityFallback
+)
+
 type Runtime struct {
 	Root    string
 	JSON    bool
@@ -52,7 +59,8 @@ type Service struct {
 }
 
 type SymbolRow struct {
-	File      string `json:"file,omitempty"`
+	File      string `json:"file"`
+	Line      int    `json:"line"`
 	Name      string `json:"name"`
 	Kind      string `json:"kind"`
 	Signature string `json:"signature"`
@@ -101,7 +109,21 @@ type DirOverviewFullRow struct {
 	Signature string `json:"signature"`
 }
 
-func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind) error {
+type PageRequest struct {
+	Limit  int
+	Offset int
+}
+
+type pageInfo struct {
+	Total      int
+	Offset     int
+	Returned   int
+	NextOffset int
+	Truncated  bool
+	OutOfRange bool
+}
+
+func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind, page PageRequest) error {
 	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
@@ -126,12 +148,11 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 				continue
 			}
 			row := SymbolRow{
+				File:      displayPath(path),
+				Line:      symbol.Line,
 				Name:      symbol.Name,
 				Kind:      string(symbol.Kind),
 				Signature: symbol.Signature,
-			}
-			if filter == nil || !filter.isSingleFile {
-				row.File = displayPath(path)
 			}
 			rows = append(rows, row)
 		}
@@ -144,10 +165,16 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 
 	sort.Slice(rows, func(left int, right int) bool {
 		if rows[left].File == rows[right].File {
-			return rows[left].Name < rows[right].Name
+			if rows[left].Line == rows[right].Line {
+				return rows[left].Name < rows[right].Name
+			}
+			return rows[left].Line < rows[right].Line
 		}
 		return rows[left].File < rows[right].File
 	})
+
+	rows, pageState := paginateRows(rows, page)
+	service.writePageHint(pageState)
 
 	if service.json {
 		return output.PrintJSON(service.stdout, rows)
@@ -155,7 +182,7 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 	return output.PrintTOON(service.stdout, rows)
 }
 
-func (service *Service) Definition(idx *index.Index, nameGlob string, paths []string, kind *index.SymbolKind, maxLines int) error {
+func (service *Service) Definition(idx *index.Index, nameGlob string, paths []string, kind *index.SymbolKind, maxLines int, page PageRequest) error {
 	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
@@ -180,6 +207,10 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
+
+	sortDefinitionMatches(matches)
+	matches, pageState := paginateRows(matches, page)
+	service.writePageHint(pageState)
 
 	results := make([]DefinitionResult, 0, len(matches))
 	for _, match := range matches {
@@ -229,7 +260,7 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 	return nil
 }
 
-func (service *Service) References(idx *index.Index, nameGlob string, paths []string, unique bool) error {
+func (service *Service) References(idx *index.Index, nameGlob string, paths []string, unique bool, page PageRequest) error {
 	filter, err := service.resolvePaths(idx, paths)
 	if err != nil {
 		return err
@@ -333,12 +364,16 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 			_, _ = fmt.Fprintln(service.stderr, "gx: no callers found")
 			return nil
 		}
+		uniqueRows, pageState := paginateRows(uniqueRows, page)
+		service.writePageHint(pageState)
 		if service.json {
 			return output.PrintJSON(service.stdout, uniqueRows)
 		}
 		return output.PrintTOON(service.stdout, uniqueRows)
 	}
 
+	deduped, pageState := paginateRows(deduped, page)
+	service.writePageHint(pageState)
 	if service.json {
 		return output.PrintJSON(service.stdout, deduped)
 	}
@@ -363,6 +398,42 @@ func findDefinitionMatches(idx *index.Index, nameGlob string, kind *index.Symbol
 		}
 	}
 	return matches, nil
+}
+
+func sortDefinitionMatches(matches []definitionMatch) {
+	sort.Slice(matches, func(left int, right int) bool {
+		leftPriority := definitionSymbolPriority(matches[left].symbol.Kind)
+		rightPriority := definitionSymbolPriority(matches[right].symbol.Kind)
+		if leftPriority != rightPriority {
+			return leftPriority < rightPriority
+		}
+		if matches[left].path == matches[right].path {
+			if matches[left].symbol.Line == matches[right].symbol.Line {
+				return matches[left].symbol.Name < matches[right].symbol.Name
+			}
+			return matches[left].symbol.Line < matches[right].symbol.Line
+		}
+		return matches[left].path < matches[right].path
+	})
+}
+
+func definitionSymbolPriority(kind index.SymbolKind) int {
+	switch kind {
+	case index.SymbolKindStruct,
+		index.SymbolKindEnum,
+		index.SymbolKindInterface,
+		index.SymbolKindClass,
+		index.SymbolKindModule,
+		index.SymbolKindType,
+		index.SymbolKindConst:
+		return definitionPriorityTypes
+	case index.SymbolKindFn:
+		return definitionPriorityFunctions
+	case index.SymbolKindMethod:
+		return definitionPriorityMethods
+	default:
+		return definitionPriorityFallback
+	}
 }
 
 func findMatchingSymbolNames(idx *index.Index, nameGlob string) ([]string, error) {
@@ -397,7 +468,7 @@ func containsAnyName(source []byte, names [][]byte) bool {
 	return false
 }
 
-func (service *Service) DirectoryOverview(idx *index.Index, dir string, full bool) error {
+func (service *Service) DirectoryOverview(idx *index.Index, dir string, full bool, page PageRequest) error {
 	relDir := normalizeRelativePath(dir, idx.Root)
 	if relDir == "." {
 		relDir = ""
@@ -485,6 +556,8 @@ func (service *Service) DirectoryOverview(idx *index.Index, dir string, full boo
 			}
 		}
 
+		rows, pageState := paginateRows(rows, page)
+		service.writePageHint(pageState)
 		if service.json {
 			return output.PrintJSON(service.stdout, rows)
 		}
@@ -524,10 +597,59 @@ func (service *Service) DirectoryOverview(idx *index.Index, dir string, full boo
 		})
 	}
 
+	rows, pageState := paginateRows(rows, page)
+	service.writePageHint(pageState)
 	if service.json {
 		return output.PrintJSON(service.stdout, rows)
 	}
 	return output.PrintTOON(service.stdout, rows)
+}
+
+func paginateRows[T any](rows []T, request PageRequest) ([]T, pageInfo) {
+	info := pageInfo{
+		Total:  len(rows),
+		Offset: request.Offset,
+	}
+	if len(rows) == 0 {
+		return rows, info
+	}
+	if request.Offset >= len(rows) {
+		return rows[:0], pageInfo{
+			Total:      len(rows),
+			Offset:     request.Offset,
+			OutOfRange: request.Offset > 0,
+		}
+	}
+
+	paged := rows
+	if request.Offset > 0 {
+		paged = paged[request.Offset:]
+	}
+	if request.Limit > 0 && len(paged) > request.Limit {
+		paged = paged[:request.Limit]
+		info.Truncated = true
+		info.NextOffset = request.Offset + len(paged)
+	}
+	info.Returned = len(paged)
+	return paged, info
+}
+
+func (service *Service) writePageHint(info pageInfo) {
+	switch {
+	case info.OutOfRange:
+		_, _ = fmt.Fprintf(service.stderr, "gx: offset %d exceeds %d results\n", info.Offset, info.Total)
+	case info.Truncated:
+		start := info.Offset + 1
+		end := info.Offset + info.Returned
+		_, _ = fmt.Fprintf(
+			service.stderr,
+			"gx: showing %d-%d of %d; narrow query, use --offset %d, or --all\n",
+			start,
+			end,
+			info.Total,
+			info.NextOffset,
+		)
+	}
 }
 
 func (service *Service) fileLookupError(relPath string, root string) error {

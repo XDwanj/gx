@@ -278,10 +278,21 @@ gx symbols --name 'new*'
 `gx --name` filters use shell-style glob patterns such as `'new*'`,
 `'*Runtime'`, and `'*build*'`.
 
+`gx symbols` returns a declaration index with `file`, `line`, `name`,
+`kind`, and `signature`, so you can cite matches directly before
+opening full definitions.
+
+Page through a large symbol set:
+
+```bash
+gx symbols --name 'new*' --limit 20
+gx symbols --name 'new*' --limit 20 --offset 20
+```
+
 Read one symbol body directly:
 
 ```bash
-gx definition --name buildRuntime --max-lines 40
+gx definition --name buildRuntime --limit 1 --max-lines 40
 ```
 
 Find all usages of a symbol:
@@ -303,7 +314,7 @@ gx references --name buildRuntime --unique
 1. Parse CLI flags and resolve the project root.
 2. Load the cached project index from SQLite, or rebuild/update it if files changed.
 3. During indexing, walk the project tree, detect languages by extension, and parse supported files with Tree-sitter.
-4. Extract symbols such as functions, methods, structs, traits, and types, then persist them with file mtimes.
+4. Extract symbols such as functions, methods, structs, traits, and types, then persist them with source coordinates and file mtimes.
 5. Run `overview`, `symbols`, `definition`, or `references` against the in-memory index and print TOON or JSON output.
 
 ```mermaid
@@ -331,7 +342,7 @@ flowchart TD
     D -->|skill| S[Print embedded agent guide]
 ```
 
-The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols. `definition` uses stored byte ranges to slice the original source file directly, while `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
+The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, while `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
 
 Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, or `references`.
 
@@ -341,7 +352,7 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 
 - `gx overview [path]`: Show a table of contents for a file or directory. Defaults to the current working directory.
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
-- `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `line`, `name`, `kind`, and `signature`. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
 - `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies.
 - `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
@@ -358,6 +369,16 @@ Match mode notes:
 - `gx references --name` uses glob matching.
 - Path args accept either file paths or directory paths.
 - When no path arg is supplied, `gx` uses the current working directory.
+
+Pagination flags:
+
+- `--limit N`: Override the command's default result limit.
+- `--offset N`: Skip the first `N` results.
+- `--all`: Bypass the default result limit entirely.
+- Default limits are `definition=5`, `symbols=100`, `references=50`.
+- `overview` has no default limit for directory output, but `--limit` and `--offset` still apply when the target is a directory.
+- `overview` file mode and Markdown outline mode ignore pagination flags.
+- When results are truncated, `gx` writes a compact paging hint to `stderr`.
 
 ### Language management
 
@@ -393,6 +414,8 @@ gx --json --version
 ```
 
 Use `--root <path>` if you want to query a project other than the current working tree.
+
+Pagination applies to both default output and `--json`.
 
 ## Typical workflow
 

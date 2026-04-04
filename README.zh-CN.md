@@ -265,10 +265,19 @@ gx overview cmd/root.go
 gx symbols --name 'new*'
 ```
 
+`gx symbols` 默认返回可直接引用的声明索引，包含 `file`、`line`、`name`、`kind` 和 `signature`。
+
+对较大的符号结果集做翻页：
+
+```bash
+gx symbols --name 'new*' --limit 20
+gx symbols --name 'new*' --limit 20 --offset 20
+```
+
 直接读取某个符号定义：
 
 ```bash
-gx definition --name buildRuntime --max-lines 40
+gx definition --name buildRuntime --limit 1 --max-lines 40
 ```
 
 查找某个符号的所有引用：
@@ -290,7 +299,7 @@ gx references --name buildRuntime --unique
 1. 解析命令行参数并确定项目根目录。
 2. 从 SQLite 读取项目索引缓存；如果缓存缺失或文件已变化，就重建或增量更新。
 3. 建索引时遍历项目文件，按扩展名识别语言，并用 Tree-sitter 解析受支持的源码文件。
-4. 提取函数、方法、结构体、接口、类型等符号，并连同文件 mtime 一起写入索引。
+4. 提取函数、方法、结构体、接口、类型等符号，并连同行列坐标与文件 mtime 一起写入索引。
 5. 最后由 `overview`、`symbols`、`definition`、`references` 在内存索引上执行查询，并输出 TOON 或 JSON。
 
 ```mermaid
@@ -318,7 +327,7 @@ flowchart TD
     D -->|skill| S[输出内置 agent 指南]
 ```
 
-索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
+索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号，包括源码坐标。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
 
 ## 命令说明
 
@@ -326,7 +335,7 @@ flowchart TD
 
 - `gx overview [path]`：输出文件或目录的目录式概览；省略路径时默认使用当前工作目录。
 - `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
-- `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号。
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`line`、`name`、`kind`、`signature` 的声明索引。
 - `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体。
 - `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
@@ -335,6 +344,16 @@ flowchart TD
 支持的符号类型：
 
 `fn`、`method`、`struct`、`enum`、`type`、`const`、`class`、`interface`、`module`
+
+分页相关 flags：
+
+- `--limit N`：覆盖命令默认结果上限。
+- `--offset N`：跳过前 `N` 条结果。
+- `--all`：完全绕过默认结果上限。
+- 默认上限为 `definition=5`、`symbols=100`、`references=50`。
+- `overview` 的目录模式默认不限量，但显式传入 `--limit` 和 `--offset` 仍会生效。
+- `overview` 的文件模式和 Markdown 大纲模式会忽略分页 flags。
+- 当结果被截断时，`gx` 会在 `stderr` 输出紧凑的翻页提示。
 
 ### 语言管理
 
@@ -370,6 +389,8 @@ gx --json --version
 ```
 
 如果你想查询的不是当前工作目录对应的项目，可以使用 `--root <path>` 指定根目录。
+
+分页行为对默认输出和 `--json` 输出都生效。
 
 ## 典型使用流程
 

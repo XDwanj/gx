@@ -14,7 +14,7 @@ import (
 	langpkg "gx/internal/lang"
 )
 
-const IndexVersion = 5
+const IndexVersion = 6
 
 const (
 	verboseProgressEveryFiles = 25
@@ -498,6 +498,7 @@ func toIndexSymbols(symbols []language.Symbol) []Symbol {
 			Name:      symbol.Name,
 			Kind:      SymbolKind(symbol.Kind),
 			Signature: symbol.Signature,
+			Line:      symbol.Line,
 			ByteStart: symbol.ByteStart,
 			ByteEnd:   symbol.ByteEnd,
 			IsTest:    symbol.IsTest,

@@ -1,6 +1,7 @@
 [
   {
     "file": "main.rb",
+    "line": 1,
     "name": "Billing",
     "kind": "module",
     "signature": "module Billing"

@@ -1,6 +1,7 @@
 [
   {
     "file": "main.ts",
+    "line": 12,
     "name": "Status",
     "kind": "enum",
     "signature": "enum Status"

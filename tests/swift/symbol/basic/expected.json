@@ -1,6 +1,7 @@
 [
   {
     "file": "main.swift",
+    "line": 1,
     "name": "User",
     "kind": "struct",
     "signature": "struct User"

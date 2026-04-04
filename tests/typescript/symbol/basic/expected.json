@@ -1,6 +1,7 @@
 [
   {
     "file": "main.ts",
+    "line": 1,
     "name": "Red",
     "kind": "const",
     "signature": ""

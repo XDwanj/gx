@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,梳理分页接入点与契约,DONE,"明确 root flags、各命令默认值、overview 文件/目录分流和 stderr hint 约束","rg -n \"limit|offset|all|newOverviewCmd|newSymbolsCmd|newDefinitionCmd|newReferencesCmd|Definition\\(|Symbols\\(|References\\(|DirectoryOverview\\(\" cmd internal","2026-04-04 21:41",0,"确定 root persistent flags；overview 仅目录模式分页；查询层统一执行分页和 hint"
+2,实现统一分页模型与命令接线,DONE,"root flags、查询层分页和四个命令接入完成","go test ./internal/query ./cmd -timeout 60s","2026-04-04 21:50",0,"新增 root persistent flags、cmd 分页解析和 query 分页 helper，overview 仅目录模式分页"
+3,补分页与提示测试,DONE,"覆盖默认 limit、override、offset、all、truncation hint","go test ./internal/query ./cmd -timeout 60s","2026-04-04 21:50",0,"补了 query 和 cmd 两层测试，覆盖默认值、override、offset、all 和 stderr hint"
+4,执行全量验证并收尾,DONE,"全量测试和 lint 通过，任务文档同步完成","go test ./... -timeout 60s && golangci-lint run ./...","2026-04-04 21:52",0,"全量测试与 lint 均通过，taskmaster 文档已同步"

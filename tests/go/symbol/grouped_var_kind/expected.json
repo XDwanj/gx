@@ -1,14 +1,16 @@
 [
   {
     "file": "main.go",
-    "name": "DefaultLang",
-    "kind": "const",
-    "signature": "DefaultLang   = \"en\""
-  },
-  {
-    "file": "main.go",
+    "line": 4,
     "name": "DefaultRegion",
     "kind": "const",
     "signature": "DefaultRegion = \"US\""
+  },
+  {
+    "file": "main.go",
+    "line": 5,
+    "name": "DefaultLang",
+    "kind": "const",
+    "signature": "DefaultLang   = \"en\""
   }
 ]

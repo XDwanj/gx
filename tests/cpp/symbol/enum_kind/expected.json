@@ -1,6 +1,7 @@
 [
   {
     "file": "main.cpp",
+    "line": 13,
     "name": "Status",
     "kind": "enum",
     "signature": "enum Status"
