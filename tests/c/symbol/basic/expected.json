@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.c",
+    "name": "User",
+    "kind": "struct",
+    "signature": "struct User"
+  }
+]

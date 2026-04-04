@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.c",
+    "name": "BuildUser",
+    "kind": "fn",
+    "signature": "int BuildUser(void)"
+  }
+]

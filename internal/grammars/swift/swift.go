@@ -1,8 +1,9 @@
 package tree_sitter_swift
 
 // #cgo CPPFLAGS: -I./src
-// #cgo CFLAGS: -std=c11 -fPIC
+// #cgo CFLAGS: -std=c11 -fPIC -Wno-macro-redefined
 // #include "./src/parser.c"
+// #include "./src/scanner.c"
 import "C"
 
 import "unsafe"

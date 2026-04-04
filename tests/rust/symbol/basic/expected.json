@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "Reader",
+    "kind": "interface",
+    "signature": "pub trait Reader"
+  }
+]

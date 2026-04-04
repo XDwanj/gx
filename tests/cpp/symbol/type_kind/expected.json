@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.cpp",
+    "name": "Count",
+    "kind": "type",
+    "signature": "typedef int Count;"
+  }
+]

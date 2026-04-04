@@ -1,0 +1,51 @@
+# 进度记录
+
+## 2026-04-04
+
+- 已确认仓库当前没有 `tests/` fixture 约定，现有测试主要是 `cmd/`、`internal/` 下的手写单测。
+- 已确认现有命令测试通过 `newRootCmd()`、`rootFlags`、`captureProcessOutput()` 即可稳定跑 CLI 行为。
+- 计划新增一层统一 harness，将 case 数据下沉到 `tests/<language>/<command>/<case>/`，后续新增语言时只需补 fixture。
+- 已实现 [cmd/fixture_test.go](/Users/xdwanj/Project/Rust/gx/cmd/fixture_test.go)：
+  - 自动扫描 `tests/<language>/<command>/<case>/`
+  - 读取 `query.json` 与 `expected.json`
+  - 将 `_project/` 复制到临时仓库并执行真实 `gx` CLI
+  - 用 `--json` 输出做结构化比对
+- 已在 [cmd/fixture_test.go](/Users/xdwanj/Project/Rust/gx/cmd/fixture_test.go) 中新增 `TestFixtureKindCoverage`，直接校验全部公开 `kind` 在：
+  - `symbol` fixture 的输出中至少出现一次
+  - `definition` fixture 的 `query.kind` 中至少出现一次
+- 已为全部活跃语言补齐基础 fixture：
+  - `bash`
+  - `c`
+  - `cpp`
+  - `go`
+  - `java`
+  - `lua`
+  - `python`
+  - `ruby`
+  - `rust`
+  - `swift`
+  - `typescript`
+  - `zig`
+- 为避免 `go test ./...` 把 Go fixture 当成普通包扫描，case 源码目录使用 `_project/`，而不是 `project/`。
+- 已进一步补齐 kind 维度的 fixture：
+  - `enum`
+  - `type`
+  - `struct`
+  - `const`
+  - `interface`
+  - `module`
+  并将已有 `definition` fixture 补上 `query.kind`，让 `definition --kind` 也进入实际验证。
+- 在补测试过程中暴露并修复了几个真实问题：
+  - Go query 有括号闭合错误，导致 query 编译失败
+  - Python 顶层赋值 query 是 impossible pattern
+  - Swift vendored grammar 的 `parser.c` 与当前 `go-tree-sitter` ABI 不兼容
+- 已对 Swift 做最小 vendor 更新：
+  - 重新生成 `internal/grammars/swift/src/parser.c`
+  - 新增 `internal/grammars/swift/src/scanner.c`
+  - 新增 `internal/grammars/swift/src/tree_sitter/parser.h`
+  - 更新 `internal/grammars/swift/src/grammar.json`
+  - 更新 `internal/grammars/swift/src/node-types.json`
+- 已完成验证：
+  - `go test ./cmd -run TestFixtureKindCoverage -timeout 60s`
+  - `go test ./... -timeout 60s`
+  - `golangci-lint run ./...`

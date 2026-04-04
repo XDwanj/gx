@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.lua",
+    "name": "greet",
+    "kind": "method",
+    "signature": "function User:greet()"
+  }
+]

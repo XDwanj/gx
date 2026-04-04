@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.go",
+    "line": 7,
+    "body": "Store interface {\n\tLoad() User\n}"
+  }
+]

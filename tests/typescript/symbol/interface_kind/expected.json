@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.ts",
+    "name": "Reader",
+    "kind": "interface",
+    "signature": "interface Reader"
+  }
+]

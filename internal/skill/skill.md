@@ -45,13 +45,11 @@ Kinds available for `gx symbols --kind` and `gx definition --kind`:
 - `method`: methods attached to a type, receiver, class, or similar language construct
 - `struct`: structured data types such as Rust or C-style structs
 - `enum`: enum types and tagged variants grouped under one definition
-- `trait`: behavior-focused abstract types such as Rust traits
 - `type`: type aliases, named type declarations, or equivalent type definitions
 - `const`: constant definitions
 - `class`: classes or class-like composite types
 - `interface`: interface-style abstract contracts
 - `module`: modules, namespaces, or similar code containers
-- `event`: event declarations in languages that expose them as symbols
 
 Match mode: every `--name` filter uses glob matching, not regex. Common forms include exact match `'Search'`, prefix `'build*'`, suffix `'*Runtime'`, contains `'*search*'`, and alternation `'{AliPay,WechatPay}'`. Quote patterns so your shell passes them to `gx` unchanged. Path args accept either file paths or directory paths, and omitted paths default to the current working directory.
 

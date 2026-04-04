@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,梳理现有测试入口并定义 fixture 结构,DONE,确认 tests 目录方案与现有 cmd 测试兼容,test -f .codex-tasks/20260404-language-fixture-tests/SPEC.md,2026-04-04 01:12,0,已确认采用 tests/<language>/<command>/<case> 结构
+2,实现通用 fixture harness,DONE,Go 测试可自动发现并执行 tests 下 case,go test ./cmd -run Fixture -timeout 60s,2026-04-04 01:35,0,已新增 cmd/fixture_test.go 自动发现并执行 JSON fixture
+3,为每个活跃语言补 symbol 与 definition fixture,DONE,tests 下包含全部活跃语言的基本用例,find tests -type f | wc -l,2026-04-04 01:58,0,已覆盖 bash c cpp go java lua python ruby rust swift typescript zig
+4,补齐全部公开 kind 的 fixture 覆盖,DONE,symbol 和 definition 两侧都覆盖全部公开 kind,go test ./cmd -run TestFixtureKindCoverage -timeout 60s,2026-04-04 02:18,0,已新增 kind 覆盖断言并补齐 enum type 等缺口
+5,运行全量测试并修复问题,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 02:20,0,已通过 go test 与 golangci-lint

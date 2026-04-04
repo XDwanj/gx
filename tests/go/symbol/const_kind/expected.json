@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.go",
+    "name": "Limit",
+    "kind": "const",
+    "signature": "Limit = 10"
+  }
+]

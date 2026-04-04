@@ -11,14 +11,12 @@ import (
 	tree_sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	tree_sitter_c "github.com/tree-sitter/tree-sitter-c/bindings/go"
 	tree_sitter_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
-	tree_sitter_elixir "github.com/tree-sitter/tree-sitter-elixir/bindings/go"
 	tree_sitter_go "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	tree_sitter_java "github.com/tree-sitter/tree-sitter-java/bindings/go"
 	tree_sitter_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
 	tree_sitter_ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
 	tree_sitter_rust "github.com/tree-sitter/tree-sitter-rust/bindings/go"
 
-	local_solidity "gx/internal/grammars/solidity"
 	local_swift "gx/internal/grammars/swift"
 	local_typescript "gx/internal/grammars/typescript"
 	local_zig "gx/internal/grammars/zig"
@@ -44,14 +42,12 @@ const (
 	SymbolKindFn        SymbolKind = "fn"
 	SymbolKindStruct    SymbolKind = "struct"
 	SymbolKindEnum      SymbolKind = "enum"
-	SymbolKindTrait     SymbolKind = "trait"
 	SymbolKindType      SymbolKind = "type"
 	SymbolKindConst     SymbolKind = "const"
 	SymbolKindClass     SymbolKind = "class"
 	SymbolKindInterface SymbolKind = "interface"
 	SymbolKindMethod    SymbolKind = "method"
 	SymbolKindModule    SymbolKind = "module"
-	SymbolKindEvent     SymbolKind = "event"
 )
 
 type Symbol struct {
@@ -108,15 +104,6 @@ var languages = []*Config{
 		Extensions:   []string{"rs"},
 		Query:        rustQuery,
 		SigDelimiter: '{',
-		KindOverrides: []KindOverride{
-			{CaptureName: "definition.class", NodeKind: "struct_item", Kind: SymbolKindStruct},
-			{CaptureName: "definition.class", NodeKind: "enum_item", Kind: SymbolKindEnum},
-			{CaptureName: "definition.class", NodeKind: "union_item", Kind: SymbolKindStruct},
-			{CaptureName: "definition.class", NodeKind: "type_item", Kind: SymbolKindType},
-			{CaptureName: "definition.class", Kind: SymbolKindStruct},
-			{CaptureName: "definition.interface", Kind: SymbolKindTrait},
-			{CaptureName: "definition.macro", Kind: SymbolKindFn},
-		},
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
 		grammarName:  func(_ string) string { return "rust" },
 		loadLanguage: func(_ string) *sitter.Language {
@@ -169,9 +156,6 @@ var languages = []*Config{
 		Extensions:   []string{"c"},
 		Query:        cQuery,
 		SigDelimiter: '{',
-		KindOverrides: []KindOverride{
-			{CaptureName: "definition.class", Kind: SymbolKindStruct},
-		},
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
 		grammarName:  func(_ string) string { return "c" },
 		loadLanguage: func(_ string) *sitter.Language { return sitter.NewLanguage(tree_sitter_c.Language()) },
@@ -223,9 +207,6 @@ var languages = []*Config{
 		Extensions:   []string{"zig"},
 		Query:        zigQuery,
 		SigDelimiter: '{',
-		KindOverrides: []KindOverride{
-			{CaptureName: "definition.class", NodeKind: "Decl", Kind: SymbolKindStruct},
-		},
 		RefNodeTypes: []string{"IDENTIFIER"},
 		grammarName:  func(_ string) string { return "zig" },
 		loadLanguage: func(_ string) *sitter.Language {
@@ -244,35 +225,10 @@ var languages = []*Config{
 		},
 	},
 	{
-		Name:         "solidity",
-		Extensions:   []string{"sol"},
-		Query:        solidityQuery,
-		SigDelimiter: '{',
-		RefNodeTypes: []string{"identifier"},
-		grammarName:  func(_ string) string { return "solidity" },
-		loadLanguage: func(_ string) *sitter.Language {
-			return sitter.NewLanguage(local_solidity.Language())
-		},
-	},
-	{
-		Name:         "elixir",
-		Extensions:   []string{"ex", "exs"},
-		Query:        elixirQuery,
-		RefNodeTypes: []string{"identifier", "alias"},
-		grammarName:  func(_ string) string { return "elixir" },
-		loadLanguage: func(_ string) *sitter.Language {
-			return sitter.NewLanguage(tree_sitter_elixir.Language())
-		},
-	},
-	{
 		Name:         "swift",
 		Extensions:   []string{"swift"},
 		Query:        swiftQuery,
 		SigDelimiter: '{',
-		KindOverrides: []KindOverride{
-			{CaptureName: "definition.struct", Kind: SymbolKindStruct},
-			{CaptureName: "definition.enum", Kind: SymbolKindEnum},
-		},
 		RefNodeTypes: []string{"simple_identifier", "type_identifier"},
 		grammarName:  func(_ string) string { return "swift" },
 		loadLanguage: func(_ string) *sitter.Language {

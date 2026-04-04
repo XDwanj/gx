@@ -15,3 +15,11 @@ func TestGrammarCacheDirUsesGxNamespace(t *testing.T) {
 		t.Fatalf("unexpected cx grammar cache namespace in %q", cacheDir)
 	}
 }
+
+func TestSupportedLanguagesExcludeRemovedGrammars(t *testing.T) {
+	for _, language := range SupportedLanguages() {
+		if language == "elixir" || language == "solidity" {
+			t.Fatalf("unexpected removed language in supported list: %s", language)
+		}
+	}
+}

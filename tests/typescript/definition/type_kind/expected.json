@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.ts",
+    "line": 17,
+    "body": "type UserId = number;"
+  }
+]

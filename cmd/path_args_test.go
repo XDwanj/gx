@@ -22,7 +22,7 @@ func TestOverviewCommandDefaultsToCurrentDirectory(t *testing.T) {
 	previousCmd := rootCmd
 	previousFlags := rootFlags
 	rootCmd = newRootCmd()
-	rootFlags = app.Flags{Root: root}
+	rootFlags = app.Flags{}
 	t.Cleanup(func() {
 		rootCmd = previousCmd
 		rootFlags = previousFlags
@@ -55,7 +55,7 @@ func TestSymbolsCommandDefaultsToCurrentDirectory(t *testing.T) {
 	previousCmd := rootCmd
 	previousFlags := rootFlags
 	rootCmd = newRootCmd()
-	rootFlags = app.Flags{Root: root}
+	rootFlags = app.Flags{}
 	t.Cleanup(func() {
 		rootCmd = previousCmd
 		rootFlags = previousFlags
@@ -114,6 +114,204 @@ func TestSymbolsCommandSupportsMultiplePathArgs(t *testing.T) {
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
 		t.Fatalf("expected path args to filter results, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestOverviewCommandResolvesRelativePathAgainstRelativeSymlinkRoot(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	parentDir := t.TempDir()
+	targetRoot := filepath.Join(parentDir, "target")
+	if err := os.MkdirAll(targetRoot, 0o755); err != nil {
+		t.Fatalf("mkdir target root: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(targetRoot, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	mainFile := filepath.Join(targetRoot, "src", "main.rs")
+	if err := os.MkdirAll(filepath.Dir(mainFile), 0o755); err != nil {
+		t.Fatalf("mkdir parents: %v", err)
+	}
+	if err := os.WriteFile(mainFile, []byte("fn main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	targetLink := filepath.Join(parentDir, "target_link")
+	if err := os.Symlink(targetRoot, targetLink); err != nil {
+		t.Fatalf("create symlink root: %v", err)
+	}
+	callerDir := filepath.Join(parentDir, "caller")
+	if err := os.MkdirAll(callerDir, 0o755); err != nil {
+		t.Fatalf("mkdir caller: %v", err)
+	}
+	t.Chdir(callerDir)
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Root: "../target_link"}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newOverviewCmd()
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("run overview command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/,") {
+		t.Fatalf("expected explicit root overview, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestOverviewCommandDefaultsToExplicitRoot(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Root: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newOverviewCmd()
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("run overview command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/,") {
+		t.Fatalf("expected explicit root overview, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestSymbolsCommandResolvesRelativePathAgainstExplicitRoot(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs":    "fn main() {}\n",
+		"other/extra.rs": "fn extra() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Root: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		runErr = command.RunE(command, []string{"src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run symbols command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.rs,main,fn") {
+		t.Fatalf("expected explicit root scoped symbols, got %q", stdout)
+	}
+	if strings.Contains(stdout, "other/extra.rs") {
+		t.Fatalf("expected explicit root relative path to filter results, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestDefinitionCommandResolvesRelativePathAgainstExplicitRoot(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs":    "fn main() {}\n",
+		"other/extra.rs": "fn extra() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Root: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newDefinitionCmd()
+		if err := command.Flags().Set("name", "main"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run definition command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "file: src/main.rs") {
+		t.Fatalf("expected explicit root scoped definition, got %q", stdout)
+	}
+	if strings.Contains(stdout, "other/extra.rs") {
+		t.Fatalf("expected explicit root relative path to filter definitions, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestReferencesCommandResolvesRelativePathAgainstExplicitRoot(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs":    "fn helper() {}\nfn main() { helper(); }\n",
+		"other/extra.rs": "fn helper() {}\nfn extra() { helper(); }\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Root: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newReferencesCmd()
+		if err := command.Flags().Set("name", "helper"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run references command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.rs") {
+		t.Fatalf("expected explicit root scoped references, got %q", stdout)
+	}
+	if strings.Contains(stdout, "other/extra.rs") {
+		t.Fatalf("expected explicit root relative path to filter references, got %q", stdout)
 	}
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

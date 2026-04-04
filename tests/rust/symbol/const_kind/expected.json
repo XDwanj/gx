@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "LIMIT",
+    "kind": "const",
+    "signature": "const LIMIT: i32 = 10;"
+  }
+]

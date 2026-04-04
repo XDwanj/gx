@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.ts",
+    "line": 6,
+    "body": "const buildUser = () => {\n  return { ok: true }\n}"
+  }
+]

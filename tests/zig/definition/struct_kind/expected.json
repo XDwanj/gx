@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.zig",
+    "line": 1,
+    "body": "const User = struct {\n    id: i32,\n};"
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.cpp",
+    "line": 4,
+    "body": "class Service {\npublic:\n  int Load();\n}"
+  }
+]

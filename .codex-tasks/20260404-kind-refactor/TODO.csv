@@ -1,0 +1,6 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,梳理入口与建立重构任务,DONE,任务文件存在且关键入口已读,test -f .codex-tasks/20260404-kind-refactor/SPEC.md,2026-04-04 00:10,0,已完成入口与测试初读
+2,收缩公开 kind 并移除 solidity/elixir,DONE,代码中不再暴露 trait/event 且不再注册 solidity/elixir,go test ./... -run 'Test.*' -timeout 60s,2026-04-04 00:34,0,同步移除了对应 go.mod 依赖
+3,重写重点语言查询与映射,DONE,Go Rust TypeScript Java C++ 的 query 与映射符合新 kind 设计,go test ./... -run 'Test.*' -timeout 60s,2026-04-04 00:41,0,已补齐多名字声明提取与重点语言测试
+4,更新测试与文档,DONE,相关测试通过且 README/Architecture 与实现一致,go test ./... -timeout 60s,2026-04-04 00:48,0,README README.zh-CN skill 与 Architecture 已同步
+5,运行完整验证,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 00:52,0,go test 与 golangci-lint 均已通过

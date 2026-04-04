@@ -17,7 +17,7 @@ const cQuery = `
 
 (struct_specifier
   name: (type_identifier) @name
-  body: (_)) @definition.class
+  body: (_)) @definition.struct
 
 (enum_specifier
   name: (type_identifier) @name) @definition.enum
@@ -46,48 +46,20 @@ const cppQuery = `
       name: (identifier) @name))) @definition.method
 
 (struct_specifier
-  name: (type_identifier) @name
-  body: (_)) @definition.class
+  name: [(type_identifier) (qualified_identifier)] @name
+  body: (_)) @definition.struct
 
 (class_specifier
-  name: (type_identifier) @name) @definition.class
+  name: [(type_identifier) (qualified_identifier)] @name) @definition.class
 
 (enum_specifier
   name: (type_identifier) @name) @definition.enum
 
+(namespace_definition
+  name: [(namespace_identifier) (nested_namespace_specifier)] @name) @definition.module
+
 (type_definition
   declarator: (type_identifier) @name) @definition.type
-`
-
-const elixirQuery = `
-(call
-  target: (identifier) @_keyword
-  (arguments (alias) @name)
-  (#any-of? @_keyword "defmodule" "defprotocol" "defimpl")) @definition.module
-
-(call
-  target: (identifier) @_keyword
-  (arguments
-    [(identifier) @name
-     (call target: (identifier) @name)
-     (binary_operator left: (call target: (identifier) @name))])
-  (#any-of? @_keyword "def" "defp" "defmacro" "defmacrop" "defguard" "defguardp" "defdelegate")) @definition.function
-
-(unary_operator
-  operand: (call
-    target: (identifier) @_keyword
-    (arguments
-      (binary_operator
-        left: (identifier) @name)))
-  (#any-of? @_keyword "type" "typep" "opaque")) @definition.type
-
-(unary_operator
-  operand: (call
-    target: (identifier) @_keyword
-    (arguments
-      (binary_operator
-        left: (call target: (identifier) @name)))
-    (#eq? @_keyword "callback"))) @definition.method
 `
 
 const goQuery = `
@@ -97,11 +69,61 @@ const goQuery = `
 (method_declaration
   name: (field_identifier) @name) @definition.method
 
-(type_spec
-  name: (type_identifier) @name) @definition.type
+(source_file
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @name
+      type: (struct_type)) @definition.struct))
+
+(source_file
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @name
+      type: (interface_type)) @definition.interface))
+
+(source_file
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @name) @definition.type))
+
+(source_file
+  (type_declaration
+    (type_alias
+      name: (type_identifier) @name) @definition.type))
+
+(source_file
+  (const_declaration
+    (const_spec
+      name: (identifier) @name) @definition.constant))
+
+(source_file
+  (const_declaration
+    (const_spec
+      name: (identifier) @name
+      value: (_)) @definition.constant))
+
+(source_file
+  (var_declaration
+    (var_spec
+      name: (identifier) @name) @definition.constant))
+
+(source_file
+  (var_declaration
+    (var_spec_list
+      (var_spec
+        name: (identifier) @name) @definition.constant)))
+
+(source_file
+  (var_declaration
+    (var_spec
+      name: (identifier) @name
+      value: (_)) @definition.constant))
 `
 
 const javaQuery = `
+(module_declaration
+  name: [(identifier) (scoped_identifier)] @name) @definition.module
+
 (class_declaration
   name: (identifier) @name) @definition.class
 
@@ -113,6 +135,19 @@ const javaQuery = `
 
 (enum_declaration
   name: (identifier) @name) @definition.enum
+
+(constant_declaration
+  declarator: (variable_declarator
+    name: (identifier) @name)) @definition.constant
+
+(field_declaration
+  (modifiers
+    "final")
+  declarator: (variable_declarator
+    name: (identifier) @name)) @definition.constant
+
+(enum_constant
+  name: (identifier) @name) @definition.constant
 `
 
 const luaQuery = `
@@ -129,7 +164,20 @@ const luaQuery = `
 `
 
 const pythonQuery = `
-(module (assignment left: (identifier) @name) @definition.constant)
+(assignment
+  left: (identifier) @name) @definition.constant
+
+(assignment
+  left: (pattern_list
+    (identifier) @name)) @definition.constant
+
+(assignment
+  left: (tuple_pattern
+    (identifier) @name)) @definition.constant
+
+(assignment
+  left: (list_pattern
+    (identifier) @name)) @definition.constant
 
 (class_definition
   name: (identifier) @name) @definition.class
@@ -154,55 +202,41 @@ const rubyQuery = `
 
 const rustQuery = `
 (struct_item
-    name: (type_identifier) @name) @definition.class
+  name: (type_identifier) @name) @definition.struct
 
 (enum_item
-    name: (type_identifier) @name) @definition.class
+  name: (type_identifier) @name) @definition.enum
 
 (union_item
-    name: (type_identifier) @name) @definition.class
+  name: (type_identifier) @name) @definition.struct
 
 (type_item
-    name: (type_identifier) @name) @definition.class
+  name: (type_identifier) @name) @definition.type
 
 (declaration_list
-    (function_item
-        name: (identifier) @name) @definition.method)
+  (function_item
+    name: (identifier) @name) @definition.method)
 
 (function_item
-    name: (identifier) @name) @definition.function
-
-(trait_item
-    name: (type_identifier) @name) @definition.interface
-
-(mod_item
-    name: (identifier) @name) @definition.module
-
-(macro_definition
-    name: (identifier) @name) @definition.macro
-`
-
-const solidityQuery = `
-(contract_declaration
-  name: (identifier) @name) @definition.class
-
-(interface_declaration
-  name: (identifier) @name) @definition.interface
-
-(library_declaration
-  name: (identifier) @name) @definition.module
-
-(function_definition
   name: (identifier) @name) @definition.function
 
-(struct_declaration
-  name: (identifier) @name) @definition.class
+(trait_item
+  name: (type_identifier) @name) @definition.interface
 
-(enum_declaration
-  name: (identifier) @name) @definition.enum
+(const_item
+  name: (identifier) @name) @definition.constant
 
-(event_definition
-  name: (identifier) @name) @definition.event
+(static_item
+  name: (identifier) @name) @definition.constant
+
+(enum_variant
+  name: (identifier) @name) @definition.constant
+
+(mod_item
+  name: (identifier) @name) @definition.module
+
+(macro_definition
+  name: (identifier) @name) @definition.macro
 `
 
 const swiftQuery = `
@@ -314,7 +348,7 @@ const typeScriptQuery = `
 (enum_declaration
   name: (identifier) @name) @definition.enum
 
-(module
+(internal_module
   name: (identifier) @name) @definition.module
 
 (lexical_declaration
@@ -326,6 +360,20 @@ const typeScriptQuery = `
   (variable_declarator
     name: (identifier) @name
     value: (arrow_function))) @definition.function
+
+(lexical_declaration
+  (variable_declarator
+    name: (identifier) @name)) @definition.constant
+
+(variable_declaration
+  (variable_declarator
+    name: (identifier) @name)) @definition.constant
+
+(enum_assignment
+  name: [(property_identifier) (string) (number)] @name) @definition.constant
+
+(enum_body
+  name: [(property_identifier) (string) (number)] @name) @definition.constant
 `
 
 const zigQuery = `
@@ -340,7 +388,7 @@ const zigQuery = `
       (SuffixExpr
         (ContainerDecl
           (ContainerDeclType
-            "struct")))))) @definition.class
+            "struct")))))) @definition.struct
 
 (Decl
   (VarDecl
@@ -358,7 +406,7 @@ const zigQuery = `
       (SuffixExpr
         (ContainerDecl
           (ContainerDeclType
-            "union")))))) @definition.class
+            "union")))))) @definition.struct
 
 (Decl
   (VarDecl

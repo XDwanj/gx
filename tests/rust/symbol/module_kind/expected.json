@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "billing",
+    "kind": "module",
+    "signature": "mod billing"
+  }
+]

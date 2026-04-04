@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.py",
+    "name": "build_user",
+    "kind": "fn",
+    "signature": "def build_user()"
+  }
+]

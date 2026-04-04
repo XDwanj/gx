@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "UserId",
+    "kind": "type",
+    "signature": "type UserId = i64;"
+  }
+]

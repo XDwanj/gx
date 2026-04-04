@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.ts",
+    "name": "billing",
+    "kind": "module",
+    "signature": "namespace billing"
+  }
+]

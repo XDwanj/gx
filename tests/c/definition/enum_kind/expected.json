@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.c",
+    "line": 1,
+    "body": "enum Color {\n  Red,\n  Blue,\n}"
+  }
+]

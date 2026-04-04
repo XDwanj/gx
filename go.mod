@@ -13,7 +13,6 @@ require (
 	github.com/tree-sitter/tree-sitter-bash v0.25.1
 	github.com/tree-sitter/tree-sitter-c v0.24.1
 	github.com/tree-sitter/tree-sitter-cpp v0.23.4
-	github.com/tree-sitter/tree-sitter-elixir v0.0.0-00010101000000-000000000000
 	github.com/tree-sitter/tree-sitter-go v0.25.0
 	github.com/tree-sitter/tree-sitter-java v0.23.5
 	github.com/tree-sitter/tree-sitter-python v0.25.0
@@ -38,12 +37,8 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/tree-sitter/tree-sitter-solidity => github.com/JoranHonig/tree-sitter-solidity v1.2.13
-
 replace github.com/tree-sitter/tree-sitter-zig => github.com/maxxnino/tree-sitter-zig v0.0.0-20241013045227-a80a6e9be81b
 
 replace github.com/tree-sitter/tree-sitter-swift => github.com/alex-pinkus/tree-sitter-swift v0.0.0-20260329160836-50f2735c48ad
-
-replace github.com/tree-sitter/tree-sitter-elixir => github.com/elixir-lang/tree-sitter-elixir v0.3.5
 
 replace github.com/tree-sitter/tree-sitter-typescript/bindings/go => github.com/tree-sitter/tree-sitter-typescript v0.23.2

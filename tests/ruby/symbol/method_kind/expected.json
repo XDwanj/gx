@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rb",
+    "name": "load_user",
+    "kind": "method",
+    "signature": "def load_user"
+  }
+]

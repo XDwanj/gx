@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.ts",
+    "name": "Status",
+    "kind": "enum",
+    "signature": "enum Status"
+  }
+]

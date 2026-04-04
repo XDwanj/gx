@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.lua",
+    "line": 3,
+    "body": "function User:greet()\n  return \"hi\"\nend"
+  }
+]

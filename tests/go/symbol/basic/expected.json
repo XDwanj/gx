@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.go",
+    "name": "User",
+    "kind": "struct",
+    "signature": "User struct"
+  }
+]

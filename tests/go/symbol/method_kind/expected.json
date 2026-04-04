@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.go",
+    "name": "Load",
+    "kind": "method",
+    "signature": "func (User) Load() User"
+  }
+]

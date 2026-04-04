@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.swift",
+    "name": "Reader",
+    "kind": "interface",
+    "signature": "protocol Reader"
+  }
+]

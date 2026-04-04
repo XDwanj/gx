@@ -15,7 +15,15 @@ type Flags struct {
 
 func ResolveRoot(root string) (string, error) {
 	if root != "" {
-		return filepath.Clean(root), nil
+		absoluteRoot, err := filepath.Abs(root)
+		if err != nil {
+			return "", err
+		}
+		realRoot, err := filepath.EvalSymlinks(absoluteRoot)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Clean(realRoot), nil
 	}
 
 	cwd, err := os.Getwd()

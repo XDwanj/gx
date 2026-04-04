@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.c",
+    "line": 3,
+    "body": "struct User {\n  int id;\n}"
+  }
+]

@@ -1,0 +1,7 @@
+id,task,status,completed_at,notes
+1,Create task tracker and confirm README insertion point,DONE,2026-04-04T13:49:00+08:00,"Use .codex-tasks for this documentation task"
+2,Add kind definitions overview and per-language tables to README.md,DONE,2026-04-04T13:51:00+08:00,"Added a shared kind overview plus one table per supported language"
+3,Review diff and verify wording against current implementation,DONE,2026-04-04T13:52:00+08:00,"Checked README mappings against internal/language/queries.go and KindOverrides; confirmed root TODO.csv removed"
+4,Add matching kind definitions section to README.zh-CN.md,DONE,2026-04-04T13:56:00+08:00,"Inserted a Chinese version of the kind definitions section and kept it aligned with README.md"
+5,Expand README kind tables with short syntax explanations,DONE,2026-04-04T14:02:00+08:00,"Updated English tables to include a brief explanation column for each declaration form"
+6,Expand README.zh-CN kind tables with short syntax explanations,DONE,2026-04-04T14:03:00+08:00,"Updated Chinese tables to include a brief explanation column and kept them aligned with README.md"

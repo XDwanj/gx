@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.c",
+    "name": "Color",
+    "kind": "enum",
+    "signature": "enum Color"
+  }
+]

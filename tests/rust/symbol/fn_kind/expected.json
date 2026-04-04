@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "build_user",
+    "kind": "fn",
+    "signature": "fn build_user()"
+  }
+]

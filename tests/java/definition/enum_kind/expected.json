@@ -1,0 +1,7 @@
+[
+  {
+    "file": "Status.java",
+    "line": 1,
+    "body": "enum Status {\n    OPEN,\n    CLOSED\n}"
+  }
+]

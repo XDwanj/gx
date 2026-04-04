@@ -1,0 +1,7 @@
+{
+  "name": "billing",
+  "kind": "module",
+  "paths": [
+    "."
+  ]
+}

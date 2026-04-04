@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务记录并确认 Python unpacking 节点结构,DONE,已确认 pattern_list tuple_pattern list_pattern 的实际节点结构,test -f .codex-tasks/20260404-python-unpacking-values/SPEC.md,2026-04-04 18:34,0,已确认 X,Y / (U,V) / [P,Q] 分别落到 pattern_list / tuple_pattern / list_pattern
+2,扩展 pythonQuery 以支持 unpacking assignment,DONE,模块级 unpacking 左值中的名字可被提取为 const,go test ./internal/language -timeout 60s,2026-04-04 18:37,0,已扩展 pythonQuery 支持 pattern_list tuple_pattern list_pattern
+3,补 Python unpacking fixture 与回归测试,DONE,tests/python 覆盖 symbols 与 definition 的 unpacking 场景,go test ./cmd -run 'TestLanguageFixtures/python' -timeout 60s,2026-04-04 18:39,0,已新增 unpacking_kind 的 symbol 与 definition fixture
+4,运行全量测试与 lint,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 18:41,0,已通过 go test ./... -timeout 60s 与 golangci-lint run ./...

@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.ts",
+    "name": "method",
+    "kind": "method",
+    "signature": "method(): number"
+  }
+]

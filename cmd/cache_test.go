@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"gx/internal/app"
 	"gx/internal/index"
 	"os"
 	"path/filepath"
@@ -14,12 +15,16 @@ func TestCacheCleanRemovesSQLiteCache(t *testing.T) {
 	t.Setenv("HOME", cacheHome)
 
 	root := t.TempDir()
-	cachePath := index.CachePathFor(root)
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
-		t.Fatalf("mkdir cache dir: %v", err)
+	resolvedRoot, err := app.ResolveRoot(root)
+	if err != nil {
+		t.Fatalf("resolve root: %v", err)
 	}
-	if err := os.WriteFile(cachePath, []byte("SQLite format 3\x00"), 0o644); err != nil {
-		t.Fatalf("write cache file: %v", err)
+	cachePath := index.CachePathFor(resolvedRoot)
+	if mkdirErr := os.MkdirAll(filepath.Dir(cachePath), 0o755); mkdirErr != nil {
+		t.Fatalf("mkdir cache dir: %v", mkdirErr)
+	}
+	if writeErr := os.WriteFile(cachePath, []byte("SQLite format 3\x00"), 0o644); writeErr != nil {
+		t.Fatalf("write cache file: %v", writeErr)
 	}
 
 	previousRoot := rootFlags.Root

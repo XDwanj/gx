@@ -11,28 +11,38 @@ const (
 	SymbolKindFn        SymbolKind = "fn"
 	SymbolKindStruct    SymbolKind = "struct"
 	SymbolKindEnum      SymbolKind = "enum"
-	SymbolKindTrait     SymbolKind = "trait"
 	SymbolKindType      SymbolKind = "type"
 	SymbolKindConst     SymbolKind = "const"
 	SymbolKindClass     SymbolKind = "class"
 	SymbolKindInterface SymbolKind = "interface"
 	SymbolKindMethod    SymbolKind = "method"
 	SymbolKindModule    SymbolKind = "module"
-	SymbolKindEvent     SymbolKind = "event"
 )
 
 var validSymbolKinds = map[string]SymbolKind{
 	"fn":        SymbolKindFn,
 	"struct":    SymbolKindStruct,
 	"enum":      SymbolKindEnum,
-	"trait":     SymbolKindTrait,
 	"type":      SymbolKindType,
 	"const":     SymbolKindConst,
 	"class":     SymbolKindClass,
 	"interface": SymbolKindInterface,
 	"method":    SymbolKindMethod,
 	"module":    SymbolKindModule,
-	"event":     SymbolKindEvent,
+}
+
+func PublicSymbolKinds() []SymbolKind {
+	return []SymbolKind{
+		SymbolKindFn,
+		SymbolKindMethod,
+		SymbolKindConst,
+		SymbolKindStruct,
+		SymbolKindEnum,
+		SymbolKindClass,
+		SymbolKindInterface,
+		SymbolKindModule,
+		SymbolKindType,
+	}
 }
 
 func ParseSymbolKind(raw string) (SymbolKind, error) {

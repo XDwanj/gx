@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.c",
+    "line": 5,
+    "body": "int add(int left, int right) {\n  return left + right;\n}"
+  }
+]

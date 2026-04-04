@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.zig",
+    "line": 5,
+    "body": "const Status = enum {\n    open,\n    closed,\n};"
+  }
+]

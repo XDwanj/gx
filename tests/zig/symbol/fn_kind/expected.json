@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.zig",
+    "name": "buildUser",
+    "kind": "fn",
+    "signature": "fn buildUser() void"
+  }
+]

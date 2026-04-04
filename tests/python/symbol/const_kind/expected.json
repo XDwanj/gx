@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.py",
+    "name": "LIMIT",
+    "kind": "const",
+    "signature": "LIMIT = 10"
+  }
+]

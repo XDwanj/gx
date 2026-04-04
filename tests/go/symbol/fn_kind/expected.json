@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.go",
+    "name": "BuildUser",
+    "kind": "fn",
+    "signature": "func BuildUser() User"
+  }
+]

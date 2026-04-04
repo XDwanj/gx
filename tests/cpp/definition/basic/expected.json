@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.cpp",
+    "line": 7,
+    "body": "int build_user() {\n  return 1;\n}"
+  }
+]

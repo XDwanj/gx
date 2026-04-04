@@ -20,7 +20,7 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			paths, err := resolveTargetPaths(args)
+			paths, err := resolveTargetPaths(runtime.Root, args)
 			if err != nil {
 				return err
 			}

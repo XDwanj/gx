@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.zig",
+    "name": "User",
+    "kind": "struct",
+    "signature": "const User = struct"
+  }
+]

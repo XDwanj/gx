@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "Status",
+    "kind": "enum",
+    "signature": "enum Status"
+  }
+]

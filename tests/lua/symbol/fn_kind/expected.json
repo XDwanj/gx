@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.lua",
+    "name": "build_user",
+    "kind": "fn",
+    "signature": "function build_user()"
+  }
+]

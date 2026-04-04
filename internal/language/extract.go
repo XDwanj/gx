@@ -7,6 +7,15 @@ import (
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
+const (
+	symbolKindPriorityUnknown   = 0
+	symbolKindPriorityType      = 1
+	symbolKindPriorityValue     = 2
+	symbolKindPriorityFunction  = 3
+	symbolKindPriorityContainer = 4
+	symbolKindPriorityMethod    = 5
+)
+
 type Reference struct {
 	Line       int
 	ByteOffset uint
@@ -21,7 +30,7 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 	symbols := make([]Symbol, 0)
 
 	for match := matches.Next(); match != nil; match = matches.Next() {
-		var nameNode *sitter.Node
+		nameNodes := make([]sitter.Node, 0, 1)
 		var definitionNode *sitter.Node
 		definitionKind := ""
 
@@ -29,7 +38,7 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 			name := captureNames[capture.Index]
 			node := capture.Node
 			if name == "name" {
-				nameNode = &node
+				nameNodes = append(nameNodes, node)
 				continue
 			}
 			if strings.HasPrefix(name, "definition.") {
@@ -38,7 +47,7 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 			}
 		}
 
-		if nameNode == nil || definitionNode == nil || definitionKind == "" {
+		if len(nameNodes) == 0 || definitionNode == nil || definitionKind == "" {
 			continue
 		}
 
@@ -47,14 +56,18 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 			continue
 		}
 
-		symbols = append(symbols, Symbol{
-			Name:      nameNode.Utf8Text(source),
-			Kind:      kind,
-			Signature: buildSignature(config, definitionNode, source),
-			ByteStart: definitionNode.StartByte(),
-			ByteEnd:   definitionNode.EndByte(),
-			IsTest:    detectTestSymbol(config.Name, definitionNode, source),
-		})
+		signature := buildSignature(config, definitionNode, source)
+		isTest := detectTestSymbol(config.Name, definitionNode, source)
+		for _, nameNode := range nameNodes {
+			symbols = append(symbols, Symbol{
+				Name:      nameNode.Utf8Text(source),
+				Kind:      kind,
+				Signature: signature,
+				ByteStart: definitionNode.StartByte(),
+				ByteEnd:   definitionNode.EndByte(),
+				IsTest:    isTest,
+			})
+		}
 	}
 
 	return deduplicate(symbols)
@@ -77,6 +90,8 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 		return SymbolKindFn, true
 	case "definition.method":
 		return SymbolKindMethod, true
+	case "definition.struct":
+		return SymbolKindStruct, true
 	case "definition.class":
 		return SymbolKindClass, true
 	case "definition.interface":
@@ -89,8 +104,6 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 		return SymbolKindModule, true
 	case "definition.constant":
 		return SymbolKindConst, true
-	case "definition.event":
-		return SymbolKindEvent, true
 	default:
 		return "", false
 	}
@@ -151,9 +164,9 @@ func deduplicate(symbols []Symbol) []Symbol {
 	seen := map[string]int{}
 	result := make([]Symbol, 0, len(symbols))
 	for _, symbol := range symbols {
-		key := fmt.Sprintf("%d:%d", symbol.ByteStart, symbol.ByteEnd)
+		key := fmt.Sprintf("%s:%d:%d", symbol.Name, symbol.ByteStart, symbol.ByteEnd)
 		if existingIndex, ok := seen[key]; ok {
-			if result[existingIndex].Kind == SymbolKindFn && symbol.Kind == SymbolKindMethod {
+			if preferredSymbolKind(symbol.Kind, result[existingIndex].Kind) {
 				result[existingIndex] = symbol
 			}
 			continue
@@ -162,6 +175,27 @@ func deduplicate(symbols []Symbol) []Symbol {
 		result = append(result, symbol)
 	}
 	return result
+}
+
+func preferredSymbolKind(candidate SymbolKind, current SymbolKind) bool {
+	return symbolKindSpecificity(candidate) > symbolKindSpecificity(current)
+}
+
+func symbolKindSpecificity(kind SymbolKind) int {
+	switch kind {
+	case SymbolKindMethod:
+		return symbolKindPriorityMethod
+	case SymbolKindStruct, SymbolKindEnum, SymbolKindClass, SymbolKindInterface:
+		return symbolKindPriorityContainer
+	case SymbolKindFn:
+		return symbolKindPriorityFunction
+	case SymbolKindConst, SymbolKindModule:
+		return symbolKindPriorityValue
+	case SymbolKindType:
+		return symbolKindPriorityType
+	default:
+		return symbolKindPriorityUnknown
+	}
 }
 
 func detectTestSymbol(languageName string, node *sitter.Node, source []byte) bool {

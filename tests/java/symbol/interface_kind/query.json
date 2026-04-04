@@ -1,0 +1,7 @@
+{
+  "name": "Store",
+  "kind": "interface",
+  "paths": [
+    "."
+  ]
+}

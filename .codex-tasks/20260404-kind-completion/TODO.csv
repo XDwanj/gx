@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务记录并确认 completion 接入点,DONE,已确认 Cobra flag completion 注册与测试方法,test -f .codex-tasks/20260404-kind-completion/SPEC.md,2026-04-04 18:43,0,已确认 RegisterFlagCompletionFunc 与 GetFlagCompletionFunc 可用于实现和测试
+2,抽取公开 kind 真源并实现 --kind completion,DONE,symbols 与 definition 的 --kind 返回全部公开 kind 候选,go test ./cmd -run Completion -timeout 60s,2026-04-04 18:48,0,已下沉 internal/index.PublicSymbolKinds 并给 symbols/definition 注册 kind completion
+3,补命令级 completion 与 kind 真源测试,DONE,completion 和公开 kind 真源都有自动测试覆盖,go test ./... -timeout 60s,2026-04-04 18:52,0,已新增 cmd/completion_test.go 和 internal/index/types_test.go 覆盖
+4,运行全量测试与 lint,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 18:55,0,已通过 golangci-lint run ./... 与 go test ./... -timeout 60s

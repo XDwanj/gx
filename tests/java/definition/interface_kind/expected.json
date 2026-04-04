@@ -1,0 +1,7 @@
+[
+  {
+    "file": "App.java",
+    "line": 8,
+    "body": "interface Store {\n    void save();\n}"
+  }
+]

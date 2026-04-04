@@ -1,0 +1,7 @@
+{
+  "name": "load",
+  "kind": "method",
+  "paths": [
+    "."
+  ]
+}

@@ -1,0 +1,8 @@
+[
+  {
+    "file": "module-info.java",
+    "name": "demo.core",
+    "kind": "module",
+    "signature": "module demo.core"
+  }
+]

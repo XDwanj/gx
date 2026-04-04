@@ -1,0 +1,7 @@
+{
+  "name": "buildUser",
+  "kind": "fn",
+  "paths": [
+    "."
+  ]
+}

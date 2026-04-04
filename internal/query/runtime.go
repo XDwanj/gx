@@ -646,9 +646,9 @@ func prepareSymbols(symbols []index.Symbol) []index.Symbol {
 
 func symbolPriority(kind index.SymbolKind) int {
 	switch kind {
-	case index.SymbolKindStruct, index.SymbolKindEnum, index.SymbolKindTrait, index.SymbolKindInterface, index.SymbolKindClass:
+	case index.SymbolKindStruct, index.SymbolKindEnum, index.SymbolKindInterface, index.SymbolKindClass:
 		return symbolPriorityPrimary
-	case index.SymbolKindFn, index.SymbolKindConst, index.SymbolKindType, index.SymbolKindModule, index.SymbolKindEvent:
+	case index.SymbolKindFn, index.SymbolKindConst, index.SymbolKindType, index.SymbolKindModule:
 		return symbolPrioritySecondary
 	default:
 		return symbolPriorityFallback

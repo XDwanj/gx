@@ -77,14 +77,14 @@ func resolveRoot() (string, error) {
 	return app.ResolveRoot(rootFlags.Root)
 }
 
-func resolveTargetPaths(paths []string) ([]string, error) {
-	cwd, err := os.Getwd()
+func resolveTargetPaths(root string, paths []string) ([]string, error) {
+	basePath, err := resolveTargetBase(root)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(paths) == 0 {
-		return []string{cwd}, nil
+		return []string{basePath}, nil
 	}
 
 	resolved := make([]string, 0, len(paths))
@@ -93,9 +93,21 @@ func resolveTargetPaths(paths []string) ([]string, error) {
 			resolved = append(resolved, filepath.Clean(path))
 			continue
 		}
-		resolved = append(resolved, filepath.Clean(filepath.Join(cwd, path)))
+		resolved = append(resolved, filepath.Clean(filepath.Join(basePath, path)))
 	}
 	return resolved, nil
+}
+
+func resolveTargetBase(root string) (string, error) {
+	if rootFlags.Root != "" {
+		return filepath.Clean(root), nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return cwd, nil
 }
 
 func buildRuntime() (*query.Runtime, error) {

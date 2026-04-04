@@ -21,7 +21,7 @@ func newOverviewCmd() *cobra.Command {
 				return err
 			}
 
-			targets, err := resolveTargetPaths(args)
+			targets, err := resolveTargetPaths(runtime.Root, args)
 			if err != nil {
 				return err
 			}

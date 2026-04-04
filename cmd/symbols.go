@@ -14,13 +14,14 @@ func newSymbolsCmd() *cobra.Command {
 		Use:     "symbols [flags] [path ...]",
 		Aliases: []string{"s"},
 		Short:   "Search symbols across project",
+		Long:    symbolsLongDescription(),
 		RunE: func(_ *cobra.Command, args []string) error {
 			runtime, err := buildRuntime()
 			if err != nil {
 				return err
 			}
 
-			paths, err := resolveTargetPaths(args)
+			paths, err := resolveTargetPaths(runtime.Root, args)
 			if err != nil {
 				return err
 			}
@@ -52,5 +53,8 @@ func newSymbolsCmd() *cobra.Command {
 
 	command.Flags().StringVar(&name, "name", "", "Glob pattern to match symbol names")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
+	if err := registerKindFlagCompletion(command, "kind"); err != nil {
+		panic(err)
+	}
 	return command
 }

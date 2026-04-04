@@ -1,0 +1,7 @@
+[
+  {
+    "file": "App.java",
+    "line": 1,
+    "body": "class App {\n    static final int LIMIT = 10;\n\n    int build() {\n        return LIMIT;\n    }\n}"
+  }
+]

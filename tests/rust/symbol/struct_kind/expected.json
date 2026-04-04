@@ -1,0 +1,8 @@
+[
+  {
+    "file": "main.rs",
+    "name": "User",
+    "kind": "struct",
+    "signature": "struct User;"
+  }
+]

@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.cpp",
+    "line": 3,
+    "body": "namespace billing {\nclass Service {\npublic:\n  int Load();\n};\n\nstruct User {\n  int id;\n};\n\nenum Status {\n  StatusOpen,\n  StatusClosed\n};\n\nint Service::Load() {\n  return 1;\n}\n\nint BuildUser() {\n  return 1;\n}\n}"
+  }
+]

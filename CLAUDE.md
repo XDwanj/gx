@@ -15,3 +15,7 @@
 - Treat `cx_version` only as the upstream `ind-igo/cx` commit marker; do not use it as the `gx` release or CLI version source.
 - When a user corrects remembered command behavior, verify the implementation first and update docs only after the code path is confirmed.
 - In all command docs, examples, and Cobra `Use` strings, show flags before positional args.
+- Keep task tracking files under `.codex-tasks/`; do not create ad-hoc `TODO.csv` files at the repository root.
+- When adding fixture tests under `tests/`, ensure every public `gx` kind is covered by the fixture matrix; do not stop at per-language happy-path cases.
+- For terminal `--help` additions, prefer compact lists over tables unless the user explicitly asks for a table.
+- When suggesting commands that use `--root`, verify how positional relative paths are resolved in the implementation first; do not assume `.` automatically follows `--root`.
