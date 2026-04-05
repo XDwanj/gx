@@ -18,7 +18,7 @@ This project is derived from `cx`, but its public command name in this repositor
 
 Current built-in language support includes:
 
-`bash`, `c`, `cpp`, `go`, `java`, `lua`, `python`, `ruby`, `rust`, `swift`, `typescript`, `zig`
+`bash`, `c`, `cpp`, `go`, `java`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `zig`
 
 Use `gx lang list` to see which grammars are currently installed in your local cache.
 
@@ -102,6 +102,15 @@ below.
 | top-level `assignment` | A module-level assignment treated as a constant-like symbol | `const` |
 | `class_definition` | A class definition | `class` |
 | `function_definition` | A function definition | `fn` |
+
+### protobuf
+
+| Declaration form | What syntax it represents | `gx` kind |
+|---|---|---|
+| `message` | A message declaration | `struct` |
+| `enum` | An enum declaration | `enum` |
+| `service` | A service declaration | `interface` |
+| `rpc` | An RPC declaration inside a service | `method` |
 
 ### ruby
 

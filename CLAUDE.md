@@ -21,3 +21,4 @@
 - When suggesting commands that use `--root`, verify how positional relative paths are resolved in the implementation first; do not assume `.` automatically follows `--root`.
 - For `gx symbols` declaration-index output, do not add a `column` field unless the user explicitly asks for it or a concrete tool integration requires it; prefer `file + line` as the default coordinate contract.
 - For Go import and formatting cleanup in this repo, prefer `goimports` before rerunning lint; do not default to `gofumpt` as the first fix tool for import grouping issues.
+- When a public contract changes, always check whether `README`, embedded `skill.md`, terminal `--help`, and `tests/` also need synchronized updates.

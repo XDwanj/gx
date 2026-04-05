@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,Confirm source-of-truth language support,DONE,Supported language list and kind matrix are identified,echo ok,2026-04-05T00:00:00,0,Confirmed from internal/lang/lang.go and cmd/help_kind_support.go
+2,Update README documents,DONE,README.md and README.zh-CN.md mention protobuf consistently,rg -n "protobuf" README.md README.zh-CN.md,2026-04-05T00:00:00,0,Added protobuf to the supported-language lists and kind sections
+3,Update embedded skill document,DONE,internal/skill/skill.md includes protobuf coverage,rg -n "protobuf" internal/skill/skill.md,2026-04-05T00:00:00,0,Embedded skill coverage now includes protobuf
+4,Review diff and final state,DONE,Doc diffs only contain intended updates,git diff -- CLAUDE.md README.md README.zh-CN.md internal/skill/skill.md,2026-04-05T00:00:00,0,Confirmed help already includes protobuf and tests already cover protobuf; added CLAUDE reminder for future contract changes

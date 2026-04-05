@@ -17,7 +17,7 @@
 
 当前内置支持的语言包括：
 
-`bash`、`c`、`cpp`、`go`、`java`、`lua`、`python`、`ruby`、`rust`、`swift`、`typescript`、`zig`
+`bash`、`c`、`cpp`、`go`、`java`、`lua`、`python`、`protobuf`、`ruby`、`rust`、`swift`、`typescript`、`zig`
 
 可以通过 `gx lang list` 查看本机缓存中哪些 grammar 已安装。
 
@@ -100,6 +100,15 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | 顶层 `assignment` | 模块级赋值，按常量风格符号处理 | `const` |
 | `class_definition` | 类定义 | `class` |
 | `function_definition` | 函数定义 | `fn` |
+
+### protobuf
+
+| 声明形式 | 具体语法 | `gx` kind |
+|---|---|---|
+| `message` | message 声明 | `struct` |
+| `enum` | 枚举声明 | `enum` |
+| `service` | service 声明 | `interface` |
+| `rpc` | service 内部的 RPC 声明 | `method` |
 
 ### ruby
 

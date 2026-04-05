@@ -55,6 +55,7 @@ Current language coverage:
 - `java`: `class`, `method`, `const`, `enum`, `interface`, `module`
 - `lua`: `fn`, `method`
 - `python`: `fn`, `const`, `class`
+- `protobuf`: `struct`, `enum`, `interface`, `method`
 - `ruby`: `method`, `class`, `module`
 - `rust`: `fn`, `method`, `const`, `struct`, `enum`, `interface`, `module`, `type`
 - `swift`: `fn`, `method`, `const`, `struct`, `enum`, `class`, `interface`, `module`, `type`
