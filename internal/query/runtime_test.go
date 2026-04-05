@@ -380,6 +380,37 @@ func TestDefinitionPaginationAppliesOffsetAfterPrioritySort(t *testing.T) {
 	}
 }
 
+func TestDefinitionMaxLinesTruncationMentionsHowToContinue(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\ntype buildType struct {\n\tAlpha int\n\tBeta int\n\tGamma int\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Definition(idx, "buildType", nil, nil, 3, PageRequest{}); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "truncated: showing first 3 of 5 lines") {
+		t.Fatalf("expected truncation marker, got %s", output)
+	}
+	if strings.Contains(output, "Gamma int") {
+		t.Fatalf("expected --max-lines truncation to omit trailing lines: %s", output)
+	}
+	if !strings.Contains(output, "--max-lines 5") {
+		t.Fatalf("expected truncation hint to mention --max-lines so unfinished output is explicit, got %s", output)
+	}
+}
+
 func TestDirectoryOverviewPaginationWritesHint(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{
@@ -438,6 +469,37 @@ func TestReferencesSupportsGlobName(t *testing.T) {
 	}
 	if !strings.Contains(output, "build_helper") {
 		t.Fatalf("missing build_helper reference: %s", output)
+	}
+}
+
+func TestReferencesPaginationWritesHint(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn build_runtime() {}\nfn one() { build_runtime(); }\nfn two() { build_runtime(); }\nfn three() { build_runtime(); }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.References(idx, "build*", nil, false, PageRequest{Limit: 2}); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "build_runtime") {
+		t.Fatalf("missing paged references output: %s", output)
+	}
+	if !strings.Contains(stderr.String(), "gx: showing 1-2 of ") {
+		t.Fatalf("expected references pagination hint, got %q", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "use --offset 2, or --all") {
+		t.Fatalf("expected references pagination hint to suggest next offset, got %q", stderr.String())
 	}
 }
 

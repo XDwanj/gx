@@ -1,0 +1,4 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务记录与约束,DONE,"SPEC.md、TODO.csv、PROGRESS.md 已创建并说明本次只补测试","test -f .codex-tasks/20260405-pagination-test-gaps/SPEC.md && test -f .codex-tasks/20260405-pagination-test-gaps/TODO.csv && test -f .codex-tasks/20260405-pagination-test-gaps/PROGRESS.md","2026-04-05 11:43",0,"任务目录已创建，明确本任务允许通过失败测试暴露提示缺口"
+2,补 --max-lines 与 references 测试,DONE,"runtime_test.go 新增两类测试并保持意图清晰","go test ./internal/query -run 'TestDefinitionMaxLines|TestReferencesPagination' -timeout 60s","2026-04-05 11:45",0,"新增两个测试；定向验证中 references 通过，--max-lines 提示测试失败并准确暴露缺口"
+3,运行验证并记录结果,DONE,"相关测试执行完成，结果同步到 PROGRESS.md","go test ./internal/query ./cmd -timeout 60s","2026-04-05 11:46",0,"全量相关验证完成；cmd 通过，internal/query 因新增 --max-lines 提示测试失败"

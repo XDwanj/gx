@@ -249,7 +249,14 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 			return err
 		}
 		if result.Lines > 0 {
-			if _, err := fmt.Fprintf(service.stdout, "\ntruncated: %d lines total", result.Lines); err != nil {
+			shownLines := strings.Count(result.Body, "\n") + 1
+			if _, err := fmt.Fprintf(
+				service.stdout,
+				"\ntruncated: showing first %d of %d lines; rerun with --max-lines %d to view the full body",
+				shownLines,
+				result.Lines,
+				result.Lines,
+			); err != nil {
 				return err
 			}
 		}
