@@ -8,6 +8,7 @@ Upgrade GitHub Actions workflow dependencies that still run on Node.js 20 so rep
 
 - Update `.github/workflows/lint.yml`
 - Update `.github/workflows/release.yml`
+- Replace `mlugg/setup-zig` with an explicit Zig install step on Linux runners
 - Keep existing workflow behavior unchanged apart from action version upgrades
 
 ## Validation
