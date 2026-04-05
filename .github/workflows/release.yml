@@ -52,7 +52,7 @@ jobs:
 
       - name: Setup Zig
         if: runner.os == 'Linux'
-        uses: mlugg/setup-zig@v2
+        uses: https://codeberg.org/mlugg/setup-zig@v2
 
       - name: Build release archive
         env:
