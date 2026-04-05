@@ -1,0 +1,5 @@
+# Progress
+
+- 2026-04-05: Created task record for GitHub Actions Node.js 24 compatibility upgrade.
+- 2026-04-05: Upgraded workflow actions to `checkout@v5`, `setup-go@v6`, `upload-artifact@v6`, and `download-artifact@v7`.
+- 2026-04-05: `git diff --check` passed. `actionlint` is not installed in the local environment, so linting for workflow syntax could not be executed here.
