@@ -186,6 +186,20 @@ const pythonQuery = `
   name: (identifier) @name) @definition.function
 `
 
+const protobufQuery = `
+(message
+  (message_name) @name) @definition.struct
+
+(enum
+  (enum_name) @name) @definition.enum
+
+(service
+  (service_name) @name) @definition.interface
+
+(rpc
+  (rpc_name) @name) @definition.method
+`
+
 const rubyQuery = `
 (method
   name: (_) @name) @definition.method

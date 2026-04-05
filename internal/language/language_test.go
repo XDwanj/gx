@@ -51,6 +51,44 @@ func TestParseAndExtractTSX(t *testing.T) {
 	}
 }
 
+func TestParseAndExtractProtobufKinds(t *testing.T) {
+	ensureInstalled(t, "protobuf")
+
+	source := []byte(`syntax = "proto3";
+
+message HelloRequest {
+  string name = 1;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+}
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option deprecated = true;
+  }
+}
+
+message HelloReply {
+  string message = 1;
+}
+`)
+
+	symbols, err := ParseAndExtract("protobuf", source, "greeter.proto")
+	if err != nil {
+		t.Fatalf("parse protobuf kinds: %v", err)
+	}
+
+	assertKinds(t, symbols, map[string]SymbolKind{
+		"HelloRequest": SymbolKindStruct,
+		"Status":       SymbolKindEnum,
+		"Greeter":      SymbolKindInterface,
+		"SayHello":     SymbolKindMethod,
+		"HelloReply":   SymbolKindStruct,
+	})
+}
+
 func TestParseAndExtractGoKinds(t *testing.T) {
 	ensureInstalled(t, "go")
 
@@ -204,6 +242,12 @@ func TestFindReferencesRust(t *testing.T) {
 	}
 	if len(references) < 3 {
 		t.Fatalf("expected at least 3 references, got %d", len(references))
+	}
+}
+
+func TestDetectLanguageProtobuf(t *testing.T) {
+	if got := DetectLanguage("api/greeter.proto"); got != "protobuf" {
+		t.Fatalf("unexpected protobuf detection: %q", got)
 	}
 }
 

@@ -6,6 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	tree_sitter_swift "github.com/XDwanj/tree-sitter-swift/bindings/go"
+	tree_sitter_zig "github.com/XDwanj/tree-sitter-zig/bindings/go"
+	tree_sitter_proto "github.com/coder3101/tree-sitter-proto/bindings/go"
 	tree_sitter_lua "github.com/tree-sitter-grammars/tree-sitter-lua/bindings/go"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
@@ -16,10 +19,8 @@ import (
 	tree_sitter_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
 	tree_sitter_ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
 	tree_sitter_rust "github.com/tree-sitter/tree-sitter-rust/bindings/go"
+	tree_sitter_typescript "github.com/tree-sitter/tree-sitter-typescript/bindings/go"
 
-	local_swift "github.com/XDwanj/gx/internal/grammars/swift"
-	local_typescript "github.com/XDwanj/gx/internal/grammars/typescript"
-	local_zig "github.com/XDwanj/gx/internal/grammars/zig"
 	langpkg "github.com/XDwanj/gx/internal/lang"
 )
 
@@ -125,9 +126,9 @@ var languages = []*Config{
 		},
 		loadLanguage: func(ext string) *sitter.Language {
 			if isTSXFamilyExtension(ext) {
-				return sitter.NewLanguage(local_typescript.LanguageTSX())
+				return sitter.NewLanguage(tree_sitter_typescript.LanguageTSX())
 			}
-			return sitter.NewLanguage(local_typescript.LanguageTypescript())
+			return sitter.NewLanguage(tree_sitter_typescript.LanguageTypescript())
 		},
 	},
 	{
@@ -139,6 +140,16 @@ var languages = []*Config{
 		grammarName:  func(_ string) string { return "python" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_python.Language())
+		},
+	},
+	{
+		Name:         "protobuf",
+		Extensions:   []string{"proto"},
+		Query:        protobufQuery,
+		RefNodeTypes: []string{"identifier"},
+		grammarName:  func(_ string) string { return "protobuf" },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_proto.Language())
 		},
 	},
 	{
@@ -211,7 +222,7 @@ var languages = []*Config{
 		RefNodeTypes: []string{"IDENTIFIER"},
 		grammarName:  func(_ string) string { return "zig" },
 		loadLanguage: func(_ string) *sitter.Language {
-			return sitter.NewLanguage(local_zig.Language())
+			return sitter.NewLanguage(tree_sitter_zig.Language())
 		},
 	},
 	{
@@ -233,7 +244,7 @@ var languages = []*Config{
 		RefNodeTypes: []string{"simple_identifier", "type_identifier"},
 		grammarName:  func(_ string) string { return "swift" },
 		loadLanguage: func(_ string) *sitter.Language {
-			return sitter.NewLanguage(local_swift.Language())
+			return sitter.NewLanguage(tree_sitter_swift.Language())
 		},
 	},
 }

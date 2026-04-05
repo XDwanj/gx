@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.proto",
+    "line": 7,
+    "body": "enum Status {\n  STATUS_UNSPECIFIED = 0;\n}"
+  }
+]

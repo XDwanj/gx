@@ -1,0 +1,37 @@
+[
+  {
+    "file": "main.proto",
+    "line": 3,
+    "name": "HelloRequest",
+    "kind": "struct",
+    "signature": "message HelloRequest"
+  },
+  {
+    "file": "main.proto",
+    "line": 7,
+    "name": "Status",
+    "kind": "enum",
+    "signature": "enum Status"
+  },
+  {
+    "file": "main.proto",
+    "line": 11,
+    "name": "Greeter",
+    "kind": "interface",
+    "signature": "service Greeter"
+  },
+  {
+    "file": "main.proto",
+    "line": 12,
+    "name": "SayHello",
+    "kind": "method",
+    "signature": "rpc SayHello (HelloRequest) returns (HelloReply)"
+  },
+  {
+    "file": "main.proto",
+    "line": 17,
+    "name": "HelloReply",
+    "kind": "struct",
+    "signature": "message HelloReply"
+  }
+]

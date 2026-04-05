@@ -20,6 +20,7 @@ var supportedLanguages = []string{
 	"java",
 	"lua",
 	"python",
+	"protobuf",
 	"ruby",
 	"rust",
 	"swift",

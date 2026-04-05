@@ -1,8 +1,11 @@
 module github.com/XDwanj/gx
 
-go 1.24.5
+go 1.26.0
 
 require (
+	github.com/XDwanj/tree-sitter-swift v0.0.0-20260405063319-99c92aa3b350 // forked because upstream Go module omits src/parser.c
+	github.com/XDwanj/tree-sitter-zig v0.0.0-20260405063319-52de00bd38c5   // forked because upstream Go packaging has broken module layout and omits parser sources
+	github.com/coder3101/tree-sitter-proto v0.0.0-20260315065021-d65a18ce7c22
 	github.com/gobwas/glob v0.2.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
@@ -18,6 +21,7 @@ require (
 	github.com/tree-sitter/tree-sitter-python v0.25.0
 	github.com/tree-sitter/tree-sitter-ruby v0.23.1
 	github.com/tree-sitter/tree-sitter-rust v0.24.2
+	github.com/tree-sitter/tree-sitter-typescript v0.23.2
 	modernc.org/sqlite v1.46.1
 )
 

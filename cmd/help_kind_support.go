@@ -82,6 +82,15 @@ func languageKindSupportMatrix() []languageKindSupport {
 			},
 		},
 		{
+			Language: "protobuf",
+			Kinds: []index.SymbolKind{
+				index.SymbolKindStruct,
+				index.SymbolKindEnum,
+				index.SymbolKindInterface,
+				index.SymbolKindMethod,
+			},
+		},
+		{
 			Language: "ruby",
 			Kinds: []index.SymbolKind{
 				index.SymbolKindMethod,

@@ -1,5 +1,11 @@
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/XDwanj/tree-sitter-swift v0.0.0-20260405063319-99c92aa3b350 h1:gC3pozrEhSSbyGsqPSp3IB4KmjKeUDqG9YLFOQSiY9Q=
+github.com/XDwanj/tree-sitter-swift v0.0.0-20260405063319-99c92aa3b350/go.mod h1:Wivl3lwP5wgC3dpvKbt10hY24L8xIexXursT0OxgIKM=
+github.com/XDwanj/tree-sitter-zig v0.0.0-20260405063319-52de00bd38c5 h1:UlLCuR7rxK1CSdJGKjr7H4CKNslvpTwBp3766yLRdO4=
+github.com/XDwanj/tree-sitter-zig v0.0.0-20260405063319-52de00bd38c5/go.mod h1:GRFxRfq7Zw6a5JG8A0L1Y5ePDVmmq0VrIpM1Ruz7EzY=
+github.com/coder3101/tree-sitter-proto v0.0.0-20260315065021-d65a18ce7c22 h1:rr8RuCUX/drnPZyvlwE6fauoCW2TEwROCpWDGyXsDGU=
+github.com/coder3101/tree-sitter-proto v0.0.0-20260315065021-d65a18ce7c22/go.mod h1:D7mf3v+VB32oBPRQwkqsV3iVFYbicrCEUy9RAWcwcpI=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -77,6 +83,8 @@ github.com/tree-sitter/tree-sitter-ruby v0.23.1 h1:T/NKHUA+iVbHM440hFx+lzVOzS4dV
 github.com/tree-sitter/tree-sitter-ruby v0.23.1/go.mod h1:kUS4kCCQloFcdX6sdpr8p6r2rogbM6ZjTox5ZOQy8cA=
 github.com/tree-sitter/tree-sitter-rust v0.24.2 h1:NL4nF67ib21RMzzfvkmXlVwe45vvhW10DVyO+D0z/W0=
 github.com/tree-sitter/tree-sitter-rust v0.24.2/go.mod h1:hfeGWic9BAfgTrc7Xf6FaOAguCFJRo3RBbs7QJ6D7MI=
+github.com/tree-sitter/tree-sitter-typescript v0.23.2 h1:/Odvphn18PniVixb9e97X0DbNVsU6Qocv9mfkyzdXwU=
+github.com/tree-sitter/tree-sitter-typescript v0.23.2/go.mod h1:zjzMXT/Ulffel2xfOcAkQQkiAkmgnbtPGlFQw/5X4xA=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 h1:mgKeJMpvi0yx/sU5GsxQ7p6s2wtOnGAHZWCHUM4KGzY=
 golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546/go.mod h1:j/pmGrbnkbPtQfxEe5D0VQhZC6qKbfKifgD0oM7sR70=

@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.proto",
+    "line": 12,
+    "body": "rpc SayHello (HelloRequest) returns (HelloReply) {\n    option deprecated = true;\n  }"
+  }
+]
