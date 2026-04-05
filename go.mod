@@ -1,4 +1,4 @@
-module gx
+module github.com/XDwanj/gx
 
 go 1.24.5
 
@@ -36,9 +36,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/tree-sitter/tree-sitter-zig => github.com/maxxnino/tree-sitter-zig v0.0.0-20241013045227-a80a6e9be81b
-
-replace github.com/tree-sitter/tree-sitter-swift => github.com/alex-pinkus/tree-sitter-swift v0.0.0-20260329160836-50f2735c48ad
-
-replace github.com/tree-sitter/tree-sitter-typescript/bindings/go => github.com/tree-sitter/tree-sitter-typescript v0.23.2

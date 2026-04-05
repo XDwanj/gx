@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"gx/internal/index"
 	"reflect"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/index"
 
 	"github.com/spf13/cobra"
 )

@@ -1,10 +1,11 @@
 package language
 
 import (
-	"gx/internal/lang"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/lang"
 )
 
 func ensureInstalled(t *testing.T, languages ...string) {

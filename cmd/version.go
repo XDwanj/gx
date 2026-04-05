@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"gx/internal/app"
+	"github.com/XDwanj/gx/internal/app"
 
 	"github.com/spf13/cobra"
 )

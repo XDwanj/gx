@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,建立任务记录,DONE,"SPEC.md、TODO.csv、PROGRESS.md 已创建","test -f .codex-tasks/20260405-module-release-fix/SPEC.md && test -f .codex-tasks/20260405-module-release-fix/TODO.csv && test -f .codex-tasks/20260405-module-release-fix/PROGRESS.md","2026-04-05 12:01",0,"任务目录已创建"
+2,切换模块路径并同步仓库引用,DONE,"go.mod、Go import、版本注入路径已切换到 github.com/XDwanj/gx","rg -n 'module github.com/XDwanj/gx|github.com/XDwanj/gx/' go.mod main.go cmd internal Makefile scripts/build-release-artifact.sh","2026-04-05 12:02",0,"已同步源码、测试和发布脚本中的模块路径"
+3,移除 replace 并整理依赖,DONE,"go.mod 不再包含 replace 且 go mod tidy 成功","! rg -n '^replace ' go.mod && go mod tidy","2026-04-05 12:03",0,"3 条无引用 replace 已删除，go mod tidy 通过"
+4,执行测试与 lint 验证,DONE,"全量测试和 lint 通过","go test ./... -timeout 60s && golangci-lint run ./...","2026-04-05 12:05",0,"按用户纠正改用 goimports 整理导入后，测试和 lint 均通过"

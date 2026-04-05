@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"bytes"
-	"gx/internal/app"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
 )
 
 func TestRootCommandUsesGx(t *testing.T) {

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"gx/internal/skill"
+	"github.com/XDwanj/gx/internal/skill"
 
 	"github.com/spf13/cobra"
 )

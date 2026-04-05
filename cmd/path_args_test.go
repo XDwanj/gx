@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"gx/internal/app"
-	"gx/internal/lang"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
+	"github.com/XDwanj/gx/internal/lang"
 
 	"github.com/spf13/cobra"
 )

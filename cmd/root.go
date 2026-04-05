@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"gx/internal/app"
-	"gx/internal/index"
-	"gx/internal/query"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/XDwanj/gx/internal/app"
+	"github.com/XDwanj/gx/internal/index"
+	"github.com/XDwanj/gx/internal/query"
 
 	"github.com/spf13/cobra"
 )

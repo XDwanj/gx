@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"bytes"
-	"gx/internal/app"
-	"gx/internal/index"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
+	"github.com/XDwanj/gx/internal/index"
 )
 
 func TestCacheCleanRemovesSQLiteCache(t *testing.T) {

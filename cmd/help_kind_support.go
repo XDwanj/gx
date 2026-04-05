@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"gx/internal/index"
 	"strings"
+
+	"github.com/XDwanj/gx/internal/index"
 )
 
 type languageKindSupport struct {

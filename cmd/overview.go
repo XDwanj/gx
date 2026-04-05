@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"gx/internal/query"
 	"os"
+
+	"github.com/XDwanj/gx/internal/query"
 
 	"github.com/spf13/cobra"
 )

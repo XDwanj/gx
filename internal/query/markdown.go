@@ -2,10 +2,11 @@ package query
 
 import (
 	"fmt"
-	"gx/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/XDwanj/gx/internal/output"
 )
 
 const (

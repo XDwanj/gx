@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"bytes"
-	"gx/internal/app"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
 )
 
 func TestOverviewCommandSupportsMarkdownFile(t *testing.T) {

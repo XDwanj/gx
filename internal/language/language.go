@@ -17,10 +17,10 @@ import (
 	tree_sitter_ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
 	tree_sitter_rust "github.com/tree-sitter/tree-sitter-rust/bindings/go"
 
-	local_swift "gx/internal/grammars/swift"
-	local_typescript "gx/internal/grammars/typescript"
-	local_zig "gx/internal/grammars/zig"
-	langpkg "gx/internal/lang"
+	local_swift "github.com/XDwanj/gx/internal/grammars/swift"
+	local_typescript "github.com/XDwanj/gx/internal/grammars/typescript"
+	local_zig "github.com/XDwanj/gx/internal/grammars/zig"
+	langpkg "github.com/XDwanj/gx/internal/lang"
 )
 
 const (

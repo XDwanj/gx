@@ -16,7 +16,7 @@ normalized_version="$(printf '%s' "${version}" | sed 's/^v//')"
 archive_base_name="${PROJECT_NAME}_${normalized_version}_${target_os}_${target_arch}"
 build_root="$(mktemp -d "${TEMP_DIR_TEMPLATE}")"
 package_dir="${build_root}/${archive_base_name}"
-go_ldflags="-X gx/internal/app.Version=${version}"
+go_ldflags="-X github.com/XDwanj/gx/internal/app.Version=${version}"
 
 cleanup() {
 	rm -rf "${build_root}"

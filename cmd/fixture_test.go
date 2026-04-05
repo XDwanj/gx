@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"gx/internal/app"
-	"gx/internal/lang"
 	"io"
 	"io/fs"
 	"os"
@@ -15,6 +13,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
+	"github.com/XDwanj/gx/internal/lang"
 )
 
 const (

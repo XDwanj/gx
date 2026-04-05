@@ -3,14 +3,15 @@ package query
 import (
 	"bytes"
 	"fmt"
-	"gx/internal/index"
-	"gx/internal/language"
-	"gx/internal/output"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/XDwanj/gx/internal/index"
+	"github.com/XDwanj/gx/internal/language"
+	"github.com/XDwanj/gx/internal/output"
 )
 
 const (

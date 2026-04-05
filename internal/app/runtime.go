@@ -1,10 +1,11 @@
 package app
 
 import (
-	"gx/internal/query"
-	"gx/internal/util/git"
 	"os"
 	"path/filepath"
+
+	"github.com/XDwanj/gx/internal/query"
+	"github.com/XDwanj/gx/internal/util/git"
 )
 
 type Flags struct {

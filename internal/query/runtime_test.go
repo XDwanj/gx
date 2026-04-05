@@ -2,13 +2,14 @@ package query
 
 import (
 	"bytes"
-	"gx/internal/index"
-	"gx/internal/lang"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/index"
+	"github.com/XDwanj/gx/internal/lang"
 )
 
 func ensureInstalled(t *testing.T, languages ...string) {

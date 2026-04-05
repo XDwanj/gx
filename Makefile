@@ -5,7 +5,7 @@ DIST_DIR := dist
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 VERSION ?= dev
-GO_LDFLAGS := -X gx/internal/app.Version=$(VERSION)
+GO_LDFLAGS := -X github.com/XDwanj/gx/internal/app.Version=$(VERSION)
 
 HOST_GOOS := $(shell $(GO) env GOOS)
 HOST_GOARCH := $(shell $(GO) env GOARCH)

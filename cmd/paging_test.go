@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"encoding/json"
-	"gx/internal/app"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
 )
 
 func TestResolvePageRequestUsesCommandDefaultLimit(t *testing.T) {

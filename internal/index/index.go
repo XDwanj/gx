@@ -2,16 +2,17 @@ package index
 
 import (
 	"fmt"
-	"gx/internal/language"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/XDwanj/gx/internal/language"
+
 	ignore "github.com/sabhiram/go-gitignore"
 
-	langpkg "gx/internal/lang"
+	langpkg "github.com/XDwanj/gx/internal/lang"
 )
 
 const IndexVersion = 6

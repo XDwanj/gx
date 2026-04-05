@@ -2,8 +2,9 @@ package app
 
 import (
 	"fmt"
-	"gx/internal/output"
 	"io"
+
+	"github.com/XDwanj/gx/internal/output"
 )
 
 var Version = "dev"

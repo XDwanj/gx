@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"bytes"
-	"gx/internal/app"
 	"testing"
+
+	"github.com/XDwanj/gx/internal/app"
 )
 
 func TestVersionCommandPrintsHumanReadableVersion(t *testing.T) {

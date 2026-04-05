@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gx/cmd"
 	"os"
+
+	"github.com/XDwanj/gx/cmd"
 )
 
 func main() {
