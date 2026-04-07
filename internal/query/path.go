@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -29,9 +30,35 @@ func normalizeRelativePath(path string, root string) string {
 }
 
 func globMatch(pattern string, text string) (bool, error) {
-	matcher, err := glob.Compile(pattern)
+	patterns, err := expandNamePatterns(pattern)
 	if err != nil {
 		return false, err
 	}
-	return matcher.Match(text), nil
+	for _, item := range patterns {
+		matcher, compileErr := glob.Compile(item)
+		if compileErr != nil {
+			return false, compileErr
+		}
+		if matcher.Match(text) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func expandNamePatterns(pattern string) ([]string, error) {
+	parts := strings.Split(pattern, "|")
+	if len(parts) == 1 {
+		return parts, nil
+	}
+
+	patterns := make([]string, 0, len(parts))
+	for _, item := range parts {
+		candidate := strings.TrimSpace(item)
+		if candidate == "" {
+			return nil, fmt.Errorf("gx: invalid name pattern %q: empty alternative", pattern)
+		}
+		patterns = append(patterns, candidate)
+	}
+	return patterns, nil
 }

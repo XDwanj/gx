@@ -268,10 +268,10 @@ func assertKinds(t *testing.T, symbols []Symbol, expected map[string]SymbolKind)
 
 func TestNotInstalledMessageUsesGxCommand(t *testing.T) {
 	err := newNotInstalled("rust")
-	if !strings.Contains(err.Error(), "gx lang add rust") {
+	if !strings.Contains(err.Error(), "gx lang enable rust") {
 		t.Fatalf("expected gx install hint, got %q", err.Error())
 	}
-	if strings.Contains(err.Error(), "cx lang add rust") {
+	if strings.Contains(err.Error(), "cx lang enable rust") {
 		t.Fatalf("unexpected cx install hint, got %q", err.Error())
 	}
 }

@@ -174,6 +174,61 @@ func TestSymbolsJSONIncludesCoordinates(t *testing.T) {
 	}
 }
 
+func TestSymbolsSupportsPipeSeparatedAlternatives(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc WechatPay() {}\nfunc AliPay() {}\nfunc StripePay() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	pattern := "WechatPay|AliPay"
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	if err := service.Symbols(idx, []string{"main.go"}, &pattern, nil, PageRequest{}); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "main.go,3,WechatPay,fn") {
+		t.Fatalf("missing WechatPay symbol: %s", output)
+	}
+	if !strings.Contains(output, "main.go,4,AliPay,fn") {
+		t.Fatalf("missing AliPay symbol: %s", output)
+	}
+	if strings.Contains(output, "StripePay") {
+		t.Fatalf("unexpected symbol matched by alternation: %s", output)
+	}
+}
+
+func TestSymbolsRejectsPipePatternWithEmptyAlternative(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc WechatPay() {}\nfunc AliPay() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	pattern := "WechatPay||AliPay"
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	err = service.Symbols(idx, []string{"main.go"}, &pattern, nil, PageRequest{})
+	if err == nil {
+		t.Fatal("expected invalid pattern error")
+	}
+	if !strings.Contains(err.Error(), "empty alternative") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestDefinitionOutput(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{
@@ -224,6 +279,36 @@ func TestDefinitionSupportsGlobName(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "fn build_runtime()") {
 		t.Fatalf("missing glob-matched function body: %s", output)
+	}
+}
+
+func TestDefinitionSupportsPipeSeparatedAlternatives(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc WechatPay() {}\nfunc AliPay() {}\nfunc StripePay() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	if err := service.Definition(idx, "WechatPay|AliPay", []string{"main.go"}, nil, 200, PageRequest{}); err != nil {
+		t.Fatalf("definition query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "func WechatPay()") {
+		t.Fatalf("missing WechatPay definition: %s", output)
+	}
+	if !strings.Contains(output, "func AliPay()") {
+		t.Fatalf("missing AliPay definition: %s", output)
+	}
+	if strings.Contains(output, "func StripePay()") {
+		t.Fatalf("unexpected StripePay definition: %s", output)
 	}
 }
 
@@ -470,6 +555,36 @@ func TestReferencesSupportsGlobName(t *testing.T) {
 	}
 	if !strings.Contains(output, "build_helper") {
 		t.Fatalf("missing build_helper reference: %s", output)
+	}
+}
+
+func TestReferencesSupportsPipeSeparatedAlternatives(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc WechatPay() {}\nfunc AliPay() {}\nfunc StripePay() {}\n\nfunc main() {\n\tWechatPay()\n\tAliPay()\n\tStripePay()\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	if err := service.References(idx, "WechatPay|AliPay", []string{"main.go"}, false, PageRequest{}); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "WechatPay") {
+		t.Fatalf("missing WechatPay references: %s", output)
+	}
+	if !strings.Contains(output, "AliPay") {
+		t.Fatalf("missing AliPay references: %s", output)
+	}
+	if strings.Contains(output, "StripePay") {
+		t.Fatalf("unexpected StripePay references: %s", output)
 	}
 }
 

@@ -80,7 +80,7 @@ type LangError struct {
 
 func (errorValue *LangError) Error() string {
 	if errorValue.Kind == "not-installed" {
-		return fmt.Sprintf("%s grammar not installed — run: gx lang add %s", errorValue.Name, errorValue.Name)
+		return fmt.Sprintf("%s grammar not installed — run: gx lang enable %s", errorValue.Name, errorValue.Name)
 	}
 	return "parse failed"
 }

@@ -284,7 +284,7 @@ func (idx *Index) incrementalUpdate(logger *debugLogger) error {
 	}
 
 	for languageName := range missingLanguages {
-		_, _ = fmt.Fprintf(os.Stderr, "gx: skipping .%s files — install with: gx lang add %s\n", language.PrimaryExtension(languageName), languageName)
+		_, _ = fmt.Fprintf(os.Stderr, "gx: skipping .%s files — enable with: gx lang enable %s\n", language.PrimaryExtension(languageName), languageName)
 	}
 	return nil
 }

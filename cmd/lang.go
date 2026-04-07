@@ -9,27 +9,27 @@ import (
 func newLangCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "lang",
-		Short: "Manage language grammars",
+		Short: "Enable or disable language grammars",
 	}
 
 	command.AddCommand(
 		&cobra.Command{
-			Use:   "add <languages...>",
-			Short: "Install language grammars",
+			Use:   "enable <languages...>",
+			Short: "Enable language grammars",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				return lang.Add(cmd.OutOrStdout(), cmd.ErrOrStderr(), args)
 			},
 		},
 		&cobra.Command{
-			Use:   "remove <languages...>",
-			Short: "Remove installed language grammars",
+			Use:   "disable <languages...>",
+			Short: "Disable language grammars",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				return lang.Remove(cmd.OutOrStdout(), cmd.ErrOrStderr(), args)
 			},
 		},
 		&cobra.Command{
 			Use:   "list",
-			Short: "List supported languages and install status",
+			Short: "List supported languages and enable status",
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				return lang.List(cmd.OutOrStdout(), cmd.ErrOrStderr())
 			},

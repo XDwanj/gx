@@ -34,7 +34,7 @@ type manifest struct {
 
 func Add(_ io.Writer, stderr io.Writer, languages []string) error {
 	if len(languages) == 0 {
-		return fmt.Errorf("gx: specify at least one language, e.g.: gx lang add rust typescript")
+		return fmt.Errorf("gx: specify at least one language, e.g.: gx lang enable rust typescript")
 	}
 	state, err := loadManifest()
 	if err != nil {
@@ -50,13 +50,13 @@ func Add(_ io.Writer, stderr io.Writer, languages []string) error {
 	if saveErr := saveManifest(state); saveErr != nil {
 		return saveErr
 	}
-	_, err = fmt.Fprintf(stderr, "gx: installed %d grammar(s)\n", len(languages))
+	_, err = fmt.Fprintf(stderr, "gx: enabled %d grammar(s)\n", len(languages))
 	return err
 }
 
 func Remove(_ io.Writer, stderr io.Writer, languages []string) error {
 	if len(languages) == 0 {
-		return fmt.Errorf("gx: specify at least one language, e.g.: gx lang remove rust")
+		return fmt.Errorf("gx: specify at least one language, e.g.: gx lang disable rust")
 	}
 	state, err := loadManifest()
 	if err != nil {
@@ -66,7 +66,7 @@ func Remove(_ io.Writer, stderr io.Writer, languages []string) error {
 	for _, language := range languages {
 		if state.Installed[language] {
 			delete(state.Installed, language)
-			if _, writeErr := fmt.Fprintf(stderr, "gx: removed %s grammar\n", language); writeErr != nil {
+			if _, writeErr := fmt.Fprintf(stderr, "gx: disabled %s grammar\n", language); writeErr != nil {
 				return writeErr
 			}
 			continue
@@ -85,9 +85,9 @@ func List(stdout io.Writer, stderr io.Writer) error {
 	}
 
 	for _, language := range supportedLanguages {
-		marker := "[missing]"
+		marker := "[disabled]"
 		if state.Installed[language] {
-			marker = "[installed]"
+			marker = "[enabled]"
 		}
 		if _, writeErr := fmt.Fprintf(stdout, "%-15s %s\n", language, marker); writeErr != nil {
 			return writeErr

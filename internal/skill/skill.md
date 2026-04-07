@@ -151,8 +151,8 @@ Use `lang` to inspect or manage installed grammars.
 
 ```bash
 gx lang list
-gx lang add go typescript
-gx lang remove ruby
+gx lang enable go typescript
+gx lang disable ruby
 ```
 
 ## `--name` Matching Rules

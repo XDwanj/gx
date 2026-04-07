@@ -1,6 +1,8 @@
 package lang
 
 import (
+	"bytes"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,4 +31,49 @@ func TestSupportedLanguagesExcludeRemovedGrammars(t *testing.T) {
 	if !foundProtobuf {
 		t.Fatal("expected protobuf in supported language list")
 	}
+}
+
+func TestListUsesEnableDisableMarkers(t *testing.T) {
+	isolateCacheEnv(t)
+	if err := Add(io.Discard, io.Discard, []string{"go"}); err != nil {
+		t.Fatalf("enable go grammar: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if err := List(&stdout, &stderr); err != nil {
+		t.Fatalf("list grammars: %v", err)
+	}
+
+	output := stdout.String()
+	if strings.Contains(output, "[installed]") || strings.Contains(output, "[missing]") {
+		t.Fatalf("unexpected legacy markers in output: %q", output)
+	}
+	if marker := markerForLanguage(output, "go"); marker != "[enabled]" {
+		t.Fatalf("unexpected marker for go: %q", marker)
+	}
+	if marker := markerForLanguage(output, "rust"); marker != "[disabled]" {
+		t.Fatalf("unexpected marker for rust: %q", marker)
+	}
+}
+
+func isolateCacheEnv(t *testing.T) {
+	t.Helper()
+	cacheRoot := t.TempDir()
+	t.Setenv("HOME", cacheRoot)
+	t.Setenv("XDG_CACHE_HOME", cacheRoot)
+	t.Setenv("LOCALAPPDATA", cacheRoot)
+}
+
+func markerForLanguage(output string, language string) string {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if fields[0] == language {
+			return fields[1]
+		}
+	}
+	return ""
 }
