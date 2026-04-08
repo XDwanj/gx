@@ -649,6 +649,45 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	}
 }
 
+func TestReferencesFindsExternalSymbolUsages(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nimport helper \"example.com/helper\"\n\nfunc main() {\n\thelper.SplitCutset(\"a,b\", \",\")\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	matchedNames, err := findMatchingSymbolNames(idx, "SplitCutset")
+	if err != nil {
+		t.Fatalf("match local declarations: %v", err)
+	}
+	if len(matchedNames) != 0 {
+		t.Fatalf("expected no local declarations, got %v", matchedNames)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.References(idx, "SplitCutset", []string{"main.go"}, false, PageRequest{}); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "main.go,6") {
+		t.Fatalf("missing external reference row: %s", output)
+	}
+	if !strings.Contains(output, "SplitCutset") {
+		t.Fatalf("missing external reference context: %s", output)
+	}
+	if strings.Contains(stderr.String(), "gx: no matches") {
+		t.Fatalf("unexpected no matches message: %q", stderr.String())
+	}
+}
+
 func TestMissingPathReturnsError(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{

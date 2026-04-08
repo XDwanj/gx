@@ -274,7 +274,7 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 		return err
 	}
 
-	matchedNames, err := findMatchingSymbolNames(idx, nameGlob)
+	matchedNames, err := findReferenceNames(idx, nameGlob, filter)
 	if err != nil {
 		return err
 	}
@@ -463,6 +463,58 @@ func findMatchingSymbolNames(idx *index.Index, nameGlob string) ([]string, error
 			names = append(names, symbol.Name)
 		}
 	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func findReferenceNames(idx *index.Index, nameGlob string, filter *scopeFilter) ([]string, error) {
+	names, err := findMatchingSymbolNames(idx, nameGlob)
+	if err != nil {
+		return nil, err
+	}
+	if len(names) > 0 {
+		return names, nil
+	}
+	return findMatchingReferenceNames(idx, nameGlob, filter)
+}
+
+func findMatchingReferenceNames(idx *index.Index, nameGlob string, filter *scopeFilter) ([]string, error) {
+	names := make([]string, 0)
+	seen := make(map[string]struct{})
+	for path, data := range idx.Entries {
+		if filter != nil && !filter.contains(path) {
+			continue
+		}
+
+		source, err := os.ReadFile(filepath.Join(idx.Root, path))
+		if err != nil {
+			continue
+		}
+
+		referenceNames, err := language.FindReferenceNames(data.Meta.Language, source, filepath.Join(idx.Root, path))
+		if err != nil {
+			if language.IsNotInstalled(err) {
+				return nil, err
+			}
+			continue
+		}
+
+		for _, name := range referenceNames {
+			ok, err := globMatch(nameGlob, name)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			if _, exists := seen[name]; exists {
+				continue
+			}
+			seen[name] = struct{}{}
+			names = append(names, name)
+		}
+	}
+
 	sort.Strings(names)
 	return names, nil
 }

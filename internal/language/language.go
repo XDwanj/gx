@@ -3,6 +3,7 @@ package language
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -301,16 +302,52 @@ func FindReferences(languageName string, source []byte, path string, name string
 	defer tree.Close()
 
 	references := make([]Reference, 0)
-	stack := []*sitter.Node{tree.RootNode()}
+	walkReferenceLeaves(config, tree.RootNode(), source, func(node *sitter.Node) {
+		if node.Utf8Text(source) != name {
+			return
+		}
+		references = append(references, Reference{
+			Line:       int(node.StartPosition().Row) + 1,
+			ByteOffset: node.StartByte(),
+		})
+	})
+
+	return references, nil
+}
+
+func FindReferenceNames(languageName string, source []byte, path string) ([]string, error) {
+	config, tree, _, err := parseSource(languageName, source, path)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Close()
+
+	names := make([]string, 0)
+	seen := make(map[string]struct{})
+	walkReferenceLeaves(config, tree.RootNode(), source, func(node *sitter.Node) {
+		name := node.Utf8Text(source)
+		if name == "" {
+			return
+		}
+		if _, exists := seen[name]; exists {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	})
+	sort.Strings(names)
+	return names, nil
+}
+
+func walkReferenceLeaves(config *Config, root *sitter.Node, source []byte, visit func(node *sitter.Node)) {
+	stack := []*sitter.Node{root}
 	for len(stack) > 0 {
 		node := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
-		if node.ChildCount() == 0 && containsString(config.RefNodeTypes, node.Kind()) && node.Utf8Text(source) == name {
-			references = append(references, Reference{
-				Line:       int(node.StartPosition().Row) + 1,
-				ByteOffset: node.StartByte(),
-			})
+		if node.ChildCount() == 0 && containsString(config.RefNodeTypes, node.Kind()) {
+			visit(node)
+			continue
 		}
 
 		for childIndex := int(node.ChildCount()) - 1; childIndex >= 0; childIndex-- {
@@ -320,8 +357,6 @@ func FindReferences(languageName string, source []byte, path string, name string
 			}
 		}
 	}
-
-	return references, nil
 }
 
 func IsNotInstalled(err error) bool {
