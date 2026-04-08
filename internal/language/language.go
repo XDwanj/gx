@@ -339,7 +339,7 @@ func FindReferenceNames(languageName string, source []byte, path string) ([]stri
 	return names, nil
 }
 
-func walkReferenceLeaves(config *Config, root *sitter.Node, source []byte, visit func(node *sitter.Node)) {
+func walkReferenceLeaves(config *Config, root *sitter.Node, _ []byte, visit func(node *sitter.Node)) {
 	stack := []*sitter.Node{root}
 	for len(stack) > 0 {
 		node := stack[len(stack)-1]

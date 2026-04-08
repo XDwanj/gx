@@ -27,7 +27,7 @@ func TestOverviewCommandSupportsMarkdownFile(t *testing.T) {
 	previousCmd := rootCmd
 	previousFlags := rootFlags
 	rootCmd = newRootCmd()
-	rootFlags = app.Flags{Root: root}
+	rootFlags = app.Flags{Directory: root}
 	t.Cleanup(func() {
 		rootCmd = previousCmd
 		rootFlags = previousFlags

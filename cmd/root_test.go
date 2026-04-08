@@ -24,6 +24,22 @@ func TestRootCommandExposesVerboseFlag(t *testing.T) {
 	}
 }
 
+func TestRootCommandExposesChangeDirectoryFlag(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("chdir")
+	if flag == nil {
+		t.Fatalf("expected chdir flag to be registered")
+	}
+	if flag.Shorthand != "C" {
+		t.Fatalf("expected chdir shorthand -C, got %q", flag.Shorthand)
+	}
+}
+
+func TestRootCommandDoesNotExposeRootFlag(t *testing.T) {
+	if rootCmd.PersistentFlags().Lookup("root") != nil {
+		t.Fatalf("expected root flag to be removed")
+	}
+}
+
 func TestRootCommandExposesPaginationFlags(t *testing.T) {
 	for _, name := range []string{"limit", "offset", "all"} {
 		if rootCmd.PersistentFlags().Lookup(name) == nil {

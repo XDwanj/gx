@@ -422,7 +422,7 @@ gx version --json
 gx --json --version
 ```
 
-Use `--root <path>` if you want to query a project other than the current working tree.
+Use `-C <path>` if you want to run `gx` as if it was started in another directory.
 
 Pagination applies to both default output and `--json`.
 

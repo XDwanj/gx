@@ -191,10 +191,12 @@ Why they are bad:
 - `symbols`, `definition`, and `references` accept multiple paths.
 - Those paths may be directories, files, or a mix.
 - Prefer the smallest scope that answers the question.
+- Use `-C` when you need to run `gx` against another directory context.
 
 Examples:
 
 ```bash
+gx -C /path/to/project symbols --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go
 gx references --unique --name 'Search' internal/tmdb/search.go internal/tools

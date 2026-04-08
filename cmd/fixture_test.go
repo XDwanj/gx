@@ -302,7 +302,7 @@ func fixtureProjectRoot(t *testing.T, caseDir string) string {
 }
 
 func buildFixtureArgs(projectRoot string, command string, query fixtureQuery) []string {
-	args := []string{"--root", projectRoot, "--json"}
+	args := []string{"-C", projectRoot, "--json"}
 	switch command {
 	case fixtureCommandSymbol:
 		args = append(args, "symbols")
@@ -334,7 +334,7 @@ func executeRootFixtureCommand(t *testing.T, projectRoot string, args ...string)
 	previousFlags := rootFlags
 	previousShowVersion := showVersion
 	rootCmd = newRootCmd()
-	rootFlags = app.Flags{Root: projectRoot, JSON: true}
+	rootFlags = app.Flags{Directory: projectRoot, JSON: true}
 	showVersion = false
 	t.Cleanup(func() {
 		rootCmd = previousCmd

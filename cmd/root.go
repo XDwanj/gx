@@ -50,7 +50,7 @@ func newRootCmd() *cobra.Command {
 	command.SetOut(command.OutOrStdout())
 	command.SetErr(command.ErrOrStderr())
 
-	command.PersistentFlags().StringVar(&rootFlags.Root, "root", "", "Project root (default: git root from cwd, then cwd)")
+	command.PersistentFlags().StringVarP(&rootFlags.Directory, "chdir", "C", "", "Run as if gx was started in this directory")
 	command.PersistentFlags().BoolVar(&rootFlags.JSON, "json", false, "Emit JSON instead of TOON")
 	command.PersistentFlags().BoolVar(&rootFlags.Verbose, "verbose", false, "Emit debug progress to stderr")
 	command.PersistentFlags().IntVar(&rootFlags.Limit, "limit", 0, "Override the default result limit")
@@ -78,7 +78,7 @@ func newRootCmd() *cobra.Command {
 }
 
 func resolveRoot() (string, error) {
-	return app.ResolveRoot(rootFlags.Root)
+	return app.ResolveRoot(rootFlags.Directory)
 }
 
 func resolveTargetPaths(root string, paths []string) ([]string, error) {
@@ -103,7 +103,7 @@ func resolveTargetPaths(root string, paths []string) ([]string, error) {
 }
 
 func resolveTargetBase(root string) (string, error) {
-	if rootFlags.Root != "" {
+	if rootFlags.Directory != "" {
 		return filepath.Clean(root), nil
 	}
 

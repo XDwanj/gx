@@ -28,10 +28,10 @@ func TestCacheCleanRemovesSQLiteCache(t *testing.T) {
 		t.Fatalf("write cache file: %v", writeErr)
 	}
 
-	previousRoot := rootFlags.Root
-	rootFlags.Root = root
+	previousDirectory := rootFlags.Directory
+	rootFlags.Directory = root
 	t.Cleanup(func() {
-		rootFlags.Root = previousRoot
+		rootFlags.Directory = previousDirectory
 	})
 
 	command := newCacheCmd()

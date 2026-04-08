@@ -9,17 +9,17 @@ import (
 )
 
 type Flags struct {
-	Root    string
-	JSON    bool
-	Verbose bool
-	Limit   int
-	Offset  int
-	All     bool
+	Directory string
+	JSON      bool
+	Verbose   bool
+	Limit     int
+	Offset    int
+	All       bool
 }
 
-func ResolveRoot(root string) (string, error) {
-	if root != "" {
-		absoluteRoot, err := filepath.Abs(root)
+func ResolveRoot(directory string) (string, error) {
+	if directory != "" {
+		absoluteRoot, err := filepath.Abs(directory)
 		if err != nil {
 			return "", err
 		}
