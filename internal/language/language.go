@@ -69,6 +69,7 @@ type Config struct {
 	SigDelimiter  byte
 	KindOverrides []KindOverride
 	RefNodeTypes  []string
+	CallNodeTypes []string
 	grammarName   func(ext string) string
 	loadLanguage  func(ext string) *sitter.Language
 }
@@ -107,7 +108,10 @@ var languages = []*Config{
 		Query:        rustQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
-		grammarName:  func(_ string) string { return "rust" },
+		CallNodeTypes: []string{
+			"call_expression",
+		},
+		grammarName: func(_ string) string { return "rust" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_rust.Language())
 		},
@@ -118,6 +122,9 @@ var languages = []*Config{
 		Query:        typeScriptQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier", "type_identifier", "property_identifier", "shorthand_property_identifier", "shorthand_property_identifier_pattern"},
+		CallNodeTypes: []string{
+			"call_expression",
+		},
 		grammarName: func(ext string) string {
 			if isTSXFamilyExtension(ext) {
 				return grammarNameTSX
@@ -137,7 +144,10 @@ var languages = []*Config{
 		Query:        pythonQuery,
 		SigBodyChild: "block",
 		RefNodeTypes: []string{"identifier"},
-		grammarName:  func(_ string) string { return "python" },
+		CallNodeTypes: []string{
+			"call",
+		},
+		grammarName: func(_ string) string { return "python" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_python.Language())
 		},
@@ -158,7 +168,10 @@ var languages = []*Config{
 		Query:        goQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
-		grammarName:  func(_ string) string { return "go" },
+		CallNodeTypes: []string{
+			"call_expression",
+		},
+		grammarName: func(_ string) string { return "go" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_go.Language())
 		},
@@ -169,6 +182,9 @@ var languages = []*Config{
 		Query:        cQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
+		CallNodeTypes: []string{
+			"call_expression",
+		},
 		grammarName:  func(_ string) string { return "c" },
 		loadLanguage: func(_ string) *sitter.Language { return sitter.NewLanguage(tree_sitter_c.Language()) },
 	},
@@ -178,7 +194,10 @@ var languages = []*Config{
 		Query:        cppQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier", "type_identifier", "field_identifier"},
-		grammarName:  func(_ string) string { return "cpp" },
+		CallNodeTypes: []string{
+			"call_expression",
+		},
+		grammarName: func(_ string) string { return "cpp" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_cpp.Language())
 		},
@@ -189,7 +208,10 @@ var languages = []*Config{
 		Query:        javaQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"identifier"},
-		grammarName:  func(_ string) string { return "java" },
+		CallNodeTypes: []string{
+			"method_invocation",
+		},
+		grammarName: func(_ string) string { return "java" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_java.Language())
 		},
@@ -199,7 +221,10 @@ var languages = []*Config{
 		Extensions:   []string{"rb"},
 		Query:        rubyQuery,
 		RefNodeTypes: []string{"identifier", "constant"},
-		grammarName:  func(_ string) string { return "ruby" },
+		CallNodeTypes: []string{
+			"call",
+		},
+		grammarName: func(_ string) string { return "ruby" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_ruby.Language())
 		},
@@ -209,7 +234,10 @@ var languages = []*Config{
 		Extensions:   []string{"lua"},
 		Query:        luaQuery,
 		RefNodeTypes: []string{"identifier"},
-		grammarName:  func(_ string) string { return "lua" },
+		CallNodeTypes: []string{
+			"function_call",
+		},
+		grammarName: func(_ string) string { return "lua" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_lua.Language())
 		},
@@ -242,7 +270,10 @@ var languages = []*Config{
 		Query:        swiftQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"simple_identifier", "type_identifier"},
-		grammarName:  func(_ string) string { return "swift" },
+		CallNodeTypes: []string{
+			"call_expression",
+		},
+		grammarName: func(_ string) string { return "swift" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_swift.Language())
 		},

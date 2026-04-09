@@ -11,6 +11,7 @@ import (
 const (
 	defaultDefinitionLimit        = 5
 	defaultSymbolsLimit           = 100
+	defaultCalleesLimit           = 50
 	defaultReferencesLimit        = 50
 	defaultDirectoryOverviewLimit = 0
 )

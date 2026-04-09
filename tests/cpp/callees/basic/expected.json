@@ -1,0 +1,16 @@
+[
+  {
+    "file": "main.cpp",
+    "line": 4,
+    "caller": "A",
+    "callee": "helper",
+    "context": "helper();"
+  },
+  {
+    "file": "main.cpp",
+    "line": 5,
+    "caller": "A",
+    "callee": "logger.flush",
+    "context": "logger.flush();"
+  }
+]

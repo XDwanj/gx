@@ -1,0 +1,16 @@
+[
+  {
+    "file": "App.java",
+    "line": 4,
+    "caller": "A",
+    "callee": "helper",
+    "context": "helper();"
+  },
+  {
+    "file": "App.java",
+    "line": 5,
+    "caller": "A",
+    "callee": "logger.info",
+    "context": "logger.info(\"hi\");"
+  }
+]

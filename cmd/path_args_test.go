@@ -319,10 +319,50 @@ func TestReferencesCommandResolvesRelativePathAgainstExplicitDirectory(t *testin
 	}
 }
 
+func TestCalleesCommandResolvesRelativePathAgainstExplicitDirectory(t *testing.T) {
+	ensureCommandLanguages(t, "go")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.go":    "package main\n\nfunc helper() {}\nfunc A() { helper() }\n",
+		"other/extra.go": "package main\n\nfunc helper() {}\nfunc A() { helper() }\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newCalleesCmd()
+		if err := command.Flags().Set("name", "A"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run callees command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.go") {
+		t.Fatalf("expected explicit -C scoped callees, got %q", stdout)
+	}
+	if strings.Contains(stdout, "other/extra.go") {
+		t.Fatalf("expected explicit -C relative path to filter callees, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestCommandsRemoveScopeFlag(t *testing.T) {
 	for _, command := range []*cobra.Command{
 		newSymbolsCmd(),
 		newDefinitionCmd(),
+		newCalleesCmd(),
 		newReferencesCmd(),
 	} {
 		if command.Flags().Lookup("scope") != nil {

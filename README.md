@@ -10,6 +10,7 @@ This project is derived from `cx`, but its public command name in this repositor
 - Shows Markdown heading outlines for `.md` and `.markdown` files in `gx overview`.
 - Searches symbols across the project with kind and glob filters.
 - Prints the body of a symbol directly, so you can inspect one function or type without opening the whole file.
+- Lists the syntax-level callees inside a matching function body.
 - Finds references for a symbol, with an optional unique-per-caller view to estimate refactor blast radius.
 - Manages language grammar availability and index cache state.
 - Exposes an embedded `skill` document that tells AI agents how to use the tool efficiently.
@@ -304,6 +305,12 @@ Read one symbol body directly:
 gx definition --name buildRuntime --limit 1 --max-lines 40
 ```
 
+List the syntax-level calls made inside one symbol body:
+
+```bash
+gx callees --name buildRuntime
+```
+
 Find all usages of a symbol:
 
 ```bash
@@ -324,7 +331,7 @@ gx references --name buildRuntime --unique
 2. Load the cached project index from SQLite, or rebuild/update it if files changed.
 3. During indexing, walk the project tree, detect languages by extension, and parse supported files with Tree-sitter.
 4. Extract symbols such as functions, methods, structs, traits, and types, then persist them with source coordinates and file mtimes.
-5. Run `overview`, `symbols`, `definition`, or `references` against the in-memory index and print TOON or JSON output.
+5. Run `overview`, `symbols`, `definition`, `callees`, or `references` against the in-memory index and print TOON or JSON output.
 
 ```mermaid
 flowchart TD
@@ -332,7 +339,7 @@ flowchart TD
     B --> C[Resolve project root]
     C --> D{Command type}
 
-    D -->|overview / symbols /\ndefinition / references| E[Load SQLite index cache]
+    D -->|overview / symbols /\ndefinition / callees /\nreferences| E[Load SQLite index cache]
     E --> F{Cache valid?}
     F -->|Yes| G[Use cached entries]
     F -->|No| H[Walk project files]
@@ -351,9 +358,9 @@ flowchart TD
     D -->|skill| S[Print embedded agent guide]
 ```
 
-The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, while `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
+The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, `callees` reparses matching symbol bodies and extracts syntax-level call expressions, and `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
 
-Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, or `references`.
+Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, `callees`, or `references`.
 
 ## Commands
 
@@ -363,6 +370,7 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `line`, `name`, `kind`, and `signature`. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
 - `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies.
+- `gx callees --name GLOB [path ...]`: Print syntax-level calls made inside matching `func` symbols as `file`, `line`, `caller`, `callee`, and `context`.
 - `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
 Short aliases: `gx o`, `gx s`, `gx d`, `gx r`
@@ -375,6 +383,7 @@ Match mode notes:
 
 - `gx symbols --name` uses glob matching.
 - `gx definition --name` uses glob matching.
+- `gx callees --name` uses glob matching.
 - `gx references --name` uses glob matching.
 - Path args accept either file paths or directory paths.
 - When no path arg is supplied, `gx` uses the current working directory.
@@ -384,7 +393,7 @@ Pagination flags:
 - `--limit N`: Override the command's default result limit.
 - `--offset N`: Skip the first `N` results.
 - `--all`: Bypass the default result limit entirely.
-- Default limits are `definition=5`, `symbols=100`, `references=50`.
+- Default limits are `definition=5`, `symbols=100`, `callees=50`, `references=50`.
 - `overview` has no default limit for directory output, but `--limit` and `--offset` still apply when the target is a directory.
 - `overview` with multiple paths returns one section per target in both default and `--json` modes.
 - `overview` applies pagination per directory target when multiple paths are supplied.
@@ -417,6 +426,10 @@ For machine-readable output, add `--json`:
 gx symbols --name 'new*' --json
 ```
 
+```bash
+gx callees --name buildRuntime --json
+```
+
 The version command and version flags also support JSON output:
 
 ```bash
@@ -433,5 +446,6 @@ Pagination applies to both default output and `--json`.
 1. Start with `gx overview .` or `gx overview <dir>`.
 2. Narrow down with `gx symbols`.
 3. Read the exact target with `gx definition`.
-4. Check impact with `gx references --unique`.
-5. Fall back to reading full files only when you need wider context.
+4. Inspect outgoing calls with `gx callees`.
+5. Check impact with `gx references --unique`.
+6. Fall back to reading full files only when you need wider context.

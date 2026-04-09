@@ -81,6 +81,14 @@ type ReferenceRow struct {
 	Context string `json:"context"`
 }
 
+type CalleeRow struct {
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+	Caller  string `json:"caller"`
+	Callee  string `json:"callee"`
+	Context string `json:"context"`
+}
+
 type UniqueCallerRow struct {
 	File   string `json:"file"`
 	Caller string `json:"caller"`
@@ -570,6 +578,106 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 		return output.PrintJSON(service.stdout, deduped)
 	}
 	return output.PrintTOON(service.stdout, deduped)
+}
+
+func (service *Service) Callees(idx *index.Index, nameGlob string, paths []string, page PageRequest) error {
+	filter, err := service.resolvePaths(idx, paths)
+	if err != nil {
+		return err
+	}
+
+	callableKind := index.SymbolKindFunc
+	matches, err := findDefinitionMatches(idx, nameGlob, &callableKind)
+	if err != nil {
+		return err
+	}
+	if filter != nil {
+		filtered := make([]definitionMatch, 0, len(matches))
+		for _, match := range matches {
+			if filter.contains(match.path) {
+				filtered = append(filtered, match)
+			}
+		}
+		matches = filtered
+	}
+	if len(matches) == 0 {
+		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+		return nil
+	}
+
+	rows := make([]CalleeRow, 0)
+	sourceCache := make(map[string][]byte)
+	linesCache := make(map[string][]string)
+	for _, match := range matches {
+		data, ok := idx.Entries[match.path]
+		if !ok {
+			continue
+		}
+		if !language.SupportsCallees(data.Meta.Language) {
+			return fmt.Errorf("gx: callees not supported for language: %s", data.Meta.Language)
+		}
+
+		source, ok := sourceCache[match.path]
+		if !ok {
+			source, err = os.ReadFile(filepath.Join(idx.Root, match.path))
+			if err != nil {
+				return err
+			}
+			sourceCache[match.path] = source
+			linesCache[match.path] = splitLines(source)
+		}
+
+		callees, err := language.FindCallees(
+			data.Meta.Language,
+			source,
+			filepath.Join(idx.Root, match.path),
+			match.symbol.ByteStart,
+			match.symbol.ByteEnd,
+		)
+		if err != nil {
+			return err
+		}
+
+		lines := linesCache[match.path]
+		for _, callee := range callees {
+			context := ""
+			if callee.Line-1 >= 0 && callee.Line-1 < len(lines) {
+				context = strings.TrimSpace(lines[callee.Line-1])
+			}
+			rows = append(rows, CalleeRow{
+				File:    displayPath(match.path),
+				Line:    callee.Line,
+				Caller:  match.symbol.Name,
+				Callee:  callee.Name,
+				Context: context,
+			})
+		}
+	}
+
+	if len(rows) == 0 {
+		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+		return nil
+	}
+
+	sort.Slice(rows, func(left int, right int) bool {
+		if rows[left].File == rows[right].File {
+			if rows[left].Line == rows[right].Line {
+				if rows[left].Caller == rows[right].Caller {
+					return rows[left].Callee < rows[right].Callee
+				}
+				return rows[left].Caller < rows[right].Caller
+			}
+			return rows[left].Line < rows[right].Line
+		}
+		return rows[left].File < rows[right].File
+	})
+
+	rows, pageState := paginateRows(rows, page)
+	service.writePageHint(pageState)
+	if service.json {
+		return output.PrintJSON(service.stdout, rows)
+	}
+	return output.PrintTOON(service.stdout, rows)
 }
 
 func findDefinitionMatches(idx *index.Index, nameGlob string, kind *index.SymbolKind) ([]definitionMatch, error) {

@@ -688,6 +688,106 @@ func TestReferencesFindsExternalSymbolUsages(t *testing.T) {
 	}
 }
 
+func TestCalleesReturnsCallSites(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nimport \"fmt\"\n\nfunc B() {}\nfunc C() {}\n\nfunc A() {\n\tB()\n\tC()\n\tfmt.Println(\"hello\")\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Callees(idx, "A", nil, PageRequest{}); err != nil {
+		t.Fatalf("callees query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "{file,line,caller,callee,context}:") {
+		t.Fatalf("unexpected output shape: %s", output)
+	}
+	for _, expected := range []string{
+		"main.go,9,A,B,B()",
+		"main.go,10,A,C,C()",
+		"main.go,11,A,fmt.Println,\"fmt.Println(\\\"hello\\\")\"",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("missing callee row %q in %s", expected, output)
+		}
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestCalleesPaginationWritesHint(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc one() {}\nfunc two() {}\nfunc three() {}\n\nfunc A() {\n\tone()\n\ttwo()\n\tthree()\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Callees(idx, "A", nil, PageRequest{Limit: 2}); err != nil {
+		t.Fatalf("callees query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "one()") || !strings.Contains(output, "two()") {
+		t.Fatalf("missing paged callees output: %s", output)
+	}
+	if strings.Contains(output, "three()") {
+		t.Fatalf("expected pagination to exclude third callee: %s", output)
+	}
+	if !strings.Contains(stderr.String(), "gx: showing 1-2 of 3; narrow query, use --offset 2, or --all") {
+		t.Fatalf("expected pagination hint, got %q", stderr.String())
+	}
+}
+
+func TestCalleesScopeFiltersResults(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"src/main.go":   "package main\n\nfunc left() {}\nfunc A() { left() }\n",
+		"other/main.go": "package main\n\nfunc right() {}\nfunc A() { right() }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Callees(idx, "A", []string{"src/main.go"}, PageRequest{}); err != nil {
+		t.Fatalf("callees query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "src/main.go") || !strings.Contains(output, "left") {
+		t.Fatalf("missing scoped callee result: %s", output)
+	}
+	if strings.Contains(output, "other/main.go") || strings.Contains(output, "right") {
+		t.Fatalf("scope should exclude other file: %s", output)
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
 func TestMissingPathReturnsError(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{

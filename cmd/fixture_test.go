@@ -21,6 +21,7 @@ import (
 const (
 	fixtureCommandSymbol     = "symbol"
 	fixtureCommandDefinition = "definition"
+	fixtureCommandCallees    = "callees"
 )
 
 type fixtureQuery struct {
@@ -97,6 +98,27 @@ func TestFixtureKindCoverage(t *testing.T) {
 	}
 }
 
+func TestFixtureCalleesLanguageCoverage(t *testing.T) {
+	fixturesRoot := filepath.Join(repoRootFromFixtureTest(t), "tests")
+	cases, err := discoverFixtureCases(fixturesRoot)
+	if err != nil {
+		t.Fatalf("discover fixture cases: %v", err)
+	}
+
+	calleeLanguages := map[string]bool{}
+	for _, testCase := range cases {
+		if testCase.Command == fixtureCommandCallees {
+			calleeLanguages[testCase.Language] = true
+		}
+	}
+
+	for _, languageName := range supportedCalleesFixtureLanguages() {
+		if !calleeLanguages[languageName] {
+			t.Fatalf("fixture callees coverage is missing language=%q", languageName)
+		}
+	}
+}
+
 func TestFixtureLanguageKindCoverage(t *testing.T) {
 	fixturesRoot := filepath.Join(repoRootFromFixtureTest(t), "tests")
 	cases, err := discoverFixtureCases(fixturesRoot)
@@ -168,7 +190,7 @@ func discoverFixtureCases(fixturesRoot string) ([]fixtureCase, error) {
 			return nil
 		}
 
-		if parts[1] != fixtureCommandSymbol && parts[1] != fixtureCommandDefinition {
+		if parts[1] != fixtureCommandSymbol && parts[1] != fixtureCommandDefinition && parts[1] != fixtureCommandCallees {
 			return nil
 		}
 
@@ -308,6 +330,8 @@ func buildFixtureArgs(projectRoot string, command string, query fixtureQuery) []
 		args = append(args, "symbols")
 	case fixtureCommandDefinition:
 		args = append(args, "definition")
+	case fixtureCommandCallees:
+		args = append(args, "callees")
 	default:
 		panic("unsupported fixture command: " + command)
 	}
@@ -363,6 +387,21 @@ func readFixtureJSON[T any](t *testing.T, path string) T {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
 	return value
+}
+
+func supportedCalleesFixtureLanguages() []string {
+	return []string{
+		"c",
+		"cpp",
+		"go",
+		"java",
+		"lua",
+		"python",
+		"ruby",
+		"rust",
+		"swift",
+		"typescript",
+	}
 }
 
 func captureFixtureProcessOutput(t *testing.T, run func()) (string, string) {

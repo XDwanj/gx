@@ -48,6 +48,26 @@ func TestRootCommandExposesPaginationFlags(t *testing.T) {
 	}
 }
 
+func TestRootCommandExposesCalleesShortAlias(t *testing.T) {
+	command := newRootCmd()
+	found := false
+	for _, subcommand := range command.Commands() {
+		if subcommand.Name() != "callees" {
+			continue
+		}
+		for _, alias := range subcommand.Aliases {
+			if alias == "c" {
+				found = true
+				break
+			}
+		}
+		break
+	}
+	if !found {
+		t.Fatal("expected callees command to expose alias c")
+	}
+}
+
 func TestRootCommandPrintsVersionForLongFlag(t *testing.T) {
 	stdout, stderr, exitCode := executeRootForTest(t, "--version")
 	if exitCode != 0 {

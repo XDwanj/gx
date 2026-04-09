@@ -1,0 +1,16 @@
+[
+  {
+    "file": "main.ts",
+    "line": 4,
+    "caller": "A",
+    "callee": "helper",
+    "context": "helper()"
+  },
+  {
+    "file": "main.ts",
+    "line": 5,
+    "caller": "A",
+    "callee": "console.log",
+    "context": "console.log(\"hi\")"
+  }
+]

@@ -1,0 +1,5 @@
+id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
+1,阅读入口与测试并细化实现边界,DONE,明确改动文件与输出排序规则,"test -f .codex-tasks/20260409-callees/SPEC.md",2026-04-09T00:00:00,0,确定默认 TOON 为 file,line,caller,callee,context，显式排序按 file->line->caller->callee
+2,实现 callees 命令与查询/语言抽取,DONE,`gx callees` 代码完成并保持默认 TOON 字段契约,"rg -n \"callees\" cmd internal",2026-04-09T00:00:00,0,新增 cmd/callees.go、Service.Callees 和 language.FindCallees
+3,补充测试与文档同步,DONE,新增/更新测试与 README/help/skill 文档,"rg -n \"callees\" cmd tests README.md README.zh-CN.md internal/skill/skill.md",2026-04-09T00:00:00,0,新增 help/path/runtime/language 测试并同步中英文 README 与 embedded skill
+4,运行格式化与自动化验证,DONE,测试与 lint 通过,"env -u GOROOT go test ./... -timeout 60s && env -u GOROOT golangci-lint run ./...",2026-04-09T00:00:00,0,本机 GOROOT 指向 go1.26.1，需显式 unset 后使用当前 go1.26.2 工具链验证

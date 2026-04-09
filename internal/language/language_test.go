@@ -245,6 +245,60 @@ func TestFindReferencesRust(t *testing.T) {
 	}
 }
 
+func TestFindCalleesGo(t *testing.T) {
+	ensureInstalled(t, "go")
+
+	source := []byte("package main\n\nimport \"fmt\"\n\nfunc A() {\n\thelper()\n\tfmt.Println(\"hello\")\n}\n")
+	symbols, err := ParseAndExtract("go", source, "main.go")
+	if err != nil {
+		t.Fatalf("parse go symbols: %v", err)
+	}
+	if len(symbols) == 0 {
+		t.Fatal("expected at least one symbol")
+	}
+
+	callees, err := FindCallees("go", source, "main.go", symbols[0].ByteStart, symbols[0].ByteEnd)
+	if err != nil {
+		t.Fatalf("find callees: %v", err)
+	}
+	if len(callees) != 2 {
+		t.Fatalf("expected 2 callees, got %d", len(callees))
+	}
+	if callees[0].Name != "helper" || callees[0].Line != 6 {
+		t.Fatalf("unexpected first callee: %+v", callees[0])
+	}
+	if callees[1].Name != "fmt.Println" || callees[1].Line != 7 {
+		t.Fatalf("unexpected second callee: %+v", callees[1])
+	}
+}
+
+func TestFindCalleesTypeScript(t *testing.T) {
+	ensureInstalled(t, "typescript")
+
+	source := []byte("function A() {\n  helper()\n  console.log('hello')\n}\n")
+	symbols, err := ParseAndExtract("typescript", source, "main.ts")
+	if err != nil {
+		t.Fatalf("parse typescript symbols: %v", err)
+	}
+	if len(symbols) == 0 {
+		t.Fatal("expected at least one symbol")
+	}
+
+	callees, err := FindCallees("typescript", source, "main.ts", symbols[0].ByteStart, symbols[0].ByteEnd)
+	if err != nil {
+		t.Fatalf("find callees: %v", err)
+	}
+	if len(callees) != 2 {
+		t.Fatalf("expected 2 callees, got %d", len(callees))
+	}
+	if callees[0].Name != "helper" {
+		t.Fatalf("unexpected first callee: %+v", callees[0])
+	}
+	if callees[1].Name != "console.log" {
+		t.Fatalf("unexpected second callee: %+v", callees[1])
+	}
+}
+
 func TestDetectLanguageProtobuf(t *testing.T) {
 	if got := DetectLanguage("api/greeter.proto"); got != "protobuf" {
 		t.Fatalf("unexpected protobuf detection: %q", got)

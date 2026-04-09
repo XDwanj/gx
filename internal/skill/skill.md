@@ -5,7 +5,7 @@ description: "ALWAYS activate this skill for any task that requires reading, und
 
 # GX
 
-`gx` is a semantic code navigation tool for AI agents. Use it when the task is about code structure, declarations, definitions, references, or package layout. Do not use it for plain text lookup in logs, comments, Markdown, YAML, JSON, SQL, or arbitrary strings.
+`gx` is a semantic code navigation tool for AI agents. Use it when the task is about code structure, declarations, definitions, callees, references, or package layout. Do not use it for plain text lookup in logs, comments, Markdown, YAML, JSON, SQL, or arbitrary strings.
 
 ## Default Workflow
 
@@ -14,7 +14,8 @@ Use the usual narrowing loop:
 1. `overview` for package or file surface.
 2. `symbols` to find the exact declaration.
 3. `definition` to read the implementation body.
-4. `references` to inspect impact.
+4. `callees` to inspect outgoing calls.
+5. `references` to inspect impact.
 
 Default examples:
 
@@ -22,6 +23,7 @@ Default examples:
 gx overview internal/tmdb
 gx symbols --kind func --name 'Search' .
 gx definition --name 'Search' internal/tmdb
+gx callees --name 'Search' internal/tmdb
 gx references --unique --name 'Search' .
 ```
 
@@ -41,7 +43,7 @@ Public `--kind` values:
 Rules:
 
 - Treat these as `gx` extraction kinds, not as a promise that every language supports every kind.
-- `symbols` and `definition` support `--kind`; `references` does not.
+- `symbols` and `definition` support `--kind`; `callees` and `references` do not.
 - Narrow by `--name` first, then add `--kind` to reduce noise.
 - If a `--kind` query returns nothing, retry without `--kind`.
 
@@ -137,6 +139,23 @@ gx references --unique --name 'Search' .
 gx references --name 'Search' --limit 25 --offset 25 .
 ```
 
+### `gx callees`
+
+Use `callees` to inspect the syntax-level calls made inside a function body.
+
+- Returns call sites, not resolved definitions.
+- Accepts files, directories, or a mix.
+- Default result limit is `50`.
+- Output fields are `file`, `line`, `caller`, `callee`, and `context`.
+
+Examples:
+
+```bash
+gx callees --name 'Search' .
+gx callees --name '*Search*' internal/tmdb
+gx callees --name 'Search' --limit 25 --offset 25 .
+```
+
 ### `gx cache`
 
 Use `cache` when the index seems stale.
@@ -188,7 +207,7 @@ Why they are bad:
 
 ## Path Rules
 
-- `overview`, `symbols`, `definition`, and `references` accept multiple paths.
+- `overview`, `symbols`, `definition`, `callees`, and `references` accept multiple paths.
 - Those paths may be directories, files, or a mix.
 - Prefer the smallest scope that answers the question.
 - Use `-C` when you need to run `gx` against another directory context.
@@ -200,6 +219,7 @@ gx overview internal/tmdb internal/tmdb/search.go README.md
 gx -C /path/to/project symbols --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go
+gx callees --name 'Search' internal/tmdb/search.go internal/tools
 gx references --unique --name 'Search' internal/tmdb/search.go internal/tools
 ```
 
@@ -211,6 +231,7 @@ Examples:
 
 ```bash
 gx definition --json --name 'Search' internal/tmdb
+gx callees --json --name 'Search' .
 gx references --json --unique --name 'Search' .
 ```
 
@@ -218,6 +239,7 @@ gx references --json --unique --name 'Search' .
 
 - Start from a package directory, not the repo root, when using `overview`.
 - Use `symbols` before `definition` if the name or `kind` may be ambiguous.
+- Use `callees` after `definition` when you need the outgoing call list for one implementation.
 - Treat `--kind` as a precision filter, not as the primary lookup mechanism.
 - When results are unexpectedly empty, check help output before assuming the symbol is absent.
 - Use `references --unique` for quick impact analysis.

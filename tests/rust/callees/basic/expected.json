@@ -1,0 +1,16 @@
+[
+  {
+    "file": "main.rs",
+    "line": 4,
+    "caller": "A",
+    "callee": "helper",
+    "context": "helper();"
+  },
+  {
+    "file": "main.rs",
+    "line": 5,
+    "caller": "A",
+    "callee": "logger.info",
+    "context": "logger.info(\"hi\");"
+  }
+]

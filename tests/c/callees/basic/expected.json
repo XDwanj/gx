@@ -1,0 +1,16 @@
+[
+  {
+    "file": "main.c",
+    "line": 4,
+    "caller": "A",
+    "callee": "helper",
+    "context": "helper();"
+  },
+  {
+    "file": "main.c",
+    "line": 5,
+    "caller": "A",
+    "callee": "work",
+    "context": "work();"
+  }
+]

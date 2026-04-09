@@ -39,3 +39,19 @@ func TestDefinitionHelpIncludesKindSupportList(t *testing.T) {
 		t.Fatalf("expected rust support list, got %q", stdout)
 	}
 }
+
+func TestCalleesHelpUsesCallerNameFlagDescription(t *testing.T) {
+	stdout, stderr, exitCode := executeRootForTest(t, "callees", "--help")
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stderr %q", exitCode, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Glob pattern to match caller symbol names") {
+		t.Fatalf("expected caller name flag description, got %q", stdout)
+	}
+	if strings.Contains(stdout, "--kind") {
+		t.Fatalf("did not expect kind flag in callees help, got %q", stdout)
+	}
+}
