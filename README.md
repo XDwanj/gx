@@ -26,7 +26,7 @@ Use `gx lang list` to see which grammars are currently enabled in your local cac
 
 `gx` normalizes extracted symbols into a shared set of kinds:
 
-`fn`, `method`, `struct`, `enum`, `type`, `const`, `class`, `interface`, `module`
+`func`, `struct`, `enum`, `type`, `const`, `class`, `interface`, `module`
 
 These kinds are not raw Tree-sitter node kinds. Each language uses its own
 Tree-sitter query patterns, and `gx` maps those captures into the shared kinds
@@ -36,14 +36,14 @@ below.
 
 | Declaration form      | What syntax it represents   | `gx` kind |
 | --------------------- | --------------------------- | --------- |
-| `function_definition` | A shell function definition | `fn`      |
+| `function_definition` | A shell function definition | `func`    |
 
 ### c
 
 | Declaration form                               | What syntax it represents                                           | `gx` kind |
 | ---------------------------------------------- | ------------------------------------------------------------------- | --------- |
-| `function_definition`                          | A regular C function definition                                     | `fn`      |
-| `function_definition` via `pointer_declarator` | A function definition whose declarator is wrapped in pointer syntax | `fn`      |
+| `function_definition`                          | A regular C function definition                                     | `func`    |
+| `function_definition` via `pointer_declarator` | A function definition whose declarator is wrapped in pointer syntax | `func`    |
 | `struct_specifier`                             | A `struct` type declaration with a body                             | `struct`  |
 | `enum_specifier`                               | An `enum` type declaration                                          | `enum`    |
 | `type_definition`                              | A `typedef` named type definition                                   | `type`    |
@@ -52,10 +52,10 @@ below.
 
 | Declaration form                                             | What syntax it represents                                         | `gx` kind |
 | ------------------------------------------------------------ | ----------------------------------------------------------------- | --------- |
-| `function_definition`                                        | A free function definition                                        | `fn`      |
-| `function_definition` via `pointer_declarator`               | A function definition using pointer-style declarator syntax       | `fn`      |
-| `function_definition` with `field_identifier` declarator     | An in-class member function definition                            | `method`  |
-| `function_definition` with `qualified_identifier` declarator | An out-of-class member function definition using a qualified name | `method`  |
+| `function_definition`                                        | A free function definition                                        | `func`    |
+| `function_definition` via `pointer_declarator`               | A function definition using pointer-style declarator syntax       | `func`    |
+| `function_definition` with `field_identifier` declarator     | An in-class member function definition                            | `func`    |
+| `function_definition` with `qualified_identifier` declarator | An out-of-class member function definition using a qualified name | `func`    |
 | `struct_specifier`                                           | A `struct` type declaration                                       | `struct`  |
 | `class_specifier`                                            | A `class` type declaration                                        | `class`   |
 | `enum_specifier`                                             | An `enum` type declaration                                        | `enum`    |
@@ -66,8 +66,8 @@ below.
 
 | Declaration form                  | What syntax it represents                                        | `gx` kind   |
 | --------------------------------- | ---------------------------------------------------------------- | ----------- |
-| `function_declaration`            | A top-level function declaration                                 | `fn`        |
-| `method_declaration`              | A method with a receiver                                         | `method`    |
+| `function_declaration`            | A top-level function declaration                                 | `func`      |
+| `method_declaration`              | A method with a receiver                                         | `func`      |
 | `type_spec` with `struct_type`    | A named `struct` declaration inside `type`                       | `struct`    |
 | `type_spec` with `interface_type` | A named `interface` declaration inside `type`                    | `interface` |
 | `type_spec`                       | A named non-struct, non-interface type declaration inside `type` | `type`      |
@@ -80,7 +80,7 @@ below.
 | Declaration form                          | What syntax it represents   | `gx` kind   |
 | ----------------------------------------- | --------------------------- | ----------- |
 | `class_declaration`                       | A class declaration         | `class`     |
-| `method_declaration`                      | A method declaration        | `method`    |
+| `method_declaration`                      | A method declaration        | `func`      |
 | `interface_declaration`                   | An interface declaration    | `interface` |
 | `enum_declaration`                        | An enum declaration         | `enum`      |
 | `module_declaration`                      | A Java module declaration   | `module`    |
@@ -91,9 +91,9 @@ below.
 
 | Declaration form                                           | What syntax it represents                                   | `gx` kind |
 | ---------------------------------------------------------- | ----------------------------------------------------------- | --------- |
-| `function_declaration` with `identifier` name              | A plain named function                                      | `fn`      |
-| `function_declaration` with `dot_index_expression` name    | A table field function such as `t.f = function` syntax form | `fn`      |
-| `function_declaration` with `method_index_expression` name | A method definition using colon syntax                      | `method`  |
+| `function_declaration` with `identifier` name              | A plain named function                                      | `func`    |
+| `function_declaration` with `dot_index_expression` name    | A table field function such as `t.f = function` syntax form | `func`    |
+| `function_declaration` with `method_index_expression` name | A method definition using colon syntax                      | `func`    |
 
 ### python
 
@@ -101,7 +101,7 @@ below.
 | ---------------------- | ----------------------------------------------------------- | --------- |
 | top-level `assignment` | A module-level assignment treated as a constant-like symbol | `const`   |
 | `class_definition`     | A class definition                                          | `class`   |
-| `function_definition`  | A function definition                                       | `fn`      |
+| `function_definition`  | A function definition                                       | `func`    |
 
 ### protobuf
 
@@ -110,14 +110,14 @@ below.
 | `message`        | A message declaration               | `struct`    |
 | `enum`           | An enum declaration                 | `enum`      |
 | `service`        | A service declaration               | `interface` |
-| `rpc`            | An RPC declaration inside a service | `method`    |
+| `rpc`            | An RPC declaration inside a service | `func`      |
 
 ### ruby
 
 | Declaration form   | What syntax it represents              | `gx` kind |
 | ------------------ | -------------------------------------- | --------- |
-| `method`           | An instance method definition          | `method`  |
-| `singleton_method` | A singleton or class method definition | `method`  |
+| `method`           | An instance method definition          | `func`    |
+| `singleton_method` | A singleton or class method definition | `func`    |
 | `class`            | A class declaration                    | `class`   |
 | `module`           | A module declaration                   | `module`  |
 
@@ -129,14 +129,14 @@ below.
 | `enum_item`                               | An `enum` item declaration                                                | `enum`      |
 | `union_item`                              | A `union` item declaration                                                | `struct`    |
 | `type_item`                               | A `type` alias item                                                       | `type`      |
-| `function_item` inside `declaration_list` | A function inside an item body such as `impl` or similar declaration list | `method`    |
-| `function_item`                           | A free function item                                                      | `fn`        |
+| `function_item` inside `declaration_list` | A function inside an item body such as `impl` or similar declaration list | `func`      |
+| `function_item`                           | A free function item                                                      | `func`      |
 | `trait_item`                              | A `trait` declaration, normalized as an abstract contract                 | `interface` |
 | `const_item`                              | A constant item declaration                                               | `const`     |
 | `static_item`                             | A static item declaration                                                 | `const`     |
 | `enum_variant`                            | An enum member declaration                                                | `const`     |
 | `mod_item`                                | A module declaration                                                      | `module`    |
-| `macro_definition`                        | A macro definition item                                                   | `fn`        |
+| `macro_definition`                        | A macro definition item                                                   | `func`      |
 
 ### swift
 
@@ -149,18 +149,18 @@ below.
 | `class_declaration` with `extension`                   | An extension block                                   | `module`    |
 | `protocol_declaration`                                 | A protocol declaration                               | `interface` |
 | `typealias_declaration`                                | A type alias declaration                             | `type`      |
-| `function_declaration` inside `class_body`             | A method inside a class body                         | `method`    |
-| `function_declaration` inside `enum_class_body`        | A method inside an enum or struct body               | `method`    |
-| `protocol_function_declaration` inside `protocol_body` | A function requirement inside a protocol             | `method`    |
-| `init_declaration` inside `class_body`                 | An initializer inside a class body                   | `method`    |
-| `init_declaration` inside `enum_class_body`            | An initializer inside an enum or struct body         | `method`    |
-| `deinit_declaration` inside `class_body`               | A deinitializer inside a class body                  | `method`    |
-| `subscript_declaration` inside `class_body`            | A subscript member inside a class body               | `method`    |
-| `subscript_declaration` inside `enum_class_body`       | A subscript member inside an enum or struct body     | `method`    |
+| `function_declaration` inside `class_body`             | A method inside a class body                         | `func`      |
+| `function_declaration` inside `enum_class_body`        | A method inside an enum or struct body               | `func`      |
+| `protocol_function_declaration` inside `protocol_body` | A function requirement inside a protocol             | `func`      |
+| `init_declaration` inside `class_body`                 | An initializer inside a class body                   | `func`      |
+| `init_declaration` inside `enum_class_body`            | An initializer inside an enum or struct body         | `func`      |
+| `deinit_declaration` inside `class_body`               | A deinitializer inside a class body                  | `func`      |
+| `subscript_declaration` inside `class_body`            | A subscript member inside a class body               | `func`      |
+| `subscript_declaration` inside `enum_class_body`       | A subscript member inside an enum or struct body     | `func`      |
 | `property_declaration` inside `class_body`             | A property declaration inside a class body           | `const`     |
 | `property_declaration` inside `enum_class_body`        | A property declaration inside an enum or struct body | `const`     |
 | `protocol_property_declaration` inside `protocol_body` | A property requirement inside a protocol             | `const`     |
-| top-level `function_declaration`                       | A top-level function declaration                     | `fn`        |
+| top-level `function_declaration`                       | A top-level function declaration                     | `func`      |
 
 ### typescript
 
@@ -169,15 +169,15 @@ TSX grammar, while `.ts` and `.js` use the TypeScript grammar.
 
 | Declaration form                                   | What syntax it represents                                      | `gx` kind   |
 | -------------------------------------------------- | -------------------------------------------------------------- | ----------- |
-| `function_declaration`                             | A named function declaration                                   | `fn`        |
+| `function_declaration`                             | A named function declaration                                   | `func`      |
 | `class_declaration`                                | A class declaration                                            | `class`     |
-| `method_definition`                                | A class or object method definition                            | `method`    |
+| `method_definition`                                | A class or object method definition                            | `func`      |
 | `interface_declaration`                            | An interface declaration                                       | `interface` |
 | `type_alias_declaration`                           | A type alias declaration                                       | `type`      |
 | `enum_declaration`                                 | An enum declaration                                            | `enum`      |
 | `internal_module`                                  | A namespace or module declaration                              | `module`    |
-| `lexical_declaration` with `arrow_function` value  | A `let` or `const` variable initialized with an arrow function | `fn`        |
-| `variable_declaration` with `arrow_function` value | A `var` variable initialized with an arrow function            | `fn`        |
+| `lexical_declaration` with `arrow_function` value  | A `let` or `const` variable initialized with an arrow function | `func`      |
+| `variable_declaration` with `arrow_function` value | A `var` variable initialized with an arrow function            | `func`      |
 | `lexical_declaration`                              | A named `let` or `const` declaration                           | `const`     |
 | `variable_declaration`                             | A named `var` declaration                                      | `const`     |
 | `enum_assignment`                                  | An enum member with an explicit assigned value                 | `const`     |
@@ -187,7 +187,7 @@ TSX grammar, while `.ts` and `.js` use the TypeScript grammar.
 
 | Declaration form                                    | What syntax it represents                | `gx` kind |
 | --------------------------------------------------- | ---------------------------------------- | --------- |
-| `Decl` with `FnProto`                               | A function declaration                   | `fn`      |
+| `Decl` with `FnProto`                               | A function declaration                   | `func`    |
 | `Decl` with `VarDecl` containing `struct` container | A variable-bound struct type declaration | `struct`  |
 | `Decl` with `VarDecl` containing `enum` container   | A variable-bound enum type declaration   | `enum`    |
 | `Decl` with `VarDecl` containing `union` container  | A variable-bound union type declaration  | `struct`  |
@@ -369,7 +369,7 @@ Short aliases: `gx o`, `gx s`, `gx d`, `gx r`
 
 Supported symbol kinds:
 
-`fn`, `method`, `struct`, `enum`, `type`, `const`, `class`, `interface`, `module`
+`func`, `struct`, `enum`, `type`, `const`, `class`, `interface`, `module`
 
 Match mode notes:
 

@@ -28,7 +28,7 @@ func TestParseAndExtractRust(t *testing.T) {
 	if symbols[0].Name != "calculate_fee" {
 		t.Fatalf("unexpected symbol name: %s", symbols[0].Name)
 	}
-	if symbols[0].Kind != SymbolKindFn {
+	if symbols[0].Kind != SymbolKindFunc {
 		t.Fatalf("unexpected kind: %s", symbols[0].Kind)
 	}
 	if symbols[0].Line != 1 {
@@ -84,7 +84,7 @@ message HelloReply {
 		"HelloRequest": SymbolKindStruct,
 		"Status":       SymbolKindEnum,
 		"Greeter":      SymbolKindInterface,
-		"SayHello":     SymbolKindMethod,
+		"SayHello":     SymbolKindFunc,
 		"HelloReply":   SymbolKindStruct,
 	})
 }
@@ -124,8 +124,8 @@ func (status Status) Label() string { return "" }
 		"StatusOpen":    SymbolKindConst,
 		"StatusClosed":  SymbolKindConst,
 		"DefaultStatus": SymbolKindConst,
-		"Build":         SymbolKindFn,
-		"Label":         SymbolKindMethod,
+		"Build":         SymbolKindFunc,
+		"Label":         SymbolKindFunc,
 	})
 }
 
@@ -175,7 +175,7 @@ const build = () => 1
 		"Red":    SymbolKindConst,
 		"Blue":   SymbolKindConst,
 		"answer": SymbolKindConst,
-		"build":  SymbolKindFn,
+		"build":  SymbolKindFunc,
 	})
 }
 

@@ -11,9 +11,8 @@ const (
 	symbolKindPriorityUnknown   = 0
 	symbolKindPriorityType      = 1
 	symbolKindPriorityValue     = 2
-	symbolKindPriorityFunction  = 3
+	symbolKindPriorityCallable  = 3
 	symbolKindPriorityContainer = 4
-	symbolKindPriorityMethod    = 5
 )
 
 type Reference struct {
@@ -89,10 +88,8 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 	}
 
 	switch captureName {
-	case "definition.function", "definition.macro":
-		return SymbolKindFn, true
-	case "definition.method":
-		return SymbolKindMethod, true
+	case "definition.function", "definition.macro", "definition.method":
+		return SymbolKindFunc, true
 	case "definition.struct":
 		return SymbolKindStruct, true
 	case "definition.class":
@@ -186,12 +183,10 @@ func preferredSymbolKind(candidate SymbolKind, current SymbolKind) bool {
 
 func symbolKindSpecificity(kind SymbolKind) int {
 	switch kind {
-	case SymbolKindMethod:
-		return symbolKindPriorityMethod
 	case SymbolKindStruct, SymbolKindEnum, SymbolKindClass, SymbolKindInterface:
 		return symbolKindPriorityContainer
-	case SymbolKindFn:
-		return symbolKindPriorityFunction
+	case SymbolKindFunc:
+		return symbolKindPriorityCallable
 	case SymbolKindConst, SymbolKindModule:
 		return symbolKindPriorityValue
 	case SymbolKindType:

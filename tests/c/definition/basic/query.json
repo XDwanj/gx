@@ -1,6 +1,6 @@
 {
   "name": "add",
-  "kind": "fn",
+  "kind": "func",
   "paths": [
     "."
   ]

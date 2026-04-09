@@ -3,7 +3,7 @@
     "file": "main.swift",
     "line": 2,
     "name": "load",
-    "kind": "method",
+    "kind": "func",
     "signature": "func load()"
   }
 ]

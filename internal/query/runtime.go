@@ -23,8 +23,7 @@ const (
 
 const (
 	definitionPriorityTypes = iota
-	definitionPriorityFunctions
-	definitionPriorityMethods
+	definitionPriorityCallables
 	definitionPriorityFallback
 )
 
@@ -620,10 +619,8 @@ func definitionSymbolPriority(kind index.SymbolKind) int {
 		index.SymbolKindType,
 		index.SymbolKindConst:
 		return definitionPriorityTypes
-	case index.SymbolKindFn:
-		return definitionPriorityFunctions
-	case index.SymbolKindMethod:
-		return definitionPriorityMethods
+	case index.SymbolKindFunc:
+		return definitionPriorityCallables
 	default:
 		return definitionPriorityFallback
 	}
@@ -1054,7 +1051,7 @@ func symbolPriority(kind index.SymbolKind) int {
 	switch kind {
 	case index.SymbolKindStruct, index.SymbolKindEnum, index.SymbolKindInterface, index.SymbolKindClass:
 		return symbolPriorityPrimary
-	case index.SymbolKindFn, index.SymbolKindConst, index.SymbolKindType, index.SymbolKindModule:
+	case index.SymbolKindFunc, index.SymbolKindConst, index.SymbolKindType, index.SymbolKindModule:
 		return symbolPrioritySecondary
 	default:
 		return symbolPriorityFallback

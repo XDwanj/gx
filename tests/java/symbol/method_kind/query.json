@@ -1,6 +1,6 @@
 {
   "name": "run",
-  "kind": "method",
+  "kind": "func",
   "paths": [
     "."
   ]

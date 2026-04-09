@@ -20,7 +20,7 @@ Default examples:
 
 ```bash
 gx overview internal/tmdb
-gx symbols --kind method --name 'Search' .
+gx symbols --kind func --name 'Search' .
 gx definition --name 'Search' internal/tmdb
 gx references --unique --name 'Search' .
 ```
@@ -29,8 +29,7 @@ gx references --unique --name 'Search' .
 
 Public `--kind` values:
 
-- `fn`
-- `method`
+- `func`
 - `const`
 - `struct`
 - `enum`
@@ -48,19 +47,19 @@ Rules:
 
 Current language coverage:
 
-- `bash`: `fn`
-- `c`: `fn`, `struct`, `enum`, `type`
-- `cpp`: `fn`, `method`, `struct`, `class`, `enum`, `module`, `type`
-- `go`: `fn`, `method`, `const`, `struct`, `interface`, `type`
-- `java`: `class`, `method`, `const`, `enum`, `interface`, `module`
-- `lua`: `fn`, `method`
-- `python`: `fn`, `const`, `class`
-- `protobuf`: `struct`, `enum`, `interface`, `method`
-- `ruby`: `method`, `class`, `module`
-- `rust`: `fn`, `method`, `const`, `struct`, `enum`, `interface`, `module`, `type`
-- `swift`: `fn`, `method`, `const`, `struct`, `enum`, `class`, `interface`, `module`, `type`
-- `typescript`: `fn`, `method`, `const`, `class`, `enum`, `interface`, `module`, `type`
-- `zig`: `fn`, `struct`, `enum`
+- `bash`: `func`
+- `c`: `func`, `struct`, `enum`, `type`
+- `cpp`: `func`, `struct`, `class`, `enum`, `module`, `type`
+- `go`: `func`, `const`, `struct`, `interface`, `type`
+- `java`: `class`, `func`, `const`, `enum`, `interface`, `module`
+- `lua`: `func`
+- `python`: `func`, `const`, `class`
+- `protobuf`: `struct`, `enum`, `interface`, `func`
+- `ruby`: `func`, `class`, `module`
+- `rust`: `func`, `const`, `struct`, `enum`, `interface`, `module`, `type`
+- `swift`: `func`, `const`, `struct`, `enum`, `class`, `interface`, `module`, `type`
+- `typescript`: `func`, `const`, `class`, `enum`, `interface`, `module`, `type`
+- `zig`: `func`, `struct`, `enum`
 
 ## Command Guide
 
@@ -98,7 +97,7 @@ Examples:
 
 ```bash
 gx symbols --name '*Search*' internal/tmdb
-gx symbols --kind method --name 'Search' .
+gx symbols --kind func --name 'Search' .
 gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 ```
 

@@ -3,7 +3,7 @@
     "file": "main.rs",
     "line": 18,
     "name": "build_user",
-    "kind": "fn",
+    "kind": "func",
     "signature": "fn build_user()"
   }
 ]

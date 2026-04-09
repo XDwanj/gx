@@ -1,6 +1,6 @@
 {
   "name": "BuildUser",
-  "kind": "fn",
+  "kind": "func",
   "paths": [
     "."
   ]

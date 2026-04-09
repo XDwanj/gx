@@ -25,7 +25,7 @@
 
 `gx` 会把抽取到的符号统一归一化为一组共享 kind：
 
-`fn`、`method`、`struct`、`enum`、`type`、`const`、`class`、`interface`、`module`
+`func`、`struct`、`enum`、`type`、`const`、`class`、`interface`、`module`
 
 这些 kind 不是 Tree-sitter 原生节点类型。每种语言都会先用各自的
 Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到下面这组共享 kind。
@@ -34,14 +34,14 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式              | 具体语法               | `gx` kind |
 | --------------------- | ---------------------- | --------- |
-| `function_definition` | Shell 脚本里的函数定义 | `fn`      |
+| `function_definition` | Shell 脚本里的函数定义 | `func`    |
 
 ### c
 
 | 声明形式                                           | 具体语法                                | `gx` kind |
 | -------------------------------------------------- | --------------------------------------- | --------- |
-| `function_definition`                              | 普通的 C 函数定义                       | `fn`      |
-| 通过 `pointer_declarator` 的 `function_definition` | declarator 外层带指针语法包装的函数定义 | `fn`      |
+| `function_definition`                              | 普通的 C 函数定义                       | `func`    |
+| 通过 `pointer_declarator` 的 `function_definition` | declarator 外层带指针语法包装的函数定义 | `func`    |
 | `struct_specifier`                                 | 带结构体体内容的 `struct` 类型声明      | `struct`  |
 | `enum_specifier`                                   | `enum` 类型声明                         | `enum`    |
 | `type_definition`                                  | 通过 `typedef` 定义的命名类型           | `type`    |
@@ -50,10 +50,10 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式                                                      | 具体语法                             | `gx` kind |
 | ------------------------------------------------------------- | ------------------------------------ | --------- |
-| `function_definition`                                         | 自由函数定义                         | `fn`      |
-| 通过 `pointer_declarator` 的 `function_definition`            | 使用指针式 declarator 语法的函数定义 | `fn`      |
-| declarator 为 `field_identifier` 的 `function_definition`     | 类或结构体内部的成员函数定义         | `method`  |
-| declarator 为 `qualified_identifier` 的 `function_definition` | 用限定名写出的类外成员函数定义       | `method`  |
+| `function_definition`                                         | 自由函数定义                         | `func`    |
+| 通过 `pointer_declarator` 的 `function_definition`            | 使用指针式 declarator 语法的函数定义 | `func`    |
+| declarator 为 `field_identifier` 的 `function_definition`     | 类或结构体内部的成员函数定义         | `func`    |
+| declarator 为 `qualified_identifier` 的 `function_definition` | 用限定名写出的类外成员函数定义       | `func`    |
 | `struct_specifier`                                            | `struct` 类型声明                    | `struct`  |
 | `class_specifier`                                             | `class` 类型声明                     | `class`   |
 | `enum_specifier`                                              | `enum` 类型声明                      | `enum`    |
@@ -64,8 +64,8 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式                           | 具体语法                       | `gx` kind   |
 | ---------------------------------- | ------------------------------ | ----------- |
-| `function_declaration`             | 顶层函数声明                   | `fn`        |
-| `method_declaration`               | 带 receiver 的方法声明         | `method`    |
+| `function_declaration`             | 顶层函数声明                   | `func`      |
+| `method_declaration`               | 带 receiver 的方法声明         | `func`      |
 | 带 `struct_type` 的 `type_spec`    | `type` 语句里的命名结构体声明  | `struct`    |
 | 带 `interface_type` 的 `type_spec` | `type` 语句里的命名接口声明    | `interface` |
 | `type_spec`                        | 非结构体、非接口的命名类型声明 | `type`      |
@@ -78,7 +78,7 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | 声明形式                                | 具体语法              | `gx` kind   |
 | --------------------------------------- | --------------------- | ----------- |
 | `class_declaration`                     | 类声明                | `class`     |
-| `method_declaration`                    | 方法声明              | `method`    |
+| `method_declaration`                    | 方法声明              | `func`      |
 | `interface_declaration`                 | 接口声明              | `interface` |
 | `enum_declaration`                      | 枚举声明              | `enum`      |
 | `module_declaration`                    | Java 模块声明         | `module`    |
@@ -89,9 +89,9 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式                                                   | 具体语法               | `gx` kind |
 | ---------------------------------------------------------- | ---------------------- | --------- |
-| 名称为 `identifier` 的 `function_declaration`              | 普通命名函数           | `fn`      |
-| 名称为 `dot_index_expression` 的 `function_declaration`    | 挂在表字段上的函数定义 | `fn`      |
-| 名称为 `method_index_expression` 的 `function_declaration` | 使用冒号语法定义的方法 | `method`  |
+| 名称为 `identifier` 的 `function_declaration`              | 普通命名函数           | `func`    |
+| 名称为 `dot_index_expression` 的 `function_declaration`    | 挂在表字段上的函数定义 | `func`    |
+| 名称为 `method_index_expression` 的 `function_declaration` | 使用冒号语法定义的方法 | `func`    |
 
 ### python
 
@@ -99,7 +99,7 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | --------------------- | ------------------------------ | --------- |
 | 顶层 `assignment`     | 模块级赋值，按常量风格符号处理 | `const`   |
 | `class_definition`    | 类定义                         | `class`   |
-| `function_definition` | 函数定义                       | `fn`      |
+| `function_definition` | 函数定义                       | `func`    |
 
 ### protobuf
 
@@ -108,14 +108,14 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | `message` | message 声明            | `struct`    |
 | `enum`    | 枚举声明                | `enum`      |
 | `service` | service 声明            | `interface` |
-| `rpc`     | service 内部的 RPC 声明 | `method`    |
+| `rpc`     | service 内部的 RPC 声明 | `func`      |
 
 ### ruby
 
 | 声明形式           | 具体语法             | `gx` kind |
 | ------------------ | -------------------- | --------- |
-| `method`           | 实例方法定义         | `method`  |
-| `singleton_method` | 单例方法或类方法定义 | `method`  |
+| `method`           | 实例方法定义         | `func`    |
+| `singleton_method` | 单例方法或类方法定义 | `func`    |
 | `class`            | 类声明               | `class`   |
 | `module`           | 模块声明             | `module`  |
 
@@ -127,14 +127,14 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | `enum_item`                             | `enum` 条目声明                    | `enum`      |
 | `union_item`                            | `union` 条目声明                   | `struct`    |
 | `type_item`                             | `type` 别名条目                    | `type`      |
-| `declaration_list` 内的 `function_item` | `impl` 等条目体内部的函数          | `method`    |
-| `function_item`                         | 自由函数条目                       | `fn`        |
+| `declaration_list` 内的 `function_item` | `impl` 等条目体内部的函数          | `func`      |
+| `function_item`                         | 自由函数条目                       | `func`      |
 | `trait_item`                            | `trait` 声明，统一归一化为抽象契约 | `interface` |
 | `const_item`                            | 常量条目声明                       | `const`     |
 | `static_item`                           | 静态条目声明                       | `const`     |
 | `enum_variant`                          | 枚举成员声明                       | `const`     |
 | `mod_item`                              | 模块声明                           | `module`    |
-| `macro_definition`                      | 宏定义条目                         | `fn`        |
+| `macro_definition`                      | 宏定义条目                         | `func`      |
 
 ### swift
 
@@ -147,18 +147,18 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | 带 `extension` 关键字的 `class_declaration`          | extension 扩展块             | `module`    |
 | `protocol_declaration`                               | 协议声明                     | `interface` |
 | `typealias_declaration`                              | 类型别名声明                 | `type`      |
-| `class_body` 内的 `function_declaration`             | 类体内部的方法               | `method`    |
-| `enum_class_body` 内的 `function_declaration`        | 枚举或结构体体内部的方法     | `method`    |
-| `protocol_body` 内的 `protocol_function_declaration` | 协议里的函数要求             | `method`    |
-| `class_body` 内的 `init_declaration`                 | 类体内部的初始化器           | `method`    |
-| `enum_class_body` 内的 `init_declaration`            | 枚举或结构体体内部的初始化器 | `method`    |
-| `class_body` 内的 `deinit_declaration`               | 类体内部的析构器             | `method`    |
-| `class_body` 内的 `subscript_declaration`            | 类体内部的下标成员           | `method`    |
-| `enum_class_body` 内的 `subscript_declaration`       | 枚举或结构体体内部的下标成员 | `method`    |
+| `class_body` 内的 `function_declaration`             | 类体内部的方法               | `func`      |
+| `enum_class_body` 内的 `function_declaration`        | 枚举或结构体体内部的方法     | `func`      |
+| `protocol_body` 内的 `protocol_function_declaration` | 协议里的函数要求             | `func`      |
+| `class_body` 内的 `init_declaration`                 | 类体内部的初始化器           | `func`      |
+| `enum_class_body` 内的 `init_declaration`            | 枚举或结构体体内部的初始化器 | `func`      |
+| `class_body` 内的 `deinit_declaration`               | 类体内部的析构器             | `func`      |
+| `class_body` 内的 `subscript_declaration`            | 类体内部的下标成员           | `func`      |
+| `enum_class_body` 内的 `subscript_declaration`       | 枚举或结构体体内部的下标成员 | `func`      |
 | `class_body` 内的 `property_declaration`             | 类体内部的属性声明           | `const`     |
 | `enum_class_body` 内的 `property_declaration`        | 枚举或结构体体内部的属性声明 | `const`     |
 | `protocol_body` 内的 `protocol_property_declaration` | 协议里的属性要求             | `const`     |
-| 顶层 `function_declaration`                          | 顶层函数声明                 | `fn`        |
+| 顶层 `function_declaration`                          | 顶层函数声明                 | `func`      |
 
 ### typescript
 
@@ -167,15 +167,15 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式                                        | 具体语法                                 | `gx` kind   |
 | ----------------------------------------------- | ---------------------------------------- | ----------- |
-| `function_declaration`                          | 具名函数声明                             | `fn`        |
+| `function_declaration`                          | 具名函数声明                             | `func`      |
 | `class_declaration`                             | 类声明                                   | `class`     |
-| `method_definition`                             | 类或对象里的方法定义                     | `method`    |
+| `method_definition`                             | 类或对象里的方法定义                     | `func`      |
 | `interface_declaration`                         | 接口声明                                 | `interface` |
 | `type_alias_declaration`                        | 类型别名声明                             | `type`      |
 | `enum_declaration`                              | 枚举声明                                 | `enum`      |
 | `internal_module`                               | namespace 或 module 声明                 | `module`    |
-| 值为 `arrow_function` 的 `lexical_declaration`  | 用箭头函数初始化的 `let` 或 `const` 变量 | `fn`        |
-| 值为 `arrow_function` 的 `variable_declaration` | 用箭头函数初始化的 `var` 变量            | `fn`        |
+| 值为 `arrow_function` 的 `lexical_declaration`  | 用箭头函数初始化的 `let` 或 `const` 变量 | `func`      |
+| 值为 `arrow_function` 的 `variable_declaration` | 用箭头函数初始化的 `var` 变量            | `func`      |
 | `lexical_declaration`                           | 具名 `let` 或 `const` 声明               | `const`     |
 | `variable_declaration`                          | 具名 `var` 声明                          | `const`     |
 | `enum_assignment`                               | 带显式赋值的枚举成员                     | `const`     |
@@ -185,7 +185,7 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 
 | 声明形式                                       | 具体语法                         | `gx` kind |
 | ---------------------------------------------- | -------------------------------- | --------- |
-| 带 `FnProto` 的 `Decl`                         | 函数声明                         | `fn`      |
+| 带 `FnProto` 的 `Decl`                         | 函数声明                         | `func`    |
 | 含 `struct` container 的 `VarDecl` 所在 `Decl` | 通过变量声明绑定出来的结构体类型 | `struct`  |
 | 含 `enum` container 的 `VarDecl` 所在 `Decl`   | 通过变量声明绑定出来的枚举类型   | `enum`    |
 | 含 `union` container 的 `VarDecl` 所在 `Decl`  | 通过变量声明绑定出来的联合类型   | `struct`  |
@@ -352,7 +352,7 @@ flowchart TD
 
 支持的符号类型：
 
-`fn`、`method`、`struct`、`enum`、`type`、`const`、`class`、`interface`、`module`
+`func`、`struct`、`enum`、`type`、`const`、`class`、`interface`、`module`
 
 分页相关 flags：
 

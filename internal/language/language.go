@@ -41,14 +41,13 @@ type KindOverride struct {
 type SymbolKind string
 
 const (
-	SymbolKindFn        SymbolKind = "fn"
+	SymbolKindFunc      SymbolKind = "func"
 	SymbolKindStruct    SymbolKind = "struct"
 	SymbolKindEnum      SymbolKind = "enum"
 	SymbolKindType      SymbolKind = "type"
 	SymbolKindConst     SymbolKind = "const"
 	SymbolKindClass     SymbolKind = "class"
 	SymbolKindInterface SymbolKind = "interface"
-	SymbolKindMethod    SymbolKind = "method"
 	SymbolKindModule    SymbolKind = "module"
 )
 

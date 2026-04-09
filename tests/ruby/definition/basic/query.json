@@ -1,6 +1,6 @@
 {
   "name": "call",
-  "kind": "method",
+  "kind": "func",
   "paths": [
     "."
   ]

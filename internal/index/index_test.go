@@ -390,7 +390,7 @@ func TestSaveStoreRoundTripsEntries(t *testing.T) {
 		"main.go": {
 			Meta: NewFileEntry(time.Unix(1712000000, 123), "go"),
 			Symbols: []Symbol{
-				{Name: "main", Kind: SymbolKindFn, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
+				{Name: "main", Kind: SymbolKindFunc, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
 			},
 		},
 	}
@@ -493,13 +493,13 @@ func TestStoreHandlesConcurrentReadersAndWriters(t *testing.T) {
 		"main.go": {
 			Meta: NewFileEntry(time.Unix(1712000000, 1), "go"),
 			Symbols: []Symbol{
-				{Name: "main", Kind: SymbolKindFn, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
+				{Name: "main", Kind: SymbolKindFunc, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
 			},
 		},
 		"helper.go": {
 			Meta: NewFileEntry(time.Unix(1712000001, 2), "go"),
 			Symbols: []Symbol{
-				{Name: "helperAlpha", Kind: SymbolKindFn, Signature: "func helperAlpha()", ByteStart: 0, ByteEnd: 20},
+				{Name: "helperAlpha", Kind: SymbolKindFunc, Signature: "func helperAlpha()", ByteStart: 0, ByteEnd: 20},
 			},
 		},
 	}
@@ -507,13 +507,13 @@ func TestStoreHandlesConcurrentReadersAndWriters(t *testing.T) {
 		"main.go": {
 			Meta: NewFileEntry(time.Unix(1712000010, 3), "go"),
 			Symbols: []Symbol{
-				{Name: "mainBeta", Kind: SymbolKindFn, Signature: "func mainBeta()", ByteStart: 0, ByteEnd: 16},
+				{Name: "mainBeta", Kind: SymbolKindFunc, Signature: "func mainBeta()", ByteStart: 0, ByteEnd: 16},
 			},
 		},
 		"helper.go": {
 			Meta: NewFileEntry(time.Unix(1712000011, 4), "go"),
 			Symbols: []Symbol{
-				{Name: "helperBeta", Kind: SymbolKindFn, Signature: "func helperBeta()", ByteStart: 0, ByteEnd: 18},
+				{Name: "helperBeta", Kind: SymbolKindFunc, Signature: "func helperBeta()", ByteStart: 0, ByteEnd: 18},
 			},
 		},
 	}

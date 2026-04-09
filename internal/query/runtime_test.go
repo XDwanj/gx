@@ -61,10 +61,10 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
 		t.Fatalf("unexpected output: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,func") {
 		t.Fatalf("missing main symbol: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,2,helper,fn") {
+	if !strings.Contains(output, "src/main.rs,2,helper,func") {
 		t.Fatalf("missing helper symbol line: %s", output)
 	}
 }
@@ -95,10 +95,10 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
 		t.Fatalf("directory scope should include file and line fields: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,func") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "src/helper.rs,1,helper,fn") {
+	if !strings.Contains(output, "src/helper.rs,1,helper,func") {
 		t.Fatalf("missing src/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
@@ -132,10 +132,10 @@ func TestSymbolsMultiplePathsUnionOutput(t *testing.T) {
 	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
 		t.Fatalf("multiple paths should include file and line fields: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,fn") {
+	if !strings.Contains(output, "src/main.rs,1,main,func") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "pkg/helper.rs,1,helper,fn") {
+	if !strings.Contains(output, "pkg/helper.rs,1,helper,func") {
 		t.Fatalf("missing pkg/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
@@ -194,10 +194,10 @@ func TestSymbolsSupportsPipeSeparatedAlternatives(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "main.go,3,WechatPay,fn") {
+	if !strings.Contains(output, "main.go,3,WechatPay,func") {
 		t.Fatalf("missing WechatPay symbol: %s", output)
 	}
-	if !strings.Contains(output, "main.go,4,AliPay,fn") {
+	if !strings.Contains(output, "main.go,4,AliPay,func") {
 		t.Fatalf("missing AliPay symbol: %s", output)
 	}
 	if strings.Contains(output, "StripePay") {

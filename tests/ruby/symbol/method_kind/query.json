@@ -1,6 +1,6 @@
 {
   "name": "load_user",
-  "kind": "method",
+  "kind": "func",
   "paths": [
     "."
   ]

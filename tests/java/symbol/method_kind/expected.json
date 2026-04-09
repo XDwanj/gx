@@ -3,7 +3,7 @@
     "file": "App.java",
     "line": 4,
     "name": "run",
-    "kind": "method",
+    "kind": "func",
     "signature": "void run()"
   }
 ]

@@ -3,7 +3,7 @@
     "file": "main.lua",
     "line": 3,
     "name": "greet",
-    "kind": "method",
+    "kind": "func",
     "signature": "function User:greet()"
   }
 ]

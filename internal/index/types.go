@@ -8,33 +8,30 @@ import (
 type SymbolKind string
 
 const (
-	SymbolKindFn        SymbolKind = "fn"
+	SymbolKindFunc      SymbolKind = "func"
 	SymbolKindStruct    SymbolKind = "struct"
 	SymbolKindEnum      SymbolKind = "enum"
 	SymbolKindType      SymbolKind = "type"
 	SymbolKindConst     SymbolKind = "const"
 	SymbolKindClass     SymbolKind = "class"
 	SymbolKindInterface SymbolKind = "interface"
-	SymbolKindMethod    SymbolKind = "method"
 	SymbolKindModule    SymbolKind = "module"
 )
 
 var validSymbolKinds = map[string]SymbolKind{
-	"fn":        SymbolKindFn,
+	"func":      SymbolKindFunc,
 	"struct":    SymbolKindStruct,
 	"enum":      SymbolKindEnum,
 	"type":      SymbolKindType,
 	"const":     SymbolKindConst,
 	"class":     SymbolKindClass,
 	"interface": SymbolKindInterface,
-	"method":    SymbolKindMethod,
 	"module":    SymbolKindModule,
 }
 
 func PublicSymbolKinds() []SymbolKind {
 	return []SymbolKind{
-		SymbolKindFn,
-		SymbolKindMethod,
+		SymbolKindFunc,
 		SymbolKindConst,
 		SymbolKindStruct,
 		SymbolKindEnum,
