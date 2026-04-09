@@ -216,6 +216,7 @@ Examples:
 
 ```bash
 gx overview internal/tmdb internal/tmdb/search.go README.md
+gx symbols --name 'Search' .
 gx -C /path/to/project symbols --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go
