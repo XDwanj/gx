@@ -91,6 +91,26 @@ func TestRootCommandPrintsVersionAsJSON(t *testing.T) {
 	}
 }
 
+func TestExecutePrintsCommandErrorsOnce(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	root := commandProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+
+	stdout, stderr, exitCode := executeRootForTest(t, "--chdir", root, "symbols", "missing", "also-missing")
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d with stderr %q", exitCode, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+
+	expected := "gx: paths not found: missing, also-missing"
+	if stderr != expected {
+		t.Fatalf("expected single error output %q, got %q", expected, stderr)
+	}
+}
+
 func executeRootForTest(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
 

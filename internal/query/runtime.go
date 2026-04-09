@@ -941,9 +941,33 @@ func (service *Service) fileLookupError(relPath string, root string) error {
 	return fmt.Errorf("gx: file not in index: %s", displayPath(relPath))
 }
 
+func missingPathsError(paths []string) error {
+	if len(paths) == 1 {
+		return fmt.Errorf("gx: path not found: %s", displayScopePath(paths[0]))
+	}
+
+	displayPaths := make([]string, 0, len(paths))
+	for _, path := range paths {
+		displayPaths = append(displayPaths, displayScopePath(path))
+	}
+	return fmt.Errorf("gx: paths not found: %s", strings.Join(displayPaths, ", "))
+}
+
 func (service *Service) resolvePaths(idx *index.Index, paths []string) (*scopeFilter, error) {
 	if len(paths) == 0 {
 		return nil, nil
+	}
+
+	missingPaths := make([]string, 0)
+	for _, path := range paths {
+		relPath := normalizeRelativePath(path, idx.Root)
+		absPath := filepath.Join(idx.Root, relPath)
+		if _, err := os.Stat(absPath); err != nil {
+			missingPaths = append(missingPaths, relPath)
+		}
+	}
+	if len(missingPaths) > 0 {
+		return nil, missingPathsError(missingPaths)
 	}
 
 	filter := &scopeFilter{
@@ -956,7 +980,7 @@ func (service *Service) resolvePaths(idx *index.Index, paths []string) (*scopeFi
 		absPath := filepath.Join(idx.Root, relPath)
 		info, err := os.Stat(absPath)
 		if err != nil {
-			return nil, fmt.Errorf("gx: path not found: %s", displayScopePath(relPath))
+			return nil, missingPathsError([]string{relPath})
 		}
 
 		if info.IsDir() {

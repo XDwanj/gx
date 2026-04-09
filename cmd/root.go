@@ -47,6 +47,7 @@ func newRootCmd() *cobra.Command {
 	}
 
 	command.SilenceUsage = true
+	command.SilenceErrors = true
 	command.SetOut(command.OutOrStdout())
 	command.SetErr(command.ErrOrStderr())
 

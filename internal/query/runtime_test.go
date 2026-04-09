@@ -713,6 +713,31 @@ func TestMissingPathReturnsError(t *testing.T) {
 	}
 }
 
+func TestMissingPathsReturnCombinedError(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	paths := []string{"missing", "also-missing"}
+
+	err = service.Symbols(idx, paths, nil, nil, PageRequest{})
+	if err == nil {
+		t.Fatal("expected missing paths to return an error")
+	}
+	if !strings.Contains(err.Error(), "gx: paths not found: missing, also-missing") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestMarkdownOverviewOutput(t *testing.T) {
 	root := tempProject(t, map[string]string{
 		"README.md": "# Title\n\n## Section\n\n### Deep Dive\n\n#### Level Four\n\n##### Level Five\n\n###### Level Six\n",
