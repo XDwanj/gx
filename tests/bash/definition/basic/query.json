@@ -1,6 +1,6 @@
 {
   "name": "greet",
-  "kind": "fn",
+  "kind": "func",
   "paths": [
     "."
   ]

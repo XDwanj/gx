@@ -16,7 +16,7 @@ func TestSymbolsHelpIncludesKindSupportList(t *testing.T) {
 	if !strings.Contains(stdout, "Public kinds:") {
 		t.Fatalf("expected public kinds section, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "- go: fn, method, const, struct, interface, type") {
+	if !strings.Contains(stdout, "- go: func, const, struct, interface, type") {
 		t.Fatalf("expected go support list, got %q", stdout)
 	}
 	if strings.Contains(stdout, "| go |") {
@@ -35,7 +35,7 @@ func TestDefinitionHelpIncludesKindSupportList(t *testing.T) {
 	if !strings.Contains(stdout, "Language support summary:") {
 		t.Fatalf("expected language support section, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "- rust: fn, method, const, struct, enum, interface, module, type") {
+	if !strings.Contains(stdout, "- rust: func, const, struct, enum, interface, module, type") {
 		t.Fatalf("expected rust support list, got %q", stdout)
 	}
 }

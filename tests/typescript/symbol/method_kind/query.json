@@ -1,6 +1,6 @@
 {
   "name": "method",
-  "kind": "method",
+  "kind": "func",
   "paths": [
     "."
   ]

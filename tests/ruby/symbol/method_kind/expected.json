@@ -3,7 +3,7 @@
     "file": "main.rb",
     "line": 7,
     "name": "load_user",
-    "kind": "method",
+    "kind": "func",
     "signature": "def load_user"
   }
 ]

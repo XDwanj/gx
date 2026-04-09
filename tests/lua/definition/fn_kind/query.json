@@ -1,6 +1,6 @@
 {
   "name": "build_user",
-  "kind": "fn",
+  "kind": "func",
   "paths": [
     "."
   ]

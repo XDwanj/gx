@@ -7,8 +7,7 @@ import (
 
 func TestPublicSymbolKindsMatchesSupportedKinds(t *testing.T) {
 	expected := []SymbolKind{
-		SymbolKindFn,
-		SymbolKindMethod,
+		SymbolKindFunc,
 		SymbolKindConst,
 		SymbolKindStruct,
 		SymbolKindEnum,
@@ -33,7 +32,7 @@ func TestParseSymbolKindSupportsRefinedKinds(t *testing.T) {
 }
 
 func TestParseSymbolKindRejectsRemovedKinds(t *testing.T) {
-	for _, raw := range []string{"trait", "event"} {
+	for _, raw := range []string{"fn", "method", "trait", "event"} {
 		if _, err := ParseSymbolKind(raw); err == nil {
 			t.Fatalf("expected removed kind %q to be rejected", raw)
 		}

@@ -3,7 +3,7 @@
     "file": "main.go",
     "line": 17,
     "name": "Load",
-    "kind": "method",
+    "kind": "func",
     "signature": "func (User) Load() User"
   }
 ]

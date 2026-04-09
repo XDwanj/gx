@@ -18,7 +18,7 @@ type quotedRow struct {
 
 func TestPrintTOONTabularRows(t *testing.T) {
 	rows := []toonRow{
-		{Name: "newDefinitionCmd", Kind: "fn", Signature: "func newDefinitionCmd() *cobra.Command"},
+		{Name: "newDefinitionCmd", Kind: "func", Signature: "func newDefinitionCmd() *cobra.Command"},
 	}
 
 	var output bytes.Buffer
@@ -26,7 +26,7 @@ func TestPrintTOONTabularRows(t *testing.T) {
 		t.Fatalf("print toon: %v", err)
 	}
 
-	expected := "[1]{name,kind,signature}:\n  newDefinitionCmd,fn,func newDefinitionCmd() *cobra.Command\n"
+	expected := "[1]{name,kind,signature}:\n  newDefinitionCmd,func,func newDefinitionCmd() *cobra.Command\n"
 	if output.String() != expected {
 		t.Fatalf("unexpected TOON output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
 	}
@@ -55,6 +55,32 @@ func TestPrintTOONEmptySlice(t *testing.T) {
 	}
 
 	expected := "[0]{}:\n"
+	if output.String() != expected {
+		t.Fatalf("unexpected TOON output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
+	}
+}
+
+type heterogeneousRowA struct {
+	Name string `json:"name"`
+}
+
+type heterogeneousRowB struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+func TestPrintTOONIncludesHeadersFromLaterRows(t *testing.T) {
+	rows := []any{
+		heterogeneousRowA{Name: "alpha"},
+		heterogeneousRowB{Name: "beta", Kind: "func"},
+	}
+
+	var output bytes.Buffer
+	if err := PrintTOON(&output, rows); err != nil {
+		t.Fatalf("print toon: %v", err)
+	}
+
+	expected := "[2]{name,kind}:\n  alpha,\"\"\n  beta,func\n"
 	if output.String() != expected {
 		t.Fatalf("unexpected TOON output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
 	}

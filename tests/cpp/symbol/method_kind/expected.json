@@ -3,7 +3,7 @@
     "file": "main.cpp",
     "line": 18,
     "name": "Load",
-    "kind": "method",
+    "kind": "func",
     "signature": "int Service::Load()"
   }
 ]

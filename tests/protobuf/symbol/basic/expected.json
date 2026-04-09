@@ -24,7 +24,7 @@
     "file": "main.proto",
     "line": 12,
     "name": "SayHello",
-    "kind": "method",
+    "kind": "func",
     "signature": "rpc SayHello (HelloRequest) returns (HelloReply)"
   },
   {

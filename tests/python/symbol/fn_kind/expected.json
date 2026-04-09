@@ -3,7 +3,7 @@
     "file": "main.py",
     "line": 6,
     "name": "build_user",
-    "kind": "fn",
+    "kind": "func",
     "signature": "def build_user()"
   }
 ]

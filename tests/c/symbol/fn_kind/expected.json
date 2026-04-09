@@ -3,7 +3,7 @@
     "file": "main.c",
     "line": 12,
     "name": "BuildUser",
-    "kind": "fn",
+    "kind": "func",
     "signature": "int BuildUser(void)"
   }
 ]

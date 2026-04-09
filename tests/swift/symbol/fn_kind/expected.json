@@ -3,7 +3,7 @@
     "file": "main.swift",
     "line": 21,
     "name": "buildUser",
-    "kind": "fn",
+    "kind": "func",
     "signature": "func buildUser()"
   }
 ]

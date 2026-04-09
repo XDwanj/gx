@@ -181,6 +181,44 @@ func TestOverviewDirectoryPaginationUsesRootFlagsWhileFileModeIgnoresThem(t *tes
 	}
 }
 
+func TestOverviewMultipleDirectoriesApplyPaginationPerTarget(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	root := commandProject(t, map[string]string{
+		"src/a.rs":      "fn alpha() {}\n",
+		"src/b.rs":      "fn beta() {}\n",
+		"pkg/helper.rs": "fn helper() {}\n",
+		"pkg/extra.rs":  "fn extra() {}\n",
+	})
+
+	stdout, stderr, exitCode := executeRootFixtureCommand(t, root, "--limit", "1", "overview", "src", "pkg")
+	if exitCode != 0 {
+		t.Fatalf("expected overview exit code 0, got %d with stderr %q", exitCode, stderr)
+	}
+
+	var sections []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &sections); err != nil {
+		t.Fatalf("unmarshal stdout: %v\nstdout=%s", err, stdout)
+	}
+	if len(sections) != 2 {
+		t.Fatalf("expected two overview sections, got %d", len(sections))
+	}
+	for _, section := range sections {
+		rows, ok := section["rows"].([]any)
+		if !ok {
+			t.Fatalf("rows should decode as array, got %#v", section["rows"])
+		}
+		if len(rows) != 1 {
+			t.Fatalf("expected one paginated row per section, got %d in %#v", len(rows), section)
+		}
+	}
+	if !strings.Contains(stderr, "gx: src showing 1-1 of 2; narrow query, use --offset 1, or --all") {
+		t.Fatalf("expected src pagination hint, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "gx: pkg showing 1-1 of 2; narrow query, use --offset 1, or --all") {
+		t.Fatalf("expected pkg pagination hint, got %q", stderr)
+	}
+}
+
 func buildRustFunctions(count int) string {
 	var builder strings.Builder
 	for index := 1; index <= count; index++ {

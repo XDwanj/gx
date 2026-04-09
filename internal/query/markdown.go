@@ -45,18 +45,34 @@ func IsMarkdownPath(path string) bool {
 }
 
 func (service *Service) MarkdownOverview(path string) error {
+	rows, err := service.markdownOverviewRows(path)
+	if err != nil {
+		return err
+	}
+
+	if len(rows) == 0 {
+		_, _ = fmt.Fprintf(service.stderr, "gx: no headings found in %s\n", displayPath(normalizeRelativePath(path, service.root)))
+		return nil
+	}
+
+	if service.json {
+		return output.PrintJSON(service.stdout, rows)
+	}
+	return output.PrintTOON(service.stdout, rows)
+}
+
+func (service *Service) markdownOverviewRows(path string) ([]markdownOverviewRow, error) {
 	relPath := normalizeRelativePath(path, service.root)
 	absPath := filepath.Join(service.root, relPath)
 
 	source, err := os.ReadFile(absPath)
 	if err != nil {
-		return fmt.Errorf("gx: read markdown file: %w", err)
+		return nil, fmt.Errorf("gx: read markdown file: %w", err)
 	}
 
 	headings := extractMarkdownHeadings(source)
 	if len(headings) == 0 {
-		_, _ = fmt.Fprintf(service.stderr, "gx: no headings found in %s\n", displayPath(relPath))
-		return nil
+		return nil, nil
 	}
 
 	rows := make([]markdownOverviewRow, 0, len(headings))
@@ -67,10 +83,7 @@ func (service *Service) MarkdownOverview(path string) error {
 		})
 	}
 
-	if service.json {
-		return output.PrintJSON(service.stdout, rows)
-	}
-	return output.PrintTOON(service.stdout, rows)
+	return rows, nil
 }
 
 func extractMarkdownHeadings(source []byte) []markdownHeading {

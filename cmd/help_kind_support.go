@@ -20,13 +20,13 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "bash",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
+				index.SymbolKindFunc,
 			},
 		},
 		{
 			Language: "c",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
+				index.SymbolKindFunc,
 				index.SymbolKindStruct,
 				index.SymbolKindEnum,
 				index.SymbolKindType,
@@ -35,8 +35,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "cpp",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindStruct,
 				index.SymbolKindClass,
 				index.SymbolKindEnum,
@@ -47,8 +46,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "go",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindStruct,
 				index.SymbolKindInterface,
@@ -59,7 +57,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 			Language: "java",
 			Kinds: []index.SymbolKind{
 				index.SymbolKindClass,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindEnum,
 				index.SymbolKindInterface,
@@ -69,14 +67,13 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "lua",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 			},
 		},
 		{
 			Language: "python",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindClass,
 			},
@@ -87,13 +84,13 @@ func languageKindSupportMatrix() []languageKindSupport {
 				index.SymbolKindStruct,
 				index.SymbolKindEnum,
 				index.SymbolKindInterface,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 			},
 		},
 		{
 			Language: "ruby",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindClass,
 				index.SymbolKindModule,
 			},
@@ -101,8 +98,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "rust",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindStruct,
 				index.SymbolKindEnum,
@@ -114,8 +110,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "swift",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindStruct,
 				index.SymbolKindEnum,
@@ -128,8 +123,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "typescript",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
-				index.SymbolKindMethod,
+				index.SymbolKindFunc,
 				index.SymbolKindConst,
 				index.SymbolKindClass,
 				index.SymbolKindEnum,
@@ -141,7 +135,7 @@ func languageKindSupportMatrix() []languageKindSupport {
 		{
 			Language: "zig",
 			Kinds: []index.SymbolKind{
-				index.SymbolKindFn,
+				index.SymbolKindFunc,
 				index.SymbolKindStruct,
 				index.SymbolKindEnum,
 			},
