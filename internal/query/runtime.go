@@ -110,6 +110,31 @@ type DirOverviewFullRow struct {
 	Signature string `json:"signature"`
 }
 
+type OverviewSection struct {
+	Target     string `json:"target"`
+	TargetKind string `json:"target_kind"`
+	Rows       any    `json:"rows"`
+}
+
+type directoryOverviewEntry struct {
+	path string
+	data index.FileData
+}
+
+type directoryOverviewData struct {
+	relDir      string
+	directFiles []directoryOverviewEntry
+	subdirs     map[string][2]int
+}
+
+type overviewTargetKind string
+
+const (
+	overviewTargetDirectory overviewTargetKind = "directory"
+	overviewTargetFile      overviewTargetKind = "file"
+	overviewTargetMarkdown  overviewTargetKind = "markdown"
+)
+
 type PageRequest struct {
 	Limit  int
 	Offset int
@@ -125,38 +150,9 @@ type pageInfo struct {
 }
 
 func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind, page PageRequest) error {
-	filter, err := service.resolvePaths(idx, paths)
+	rows, err := service.symbolRows(idx, paths, nameGlob, kind)
 	if err != nil {
 		return err
-	}
-
-	rows := make([]SymbolRow, 0)
-	for path, data := range idx.Entries {
-		if filter != nil && !filter.contains(path) {
-			continue
-		}
-		for _, symbol := range data.Symbols {
-			if nameGlob != nil {
-				ok, err := globMatch(*nameGlob, symbol.Name)
-				if err != nil {
-					return err
-				}
-				if !ok {
-					continue
-				}
-			}
-			if kind != nil && symbol.Kind != *kind {
-				continue
-			}
-			row := SymbolRow{
-				File:      displayPath(path),
-				Line:      symbol.Line,
-				Name:      symbol.Name,
-				Kind:      string(symbol.Kind),
-				Signature: symbol.Signature,
-			}
-			rows = append(rows, row)
-		}
 	}
 
 	if len(rows) == 0 {
@@ -181,6 +177,195 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 		return output.PrintJSON(service.stdout, rows)
 	}
 	return output.PrintTOON(service.stdout, rows)
+}
+
+func (service *Service) Overview(idx *index.Index, paths []string, full bool, page PageRequest) error {
+	if len(paths) <= 1 {
+		if len(paths) == 0 {
+			return service.Symbols(idx, paths, nil, nil, page)
+		}
+		return service.singleOverview(idx, paths[0], full, page)
+	}
+
+	sections := make([]OverviewSection, 0, len(paths))
+	for _, target := range paths {
+		section, empty, err := service.overviewSectionForTarget(idx, target, full, page)
+		if err != nil {
+			return err
+		}
+		if empty {
+			continue
+		}
+		sections = append(sections, section)
+	}
+
+	if len(sections) == 0 {
+		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+		return nil
+	}
+
+	if service.json {
+		return output.PrintJSON(service.stdout, sections)
+	}
+	return service.printOverviewSections(sections)
+}
+
+func (service *Service) singleOverview(idx *index.Index, target string, full bool, page PageRequest) error {
+	switch classifyOverviewTarget(target) {
+	case overviewTargetDirectory:
+		return service.DirectoryOverview(idx, target, full, page)
+	case overviewTargetMarkdown:
+		return service.MarkdownOverview(target)
+	default:
+		return service.Symbols(idx, []string{target}, nil, nil, PageRequest{})
+	}
+}
+
+func (service *Service) overviewSectionForTarget(idx *index.Index, target string, full bool, page PageRequest) (OverviewSection, bool, error) {
+	targetLabel := displayPath(normalizeRelativePath(target, service.root))
+
+	switch classifyOverviewTarget(target) {
+	case overviewTargetDirectory:
+		if idx == nil {
+			return OverviewSection{}, false, fmt.Errorf("gx: overview index is required for directories")
+		}
+		if full {
+			rows, err := service.directoryOverviewFullRows(idx, target)
+			if err != nil {
+				return OverviewSection{}, false, err
+			}
+			rows, pageState := paginateRows(rows, page)
+			service.writeScopedPageHint(targetLabel, pageState)
+			return OverviewSection{
+				Target:     targetLabel,
+				TargetKind: string(overviewTargetDirectory),
+				Rows:       rows,
+			}, len(rows) == 0, nil
+		}
+
+		rows, err := service.directoryOverviewRows(idx, target)
+		if err != nil {
+			return OverviewSection{}, false, err
+		}
+		rows, pageState := paginateRows(rows, page)
+		service.writeScopedPageHint(targetLabel, pageState)
+		return OverviewSection{
+			Target:     targetLabel,
+			TargetKind: string(overviewTargetDirectory),
+			Rows:       rows,
+		}, len(rows) == 0, nil
+	case overviewTargetMarkdown:
+		rows, err := service.markdownOverviewRows(target)
+		if err != nil {
+			return OverviewSection{}, false, err
+		}
+		if len(rows) == 0 {
+			_, _ = fmt.Fprintf(service.stderr, "gx: no headings found in %s\n", targetLabel)
+			return OverviewSection{}, true, nil
+		}
+		return OverviewSection{
+			Target:     targetLabel,
+			TargetKind: string(overviewTargetMarkdown),
+			Rows:       rows,
+		}, false, nil
+	default:
+		if idx == nil {
+			return OverviewSection{}, false, fmt.Errorf("gx: overview index is required for files")
+		}
+		rows, err := service.symbolRows(idx, []string{target}, nil, nil)
+		if err != nil {
+			return OverviewSection{}, false, err
+		}
+		if len(rows) == 0 {
+			_, _ = fmt.Fprintf(service.stderr, "gx: no matches in %s\n", targetLabel)
+			return OverviewSection{}, true, nil
+		}
+		return OverviewSection{
+			Target:     targetLabel,
+			TargetKind: string(overviewTargetFile),
+			Rows:       rows,
+		}, false, nil
+	}
+}
+
+func (service *Service) printOverviewSections(sections []OverviewSection) error {
+	for indexValue, section := range sections {
+		if indexValue > 0 {
+			if _, err := fmt.Fprintln(service.stdout); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(service.stdout, "target: %s\ntarget_kind: %s\n", section.Target, section.TargetKind); err != nil {
+			return err
+		}
+
+		var rendered bytes.Buffer
+		if err := output.PrintTOON(&rendered, section.Rows); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(service.stdout, rendered.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func classifyOverviewTarget(path string) overviewTargetKind {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
+		return overviewTargetDirectory
+	}
+	if err == nil && IsMarkdownPath(path) {
+		return overviewTargetMarkdown
+	}
+	return overviewTargetFile
+}
+
+func (service *Service) symbolRows(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind) ([]SymbolRow, error) {
+	filter, err := service.resolvePaths(idx, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]SymbolRow, 0)
+	for path, data := range idx.Entries {
+		if filter != nil && !filter.contains(path) {
+			continue
+		}
+		for _, symbol := range data.Symbols {
+			if nameGlob != nil {
+				ok, err := globMatch(*nameGlob, symbol.Name)
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					continue
+				}
+			}
+			if kind != nil && symbol.Kind != *kind {
+				continue
+			}
+			rows = append(rows, SymbolRow{
+				File:      displayPath(path),
+				Line:      symbol.Line,
+				Name:      symbol.Name,
+				Kind:      string(symbol.Kind),
+				Signature: symbol.Signature,
+			})
+		}
+	}
+
+	sort.Slice(rows, func(left int, right int) bool {
+		if rows[left].File == rows[right].File {
+			if rows[left].Line == rows[right].Line {
+				return rows[left].Name < rows[right].Name
+			}
+			return rows[left].Line < rows[right].Line
+		}
+		return rows[left].File < rows[right].File
+	})
+
+	return rows, nil
 }
 
 func (service *Service) Definition(idx *index.Index, nameGlob string, paths []string, kind *index.SymbolKind, maxLines int, page PageRequest) error {
@@ -529,16 +714,122 @@ func containsAnyName(source []byte, names [][]byte) bool {
 }
 
 func (service *Service) DirectoryOverview(idx *index.Index, dir string, full bool, page PageRequest) error {
+	if full {
+		rows, err := service.directoryOverviewFullRows(idx, dir)
+		if err != nil {
+			return err
+		}
+		rows, pageState := paginateRows(rows, page)
+		service.writePageHint(pageState)
+		if service.json {
+			return output.PrintJSON(service.stdout, rows)
+		}
+		return output.PrintTOON(service.stdout, rows)
+	}
+
+	rows, err := service.directoryOverviewRows(idx, dir)
+	if err != nil {
+		return err
+	}
+	rows, pageState := paginateRows(rows, page)
+	service.writePageHint(pageState)
+	if service.json {
+		return output.PrintJSON(service.stdout, rows)
+	}
+	return output.PrintTOON(service.stdout, rows)
+}
+
+func (service *Service) directoryOverviewRows(idx *index.Index, dir string) ([]DirOverviewRow, error) {
+	data, err := buildDirectoryOverviewData(idx, dir)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]DirOverviewRow, 0)
+	for _, name := range sortedKeys(data.subdirs) {
+		stats := data.subdirs[name]
+		rows = append(rows, DirOverviewRow{
+			File:    formatSubdir(data.relDir, name),
+			Symbols: fmt.Sprintf("(%d files, %d symbols)", stats[0], stats[1]),
+		})
+	}
+
+	for _, fileEntry := range data.directFiles {
+		symbols := prepareSymbols(fileEntry.data.Symbols)
+		if len(symbols) == 0 {
+			continue
+		}
+		seen := map[string]bool{}
+		names := make([]string, 0)
+		for _, symbol := range symbols[:minInt(len(symbols), directoryOverviewMaxSymbols)] {
+			if seen[symbol.Name] {
+				continue
+			}
+			seen[symbol.Name] = true
+			names = append(names, symbol.Name)
+		}
+		suffix := ""
+		if len(symbols) > len(names) {
+			suffix = fmt.Sprintf(", ... (+%d more)", len(symbols)-len(names))
+		}
+		rows = append(rows, DirOverviewRow{
+			File:    displayPath(fileEntry.path),
+			Symbols: strings.Join(names, ", ") + suffix,
+		})
+	}
+
+	return rows, nil
+}
+
+func (service *Service) directoryOverviewFullRows(idx *index.Index, dir string) ([]DirOverviewFullRow, error) {
+	data, err := buildDirectoryOverviewData(idx, dir)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]DirOverviewFullRow, 0)
+	for _, name := range sortedKeys(data.subdirs) {
+		stats := data.subdirs[name]
+		rows = append(rows, DirOverviewFullRow{
+			File:      formatSubdir(data.relDir, name),
+			Name:      fmt.Sprintf("(%d files, %d symbols)", stats[0], stats[1]),
+			Kind:      "",
+			Signature: "",
+		})
+	}
+
+	for _, fileEntry := range data.directFiles {
+		symbols := prepareSymbols(fileEntry.data.Symbols)
+		if len(symbols) == 0 {
+			continue
+		}
+		total := len(symbols)
+		for _, symbol := range symbols[:minInt(total, directoryOverviewMaxSymbols)] {
+			rows = append(rows, DirOverviewFullRow{
+				File:      displayPath(fileEntry.path),
+				Name:      symbol.Name,
+				Kind:      string(symbol.Kind),
+				Signature: symbol.Signature,
+			})
+		}
+		if total > directoryOverviewMaxSymbols {
+			rows = append(rows, DirOverviewFullRow{
+				File: displayPath(fileEntry.path),
+				Name: fmt.Sprintf("... (+%d more)", total-directoryOverviewMaxSymbols),
+			})
+		}
+	}
+
+	return rows, nil
+}
+
+func buildDirectoryOverviewData(idx *index.Index, dir string) (directoryOverviewData, error) {
 	relDir := normalizeRelativePath(dir, idx.Root)
 	if relDir == "." {
 		relDir = ""
 	}
 
-	type entry struct {
-		path string
-		data index.FileData
-	}
-	allEntries := make([]entry, 0)
+	allEntries := make([]directoryOverviewEntry, 0)
 	for path, data := range idx.Entries {
 		if relDir != "" && !strings.HasPrefix(path, relDir) {
 			continue
@@ -546,14 +837,14 @@ func (service *Service) DirectoryOverview(idx *index.Index, dir string, full boo
 		if isTestFile(path) {
 			continue
 		}
-		allEntries = append(allEntries, entry{path: path, data: data})
+		allEntries = append(allEntries, directoryOverviewEntry{path: path, data: data})
 	}
 
 	if len(allEntries) == 0 {
-		return fmt.Errorf("gx: no indexed files under %s", displayPath(relDir))
+		return directoryOverviewData{}, fmt.Errorf("gx: no indexed files under %s", displayPath(relDir))
 	}
 
-	directFiles := make([]entry, 0)
+	directFiles := make([]directoryOverviewEntry, 0)
 	subdirs := map[string][2]int{}
 	for _, item := range allEntries {
 		child, ok := childComponent(item.path, relDir)
@@ -581,88 +872,11 @@ func (service *Service) DirectoryOverview(idx *index.Index, dir string, full boo
 		return directFiles[left].path < directFiles[right].path
 	})
 
-	if full {
-		rows := make([]DirOverviewFullRow, 0)
-		subdirNames := sortedKeys(subdirs)
-		for _, name := range subdirNames {
-			stats := subdirs[name]
-			rows = append(rows, DirOverviewFullRow{
-				File:      formatSubdir(relDir, name),
-				Name:      fmt.Sprintf("(%d files, %d symbols)", stats[0], stats[1]),
-				Kind:      "",
-				Signature: "",
-			})
-		}
-
-		for _, fileEntry := range directFiles {
-			symbols := prepareSymbols(fileEntry.data.Symbols)
-			if len(symbols) == 0 {
-				continue
-			}
-			total := len(symbols)
-			for _, symbol := range symbols[:minInt(total, directoryOverviewMaxSymbols)] {
-				rows = append(rows, DirOverviewFullRow{
-					File:      displayPath(fileEntry.path),
-					Name:      symbol.Name,
-					Kind:      string(symbol.Kind),
-					Signature: symbol.Signature,
-				})
-			}
-			if total > directoryOverviewMaxSymbols {
-				rows = append(rows, DirOverviewFullRow{
-					File: displayPath(fileEntry.path),
-					Name: fmt.Sprintf("... (+%d more)", total-directoryOverviewMaxSymbols),
-				})
-			}
-		}
-
-		rows, pageState := paginateRows(rows, page)
-		service.writePageHint(pageState)
-		if service.json {
-			return output.PrintJSON(service.stdout, rows)
-		}
-		return output.PrintTOON(service.stdout, rows)
-	}
-
-	rows := make([]DirOverviewRow, 0)
-	for _, name := range sortedKeys(subdirs) {
-		stats := subdirs[name]
-		rows = append(rows, DirOverviewRow{
-			File:    formatSubdir(relDir, name),
-			Symbols: fmt.Sprintf("(%d files, %d symbols)", stats[0], stats[1]),
-		})
-	}
-
-	for _, fileEntry := range directFiles {
-		symbols := prepareSymbols(fileEntry.data.Symbols)
-		if len(symbols) == 0 {
-			continue
-		}
-		seen := map[string]bool{}
-		names := make([]string, 0)
-		for _, symbol := range symbols[:minInt(len(symbols), directoryOverviewMaxSymbols)] {
-			if seen[symbol.Name] {
-				continue
-			}
-			seen[symbol.Name] = true
-			names = append(names, symbol.Name)
-		}
-		suffix := ""
-		if len(symbols) > len(names) {
-			suffix = fmt.Sprintf(", ... (+%d more)", len(symbols)-len(names))
-		}
-		rows = append(rows, DirOverviewRow{
-			File:    displayPath(fileEntry.path),
-			Symbols: strings.Join(names, ", ") + suffix,
-		})
-	}
-
-	rows, pageState := paginateRows(rows, page)
-	service.writePageHint(pageState)
-	if service.json {
-		return output.PrintJSON(service.stdout, rows)
-	}
-	return output.PrintTOON(service.stdout, rows)
+	return directoryOverviewData{
+		relDir:      relDir,
+		directFiles: directFiles,
+		subdirs:     subdirs,
+	}, nil
 }
 
 func paginateRows[T any](rows []T, request PageRequest) ([]T, pageInfo) {
@@ -695,15 +909,25 @@ func paginateRows[T any](rows []T, request PageRequest) ([]T, pageInfo) {
 }
 
 func (service *Service) writePageHint(info pageInfo) {
+	service.writeScopedPageHint("", info)
+}
+
+func (service *Service) writeScopedPageHint(scope string, info pageInfo) {
+	prefix := ""
+	if scope != "" {
+		prefix = scope + " "
+	}
+
 	switch {
 	case info.OutOfRange:
-		_, _ = fmt.Fprintf(service.stderr, "gx: offset %d exceeds %d results\n", info.Offset, info.Total)
+		_, _ = fmt.Fprintf(service.stderr, "gx: %soffset %d exceeds %d results\n", prefix, info.Offset, info.Total)
 	case info.Truncated:
 		start := info.Offset + 1
 		end := info.Offset + info.Returned
 		_, _ = fmt.Fprintf(
 			service.stderr,
-			"gx: showing %d-%d of %d; narrow query, use --offset %d, or --all\n",
+			"gx: %sshowing %d-%d of %d; narrow query, use --offset %d, or --all\n",
+			prefix,
 			start,
 			end,
 			info.Total,

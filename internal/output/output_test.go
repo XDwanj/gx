@@ -59,3 +59,29 @@ func TestPrintTOONEmptySlice(t *testing.T) {
 		t.Fatalf("unexpected TOON output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
 	}
 }
+
+type heterogeneousRowA struct {
+	Name string `json:"name"`
+}
+
+type heterogeneousRowB struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+func TestPrintTOONIncludesHeadersFromLaterRows(t *testing.T) {
+	rows := []any{
+		heterogeneousRowA{Name: "alpha"},
+		heterogeneousRowB{Name: "beta", Kind: "fn"},
+	}
+
+	var output bytes.Buffer
+	if err := PrintTOON(&output, rows); err != nil {
+		t.Fatalf("print toon: %v", err)
+	}
+
+	expected := "[2]{name,kind}:\n  alpha,\"\"\n  beta,fn\n"
+	if output.String() != expected {
+		t.Fatalf("unexpected TOON output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
+	}
+}

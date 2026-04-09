@@ -34,7 +34,7 @@ func PrintTOON(writer io.Writer, value any) error {
 		return err
 	}
 
-	headers := rows[0].Headers
+	headers := collectHeaders(rows)
 	tabularRows := make([]toon.Object, 0, len(rows))
 	for _, row := range rows {
 		tabularRows = append(tabularRows, toTOONRow(headers, row.Values))
@@ -51,12 +51,31 @@ func PrintTOON(writer io.Writer, value any) error {
 func toTOONRow(headers []string, values map[string]any) toon.Object {
 	fields := make([]toon.Field, 0, len(headers))
 	for _, key := range headers {
+		value, ok := values[key]
+		if !ok {
+			value = ""
+		}
 		fields = append(fields, toon.Field{
 			Key:   key,
-			Value: values[key],
+			Value: value,
 		})
 	}
 	return toon.NewObject(fields...)
+}
+
+func collectHeaders(rows []rowData) []string {
+	headers := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, row := range rows {
+		for _, header := range row.Headers {
+			if _, ok := seen[header]; ok {
+				continue
+			}
+			seen[header] = struct{}{}
+			headers = append(headers, header)
+		}
+	}
+	return headers
 }
 
 func normalizeRows(value any) ([]rowData, error) {
@@ -85,13 +104,19 @@ func normalizeRows(value any) ([]rowData, error) {
 }
 
 func structToRow(value reflect.Value) (rowData, error) {
-	for value.Kind() == reflect.Pointer {
-		if value.IsNil() {
-			return rowData{Headers: []string{}, Values: map[string]any{}}, nil
+	for {
+		switch value.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			if value.IsNil() {
+				return rowData{Headers: []string{}, Values: map[string]any{}}, nil
+			}
+			value = value.Elem()
+		default:
+			goto resolved
 		}
-		value = value.Elem()
 	}
 
+resolved:
 	if value.Kind() != reflect.Struct {
 		return rowData{}, fmt.Errorf("unsupported toon value kind: %s", value.Kind())
 	}

@@ -68,10 +68,11 @@ Current language coverage:
 
 Use `overview` before reading code.
 
-- Accepts exactly one path.
+- Accepts multiple paths and returns one section per target when more than one path is supplied.
 - Directory mode returns per-file symbol summaries.
 - File mode returns top-level symbols for that file.
 - Directory mode supports `--limit`, `--offset`, and `--all`.
+- In multi-path mode, pagination applies independently to each directory target.
 - File mode and Markdown outline mode ignore pagination flags.
 
 Examples:
@@ -80,6 +81,7 @@ Examples:
 gx overview internal/tmdb
 gx overview internal/tmdb/search.go
 gx overview --full internal/tmdb
+gx overview internal/tmdb internal/tmdb/search.go README.md
 ```
 
 ### `gx symbols`
@@ -187,8 +189,7 @@ Why they are bad:
 
 ## Path Rules
 
-- `overview` accepts one path only.
-- `symbols`, `definition`, and `references` accept multiple paths.
+- `overview`, `symbols`, `definition`, and `references` accept multiple paths.
 - Those paths may be directories, files, or a mix.
 - Prefer the smallest scope that answers the question.
 - Use `-C` when you need to run `gx` against another directory context.
@@ -196,6 +197,7 @@ Why they are bad:
 Examples:
 
 ```bash
+gx overview internal/tmdb internal/tmdb/search.go README.md
 gx -C /path/to/project symbols --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go

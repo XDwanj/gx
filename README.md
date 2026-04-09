@@ -359,7 +359,7 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 
 ### Navigation
 
-- `gx overview [path]`: Show a table of contents for a file or directory. Defaults to the current working directory.
+- `gx overview [path ...]`: Show a table of contents for one or more files or directories. Defaults to the current working directory.
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `line`, `name`, `kind`, and `signature`. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
 - `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies.
@@ -386,6 +386,8 @@ Pagination flags:
 - `--all`: Bypass the default result limit entirely.
 - Default limits are `definition=5`, `symbols=100`, `references=50`.
 - `overview` has no default limit for directory output, but `--limit` and `--offset` still apply when the target is a directory.
+- `overview` with multiple paths returns one section per target in both default and `--json` modes.
+- `overview` applies pagination per directory target when multiple paths are supplied.
 - `overview` file mode and Markdown outline mode ignore pagination flags.
 - When results are truncated, `gx` writes a compact paging hint to `stderr`.
 
