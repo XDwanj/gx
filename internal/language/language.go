@@ -325,15 +325,30 @@ func ParseAndExtract(languageName string, source []byte, path string) ([]Symbol,
 }
 
 func FindReferences(languageName string, source []byte, path string, name string) ([]Reference, error) {
+	return FindReferencesForNames(languageName, source, path, []string{name})
+}
+
+func FindReferencesForNames(languageName string, source []byte, path string, names []string) ([]Reference, error) {
 	config, tree, _, err := parseSource(languageName, source, path)
 	if err != nil {
 		return nil, err
 	}
 	defer tree.Close()
 
+	nameSet := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		nameSet[name] = struct{}{}
+	}
+	if len(nameSet) == 0 {
+		return []Reference{}, nil
+	}
+
 	references := make([]Reference, 0)
 	walkReferenceLeaves(config, tree.RootNode(), source, func(node *sitter.Node) {
-		if node.Utf8Text(source) != name {
+		if _, ok := nameSet[node.Utf8Text(source)]; !ok {
 			return
 		}
 		references = append(references, Reference{

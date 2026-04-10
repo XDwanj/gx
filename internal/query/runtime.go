@@ -491,31 +491,30 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 		}
 
 		lines := splitLines(source)
-		for indexValue, matchedName := range matchedNames {
-			if !bytes.Contains(source, nameBytes[indexValue]) {
-				continue
+		references, findErr := language.FindReferencesForNames(
+			data.Meta.Language,
+			source,
+			filepath.Join(idx.Root, path),
+			matchedNames,
+		)
+		if findErr != nil {
+			if language.IsNotInstalled(findErr) {
+				return findErr
 			}
+			continue
+		}
 
-			references, findErr := language.FindReferences(data.Meta.Language, source, filepath.Join(idx.Root, path), matchedName)
-			if findErr != nil {
-				if language.IsNotInstalled(findErr) {
-					return findErr
-				}
-				continue
+		for _, reference := range references {
+			context := ""
+			if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
+				context = strings.TrimSpace(lines[reference.Line-1])
 			}
-
-			for _, reference := range references {
-				context := ""
-				if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
-					context = strings.TrimSpace(lines[reference.Line-1])
-				}
-				rows = append(rows, ReferenceRow{
-					File:    displayPath(path),
-					Line:    reference.Line,
-					Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
-					Context: context,
-				})
-			}
+			rows = append(rows, ReferenceRow{
+				File:    displayPath(path),
+				Line:    reference.Line,
+				Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
+				Context: context,
+			})
 		}
 	}
 

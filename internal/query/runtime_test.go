@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,14 +13,14 @@ import (
 	"github.com/XDwanj/gx/internal/lang"
 )
 
-func ensureInstalled(t *testing.T, languages ...string) {
+func ensureInstalled(t testing.TB, languages ...string) {
 	t.Helper()
 	if err := lang.Add(io.Discard, io.Discard, languages); err != nil {
 		t.Fatalf("install grammars: %v", err)
 	}
 }
 
-func tempProject(t *testing.T, files map[string]string) string {
+func tempProject(t testing.TB, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
@@ -685,6 +686,53 @@ func TestReferencesFindsExternalSymbolUsages(t *testing.T) {
 	}
 	if strings.Contains(stderr.String(), "gx: no matches") {
 		t.Fatalf("unexpected no matches message: %q", stderr.String())
+	}
+}
+
+func BenchmarkReferencesAlternation(b *testing.B) {
+	ensureInstalled(b, "go")
+
+	var source strings.Builder
+	source.WriteString("package main\n\n")
+	for nameIndex := range 12 {
+		_, _ = source.WriteString("func RefTarget")
+		_, _ = source.WriteString(strconv.Itoa(nameIndex))
+		_, _ = source.WriteString("() {}\n")
+	}
+	_, _ = source.WriteString("\nfunc main() {\n")
+	for repeatIndex := range 80 {
+		for nameIndex := range 12 {
+			_, _ = source.WriteString("\tRefTarget")
+			_, _ = source.WriteString(strconv.Itoa(nameIndex))
+			_, _ = source.WriteString("()\n")
+		}
+		if repeatIndex%10 == 0 {
+			_, _ = source.WriteString("\tprintln(\"marker\")\n")
+		}
+	}
+	_, _ = source.WriteString("}\n")
+
+	root := tempProject(b, map[string]string{
+		"main.go": source.String(),
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		b.Fatalf("load index: %v", err)
+	}
+
+	service := &Service{
+		root:   root,
+		stdout: io.Discard,
+		stderr: io.Discard,
+	}
+	namePattern := "RefTarget{0,1,2,3,4,5,6,7,8,9,10,11}"
+
+	b.ResetTimer()
+	for range b.N {
+		if err := service.References(idx, namePattern, []string{"main.go"}, false, PageRequest{}); err != nil {
+			b.Fatalf("references query: %v", err)
+		}
 	}
 }
 
