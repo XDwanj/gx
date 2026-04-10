@@ -12,6 +12,7 @@
 - Treat files under `internal/grammars/` such as `parser.c`, `grammar.json`, `node-types.json`, `tree_sitter/*`, `scanner.c`, `scanner.h`, and `binding.cc` as generated or third-party sources. Do not edit them unless the task explicitly requires grammar regeneration or vendor updates.
 - Keep path handling explicit and normalized; prefer existing helpers for project-root and relative-path resolution before introducing new path logic.
 - For short user-facing guidance docs like embedded `skill.md`, prefer example-first structure over introductory explanation; keep conceptual framing to the minimum needed.
+- In docs and `skill.md`, use generic, common example names rather than project-specific naming.
 - Treat `cx_version` only as the upstream `ind-igo/cx` commit marker; do not use it as the `gx` release or CLI version source.
 - When a user corrects remembered command behavior, verify the implementation first and update docs only after the code path is confirmed.
 - In all command docs, examples, and Cobra `Use` strings, show flags before positional args.

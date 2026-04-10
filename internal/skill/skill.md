@@ -75,6 +75,7 @@ Use `overview` before reading code.
 - Directory mode supports `--limit`, `--offset`, and `--all`.
 - In multi-path mode, pagination applies independently to each directory target.
 - File mode and Markdown outline mode ignore pagination flags.
+- When you know a field name but not the enclosing struct, class, or message name, use `overview` first to find candidate declarations.
 
 Examples:
 
@@ -83,6 +84,7 @@ gx overview internal/tmdb
 gx overview internal/tmdb/search.go
 gx overview --full internal/tmdb
 gx overview internal/tmdb internal/tmdb/search.go README.md
+gx -C /path/to/project overview proto/api.proto
 ```
 
 ### `gx symbols`
@@ -112,6 +114,7 @@ Use `definition` when you already know the symbol and want the body immediately.
 - Default result limit is `5`.
 - `--limit` controls how many definitions you get.
 - `--max-lines` controls how large each definition body can be.
+- For member checks such as "does this struct or message contain field X", prefer `definition | rg` after you narrow to the enclosing declaration. This is especially useful in languages where fields are not indexed as standalone `symbols`.
 
 Examples:
 
@@ -119,6 +122,8 @@ Examples:
 gx definition --name 'Search' internal/tmdb
 gx definition --name 'Client' internal/tmdb/client.go
 gx definition --name '*Search*' --limit 1 --max-lines 80 internal/tmdb
+gx definition --name 'CreateUserRequest' proto/api.proto -C /path/to/project | rg '\bemail\b'
+gx definition --name 'User' internal/model/user.go | rg '\bEmail\b'
 ```
 
 ### `gx references`
