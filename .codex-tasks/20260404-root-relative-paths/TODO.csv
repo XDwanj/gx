@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务记录并确认现有路径解析与测试基线,DONE,已确认 bug 根因与受影响命令,test -f .codex-tasks/20260404-root-relative-paths/SPEC.md,2026-04-04 18:05,0,已定位到 cmd/root.go 的相对路径基准与查询层 root 不一致
-2,调整显式 --root 下的相对路径解析逻辑,DONE,显式 --root 时相对位置参数与默认目标相对有效 root 解析,go test ./cmd -run PathArgs -timeout 60s,2026-04-04 18:20,0,已让显式 --root 的相对位置参数和默认目标都相对有效 root 解析
-3,补 overview symbols definition references 回归测试,DONE,从 root 外执行带 --root 的命令时 . 能命中目标项目,go test ./cmd -run 'PathArgs|Overview|Symbols|Definition|References' -timeout 60s,2026-04-04 18:29,0,已补普通显式 root 与相对 symlink root 场景的命令级回归测试
-4,运行全量测试与 lint,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 18:35,0,已通过 go test ./... -timeout 60s 与 golangci-lint run ./...

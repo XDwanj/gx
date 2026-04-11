@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/XDwanj/gx/internal/index"
+	"github.com/XDwanj/gx/internal/query"
 
 	"github.com/spf13/cobra"
 )
@@ -9,6 +10,7 @@ import (
 func newSymbolsCmd() *cobra.Command {
 	var name string
 	var kind string
+	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
 		Use:     "symbols [flags] [path ...]",
@@ -52,12 +54,18 @@ func newSymbolsCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Symbols(idx, paths, namePtr, kindPtr, page)
+			return runtime.Query.Symbols(idx, query.SymbolsOptions{
+				Paths:    pathFilters.query(paths),
+				NameGlob: namePtr,
+				Kind:     kindPtr,
+				Page:     page,
+			})
 		},
 	}
 
 	command.Flags().StringVar(&name, "name", "", "Glob pattern to match symbol names")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
+	registerPathFilterFlags(command.Flags(), &pathFilters)
 	if err := registerKindFlagCompletion(command, "kind"); err != nil {
 		panic(err)
 	}

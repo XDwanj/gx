@@ -8,6 +8,11 @@ import (
 	"github.com/gobwas/glob"
 )
 
+type compiledGlob struct {
+	raw     string
+	matcher glob.Glob
+}
+
 func displayPath(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
@@ -44,6 +49,54 @@ func globMatch(pattern string, text string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func compilePathGlob(pattern string) (glob.Glob, error) {
+	return glob.Compile(displayPath(filepath.Clean(pattern)), '/')
+}
+
+func compilePathGlobs(patterns []string, root string) ([]compiledGlob, error) {
+	compiled := make([]compiledGlob, 0, len(patterns))
+	for _, pattern := range patterns {
+		normalized := normalizeGlobPattern(pattern, root)
+		if normalized == "" {
+			return nil, fmt.Errorf("gx: empty path glob")
+		}
+		matcher, err := compilePathGlob(normalized)
+		if err != nil {
+			return nil, err
+		}
+		compiled = append(compiled, compiledGlob{
+			raw:     normalized,
+			matcher: matcher,
+		})
+	}
+	return compiled, nil
+}
+
+func anyPathGlobMatches(matchers []compiledGlob, path string) bool {
+	if len(matchers) == 0 {
+		return false
+	}
+	display := displayPath(path)
+	for _, matcher := range matchers {
+		if matcher.matcher.Match(display) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasGlobMeta(path string) bool {
+	return strings.ContainsAny(path, "*?[{")
+}
+
+func normalizeGlobPattern(pattern string, root string) string {
+	trimmed := strings.TrimSpace(pattern)
+	if trimmed == "" {
+		return ""
+	}
+	return displayPath(normalizeRelativePath(trimmed, root))
 }
 
 func expandNamePatterns(pattern string) ([]string, error) {

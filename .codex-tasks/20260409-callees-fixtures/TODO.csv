@@ -1,6 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,修正 CLAUDE.md 冲突并阅读 fixture harness,DONE,确认 fixture harness 当前只支持 symbol/definition 且 CLAUDE.md 已回滚,"! rg -n \"short alias\" CLAUDE.md",2026-04-09T00:00:00,0,已撤回误加规则并确认 fixture harness 入口
-2,扩展 fixture harness 支持 callees,DONE,`cmd/fixture_test.go` 可识别并执行 callees fixture,"rg -n \"fixtureCommandCallees|callees\" cmd/fixture_test.go",2026-04-09T00:00:00,0,新增 fixtureCommandCallees、buildFixtureArgs 分支和覆盖校验
-3,为支持语言补充 tests 下的 callees fixtures,DONE,`tests/*/callees/*` 已创建并包含 query/expected/_project,"find tests -path '*/callees/*/query.json' | wc -l",2026-04-09T00:00:00,0,已为 c cpp go java lua python ruby rust swift typescript 各补 1 组 basic fixture
-4,更新覆盖校验与相关测试,DONE,fixture 覆盖校验与命令测试包含 callees,"rg -n \"callees\" cmd/*_test.go internal/*_test.go",2026-04-09T00:00:00,0,新增 TestFixtureCalleesLanguageCoverage 并跑通过 fixture harness
-5,运行格式化与自动化验证,IN_PROGRESS,测试与 lint 通过,"env -u GOROOT go test ./... -timeout 60s && env -u GOROOT golangci-lint run ./...",,0,

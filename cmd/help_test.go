@@ -55,3 +55,21 @@ func TestCalleesHelpUsesCallerNameFlagDescription(t *testing.T) {
 		t.Fatalf("did not expect kind flag in callees help, got %q", stdout)
 	}
 }
+
+func TestQueryHelpIncludesPathFilterFlags(t *testing.T) {
+	for _, commandName := range []string{"symbols", "definition", "references", "callees"} {
+		stdout, stderr, exitCode := executeRootForTest(t, commandName, "--help")
+		if exitCode != 0 {
+			t.Fatalf("%s help exit code = %d, stderr=%q", commandName, exitCode, stderr)
+		}
+		if stderr != "" {
+			t.Fatalf("%s help stderr = %q", commandName, stderr)
+		}
+		if !strings.Contains(stdout, "--include stringArray") {
+			t.Fatalf("expected --include flag in %s help, got %q", commandName, stdout)
+		}
+		if !strings.Contains(stdout, "--exclude stringArray") {
+			t.Fatalf("expected --exclude flag in %s help, got %q", commandName, stdout)
+		}
+	}
+}

@@ -1,6 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,创建任务文件并确定调研范围,DONE,任务目录与基础文件已创建,test -f .codex-tasks/20260404-architecture-kinds/TODO.csv,2026-04-04T14:26:00+08:00,0,已创建 SPEC/TODO/PROGRESS 并将目标文档确定为 Architecture.md
-2,调查保留语言的 Tree-sitter 能力与当前 gx 覆盖差异,DONE,形成按语言与 kind 维度的调查结论,test -f .codex-tasks/20260404-architecture-kinds/SPEC.md,2026-04-04T14:39:00+08:00,0,基于 language.go queries.go vendored grammar 与本地 Go module cache 完成保留语言能力调查
-3,归纳 gx kind 设计原则与推荐方案,DONE,形成保留删除合并建议并说明理由,test -f .codex-tasks/20260404-architecture-kinds/PROGRESS.md,2026-04-04T14:42:00+08:00,0,结论为收敛到 fn method const struct enum class interface module type 并删除 trait event
-4,撰写并校对 Architecture.md,DONE,Architecture.md 完整记录调查方法能力矩阵与最终结论,test -f Architecture.md,2026-04-04T14:45:00+08:00,0,新增 Architecture.md 并补充 grammar 能力矩阵 当前 gx 提取快照 设计约束与推荐映射
-5,将 Architecture.md 全文改为中文,DONE,Architecture.md 保持原结构与结论并完整切换为中文,test -f Architecture.md,2026-04-04T14:50:00+08:00,0,保留 Tree-sitter kind 与节点名等必要英文术语并完成中文化校对

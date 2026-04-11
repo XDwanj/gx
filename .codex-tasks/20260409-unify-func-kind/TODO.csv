@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,阅读入口与现有测试并确认变更面,DONE,"相关入口、帮助、kind 定义、测试覆盖点已确认","test -f cmd/symbols.go && test -f internal/index/types.go && test -f internal/query/runtime.go",2026-04-09,0,"已确认影响 cmd/help、internal/index、internal/language、internal/query、README、internal/skill 与 tests fixtures"
-2,实现公开 kind 统一为 func 并同步文档,DONE,"代码与文档不再暴露 fn，method 仅保留内部语义或被合并","rg -n '\"fn\"|`fn`|SymbolKindFn|kind\": \"fn\"|kind\": \"method\"' cmd internal README.md README.zh-CN.md tests | head",2026-04-09,0,"已统一 index/language/query/help/README/internal skill 的公开 kind 契约"
-3,更新测试与 fixture,DONE,"测试查询输入和期望输出已切到 func","rg -n '\"kind\": \"func\"|SymbolKindFunc|`func`' cmd internal tests README.md README.zh-CN.md",2026-04-09,0,"已更新 command tests、runtime tests、fixture query/expected 与 output/index/language 测试"
-4,运行验证命令并收尾,DONE,"go test 与 golangci-lint 全部通过","go test ./... -timeout 60s && golangci-lint run ./...",2026-04-09,0,"验证通过"

@@ -1,4 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,梳理帮助文案入口并建立任务,DONE,确认 symbols 与 definition 的 help 入口,test -f .codex-tasks/20260404-help-kind-support/SPEC.md,2026-04-04 02:27,0,已确认当前命令只有 Short 文案
-2,补充 kind 支持列表帮助文案,DONE,相关命令 --help 含公开 kind 与语言支持列表,go test ./cmd -run Help -timeout 60s,2026-04-04 02:31,0,已为 symbols 与 definition 增加 Long 帮助文案
-3,补充测试并完成验证,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 02:33,0,已通过 go test 与 golangci-lint

@@ -285,6 +285,15 @@ Find matching symbols across the project:
 gx symbols --name 'new*'
 ```
 
+Restrict indexed file paths with glob filters:
+
+```bash
+gx symbols --include 'internal/**' --exclude '**/*_test.go' --name 'new*'
+```
+
+`--include` can temporarily bring back matching files that are currently hidden by
+`.gitignore` or `.ignore`; `--exclude` still removes matches at query time.
+
 `gx --name` filters use shell-style glob patterns such as `'new*'`,
 `'*Runtime'`, and `'*build*'`.
 
@@ -385,7 +394,8 @@ Match mode notes:
 - `gx definition --name` uses glob matching.
 - `gx callees --name` uses glob matching.
 - `gx references --name` uses glob matching.
-- Path args accept either file paths or directory paths.
+- Path args accept files, directories, or glob patterns.
+- `gx symbols`, `gx definition`, `gx callees`, and `gx references` accept repeatable `--include GLOB` and `--exclude GLOB` filters over indexed file paths. `--include` can temporarily re-index matching ignored files for the current query.
 - When no path arg is supplied, `gx` uses the current working directory.
 
 Pagination flags:

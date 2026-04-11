@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务真相文件,DONE,"SPEC.md、TODO.csv、PROGRESS.md 已创建","test -f .codex-tasks/20260409-symbols-missing-path-errors/SPEC.md && test -f .codex-tasks/20260409-symbols-missing-path-errors/TODO.csv && test -f .codex-tasks/20260409-symbols-missing-path-errors/PROGRESS.md","2026-04-09 00:00",0,"初始化 taskmaster Full Single 任务目录"
-2,修改路径校验逻辑汇总缺失路径,DONE,"多个不存在路径会被一次性汇总成显式错误","go test ./internal/query -run 'TestMissing(Path|Paths)Return' -timeout 60s","2026-04-09 11:56",0,"新增 missingPathsError，先聚合缺失路径再进入索引过滤"
-3,补充并更新测试,DONE,"新增或更新测试覆盖多个缺失路径与现有 -C 语义","go test ./cmd -run 'TestExecutePrintsCommandErrorsOnce' -timeout 60s","2026-04-09 11:56",0,"新增查询层聚合错误测试与根命令单次输出测试"
-4,执行全量验证,DONE,"全量测试与 lint 通过","go test ./... -timeout 60s && GOTOOLCHAIN=go1.26.0 go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4 run ./...","2026-04-09 12:01",0,"系统自带 golangci-lint 用 go1.25.9 构建，需强制用 go1.26.0 运行同版本 lint"

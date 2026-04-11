@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/XDwanj/gx/internal/index"
+	"github.com/XDwanj/gx/internal/query"
 
 	"github.com/spf13/cobra"
 )
@@ -9,6 +10,7 @@ import (
 func newDefinitionCmd() *cobra.Command {
 	var kind string
 	var maxLines int
+	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
 		Use:     "definition [flags] [path ...]",
@@ -52,13 +54,20 @@ func newDefinitionCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Definition(idx, name, paths, kindPtr, maxLines, page)
+			return runtime.Query.Definition(idx, query.DefinitionOptions{
+				Paths:    pathFilters.query(paths),
+				NameGlob: name,
+				Kind:     kindPtr,
+				MaxLines: maxLines,
+				Page:     page,
+			})
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match symbol names")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
 	command.Flags().IntVar(&maxLines, "max-lines", 200, "Max lines for body output")
+	registerPathFilterFlags(command.Flags(), &pathFilters)
 	if err := registerKindFlagCompletion(command, "kind"); err != nil {
 		panic(err)
 	}

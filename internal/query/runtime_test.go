@@ -38,6 +38,42 @@ func tempProject(t testing.TB, files map[string]string) string {
 	return root
 }
 
+func symbolsOptions(paths []string, nameGlob *string, kind *index.SymbolKind, page PageRequest) SymbolsOptions {
+	return SymbolsOptions{
+		Paths:    PathQuery{Targets: paths},
+		NameGlob: nameGlob,
+		Kind:     kind,
+		Page:     page,
+	}
+}
+
+func definitionOptions(paths []string, nameGlob string, kind *index.SymbolKind, maxLines int, page PageRequest) DefinitionOptions {
+	return DefinitionOptions{
+		Paths:    PathQuery{Targets: paths},
+		NameGlob: nameGlob,
+		Kind:     kind,
+		MaxLines: maxLines,
+		Page:     page,
+	}
+}
+
+func referencesOptions(paths []string, nameGlob string, unique bool, page PageRequest) ReferencesOptions {
+	return ReferencesOptions{
+		Paths:    PathQuery{Targets: paths},
+		NameGlob: nameGlob,
+		Unique:   unique,
+		Page:     page,
+	}
+}
+
+func calleesOptions(paths []string, nameGlob string, page PageRequest) CalleesOptions {
+	return CalleesOptions{
+		Paths:    PathQuery{Targets: paths},
+		NameGlob: nameGlob,
+		Page:     page,
+	}
+}
+
 func TestSymbolsSingleFileOutput(t *testing.T) {
 	ensureInstalled(t, "rust")
 	root := tempProject(t, map[string]string{
@@ -54,7 +90,7 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs"}
 
-	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions(paths, nil, nil, PageRequest{})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -88,7 +124,7 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src"}
 
-	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions(paths, nil, nil, PageRequest{})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -125,7 +161,7 @@ func TestSymbolsMultiplePathsUnionOutput(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs", "pkg"}
 
-	if err := service.Symbols(idx, paths, nil, nil, PageRequest{}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions(paths, nil, nil, PageRequest{})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -159,7 +195,7 @@ func TestSymbolsJSONIncludesCoordinates(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true}
 
-	if err := service.Symbols(idx, []string{"src/main.rs"}, nil, nil, PageRequest{}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions([]string{"src/main.rs"}, nil, nil, PageRequest{})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -172,6 +208,34 @@ func TestSymbolsJSONIncludesCoordinates(t *testing.T) {
 	}
 	if strings.Contains(output, "\"column\"") {
 		t.Fatalf("unexpected column in json output: %s", output)
+	}
+}
+
+func TestSymbolsJSONNoMatchesOutputsEmptyArray(t *testing.T) {
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	name := "Hidden"
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true}
+
+	if err := service.Symbols(idx, symbolsOptions([]string{"src/main.rs"}, &name, nil, PageRequest{})); err != nil {
+		t.Fatalf("symbols query: %v", err)
+	}
+
+	if stdout.String() != "[]\n" {
+		t.Fatalf("expected empty json array for no matches, got %q", stdout.String())
+	}
+	if stderr.String() != "" {
+		t.Fatalf("expected empty stderr for json no matches, got %q", stderr.String())
 	}
 }
 
@@ -190,7 +254,7 @@ func TestSymbolsSupportsPipeSeparatedAlternatives(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	if err := service.Symbols(idx, []string{"main.go"}, &pattern, nil, PageRequest{}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions([]string{"main.go"}, &pattern, nil, PageRequest{})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -221,7 +285,7 @@ func TestSymbolsRejectsPipePatternWithEmptyAlternative(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	err = service.Symbols(idx, []string{"main.go"}, &pattern, nil, PageRequest{})
+	err = service.Symbols(idx, symbolsOptions([]string{"main.go"}, &pattern, nil, PageRequest{}))
 	if err == nil {
 		t.Fatal("expected invalid pattern error")
 	}
@@ -245,7 +309,7 @@ func TestDefinitionOutput(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "main", nil, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "main", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -273,7 +337,7 @@ func TestDefinitionSupportsGlobName(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "build*", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -297,7 +361,7 @@ func TestDefinitionSupportsPipeSeparatedAlternatives(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	if err := service.Definition(idx, "WechatPay|AliPay", []string{"main.go"}, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions([]string{"main.go"}, "WechatPay|AliPay", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -330,7 +394,7 @@ func TestDefinitionScopeFiltersResults(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src"}
 
-	if err := service.Definition(idx, "build*", paths, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(paths, "build*", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -358,7 +422,7 @@ func TestDefinitionSortsTypesBeforeFunctionsBeforeMethods(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "build*", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -390,7 +454,7 @@ func TestDefinitionSortsSamePriorityByFileAndLine(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "build*", nil, 200, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -420,7 +484,7 @@ func TestSymbolsPaginationWritesHintAndLimitsResults(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Symbols(idx, []string{"src/main.rs"}, nil, nil, PageRequest{Limit: 2}); err != nil {
+	if err := service.Symbols(idx, symbolsOptions([]string{"src/main.rs"}, nil, nil, PageRequest{Limit: 2})); err != nil {
 		t.Fatalf("symbols query: %v", err)
 	}
 
@@ -451,7 +515,7 @@ func TestDefinitionPaginationAppliesOffsetAfterPrioritySort(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "build*", nil, nil, 200, PageRequest{Limit: 1, Offset: 1}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "build*", nil, 200, PageRequest{Limit: 1, Offset: 1})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -482,7 +546,7 @@ func TestDefinitionMaxLinesTruncationMentionsHowToContinue(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Definition(idx, "buildType", nil, nil, 3, PageRequest{}); err != nil {
+	if err := service.Definition(idx, definitionOptions(nil, "buildType", nil, 3, PageRequest{})); err != nil {
 		t.Fatalf("definition query: %v", err)
 	}
 
@@ -546,7 +610,7 @@ func TestReferencesSupportsGlobName(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.References(idx, "build*", nil, false, PageRequest{}); err != nil {
+	if err := service.References(idx, referencesOptions(nil, "build*", false, PageRequest{})); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -573,7 +637,7 @@ func TestReferencesSupportsPipeSeparatedAlternatives(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
-	if err := service.References(idx, "WechatPay|AliPay", []string{"main.go"}, false, PageRequest{}); err != nil {
+	if err := service.References(idx, referencesOptions([]string{"main.go"}, "WechatPay|AliPay", false, PageRequest{})); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -604,7 +668,7 @@ func TestReferencesPaginationWritesHint(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.References(idx, "build*", nil, false, PageRequest{Limit: 2}); err != nil {
+	if err := service.References(idx, referencesOptions(nil, "build*", false, PageRequest{Limit: 2})); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -637,7 +701,7 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"src/main.rs"}
 
-	if err := service.References(idx, "build*", paths, false, PageRequest{}); err != nil {
+	if err := service.References(idx, referencesOptions(paths, "build*", false, PageRequest{})); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -673,7 +737,7 @@ func TestReferencesFindsExternalSymbolUsages(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.References(idx, "SplitCutset", []string{"main.go"}, false, PageRequest{}); err != nil {
+	if err := service.References(idx, referencesOptions([]string{"main.go"}, "SplitCutset", false, PageRequest{})); err != nil {
 		t.Fatalf("references query: %v", err)
 	}
 
@@ -730,7 +794,7 @@ func BenchmarkReferencesAlternation(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		if err := service.References(idx, namePattern, []string{"main.go"}, false, PageRequest{}); err != nil {
+		if err := service.References(idx, referencesOptions([]string{"main.go"}, namePattern, false, PageRequest{})); err != nil {
 			b.Fatalf("references query: %v", err)
 		}
 	}
@@ -751,7 +815,7 @@ func TestCalleesReturnsCallSites(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Callees(idx, "A", nil, PageRequest{}); err != nil {
+	if err := service.Callees(idx, calleesOptions(nil, "A", PageRequest{})); err != nil {
 		t.Fatalf("callees query: %v", err)
 	}
 
@@ -788,7 +852,7 @@ func TestCalleesPaginationWritesHint(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Callees(idx, "A", nil, PageRequest{Limit: 2}); err != nil {
+	if err := service.Callees(idx, calleesOptions(nil, "A", PageRequest{Limit: 2})); err != nil {
 		t.Fatalf("callees query: %v", err)
 	}
 
@@ -820,7 +884,7 @@ func TestCalleesScopeFiltersResults(t *testing.T) {
 	var stderr bytes.Buffer
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 
-	if err := service.Callees(idx, "A", []string{"src/main.go"}, PageRequest{}); err != nil {
+	if err := service.Callees(idx, calleesOptions([]string{"src/main.go"}, "A", PageRequest{})); err != nil {
 		t.Fatalf("callees query: %v", err)
 	}
 
@@ -852,7 +916,7 @@ func TestMissingPathReturnsError(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"missing"}
 
-	err = service.Symbols(idx, paths, nil, nil, PageRequest{})
+	err = service.Symbols(idx, symbolsOptions(paths, nil, nil, PageRequest{}))
 	if err == nil {
 		t.Fatal("expected missing path to return an error")
 	}
@@ -877,7 +941,7 @@ func TestMissingPathsReturnCombinedError(t *testing.T) {
 	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
 	paths := []string{"missing", "also-missing"}
 
-	err = service.Symbols(idx, paths, nil, nil, PageRequest{})
+	err = service.Symbols(idx, symbolsOptions(paths, nil, nil, PageRequest{}))
 	if err == nil {
 		t.Fatal("expected missing paths to return an error")
 	}

@@ -1,5 +1,0 @@
-id,task,status,completed_at,notes
-1,Audit current golangci-lint failures and config scope,DONE,2026-04-02T10:24:00+08:00,Separated hand-written code issues from grammar wrapper noise and confirmed existing .golangci.yml
-2,Fix hand-written code lint violations,DONE,2026-04-02T10:41:00+08:00,Resolved revive shadow and unused parameter issues, magic numbers, type naming, import formatting, and formatter conflicts
-3,Tighten golangci-lint config and add CI gate,DONE,2026-04-02T10:43:00+08:00,Added explicit grammar-wrapper revive exclusion and GitHub Actions lint workflow
-4,Run lint and tests end-to-end,DONE,2026-04-02T10:45:00+08:00,Passed golangci-lint run ./... and go test ./... -timeout 60s

@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,Read overview entrypoints and tests,DONE,Relevant overview command and runtime paths identified,rg -n "overview|Overview" cmd internal --glob '*.go',2026-04-03T00:00:00,0,Confirmed file overview previously delegated to Symbols
-2,Implement Markdown overview parsing and output,DONE,Markdown files are accepted by overview and headings h1-h6 are shown,go test ./... -run 'TestOverviewCommandSupportsMarkdownFile|TestMarkdownOverview' -timeout 60s,2026-04-03T00:00:00,0,Added dedicated Markdown overview path without touching index or symbols flow
-3,Update docs and add tests,DONE,Tests cover Markdown overview and docs mention Markdown overview support,go test ./... -timeout 60s,2026-04-03T00:00:00,0,Added query and command tests plus README notes
-4,Run lint and full validation,DONE,Repository checks pass,golangci-lint run ./...,2026-04-03T00:00:00,1,Fixed one govet shadow warning in cmd/overview.go

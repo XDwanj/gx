@@ -1,4 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务记录并确认压缩边界,DONE,"任务目录和验收标准已创建","test -f .codex-tasks/20260404-skill-md-compress/SPEC.md && test -f .codex-tasks/20260404-skill-md-compress/TODO.csv && test -f .codex-tasks/20260404-skill-md-compress/PROGRESS.md","2026-04-04 22:05",0,
-2,压缩 skill.md 到 250 行以内,DONE,"skill.md 行数 <= 250 且核心章节保留","wc -l internal/skill/skill.md","2026-04-04 22:07",0,"已从 305 行压缩到 218 行"
-3,复查关键内容并收尾,DONE,"关键章节和示例仍存在","python3 - <<'PY'\nfrom pathlib import Path\ntext = Path('internal/skill/skill.md').read_text()\nchecks = ['### `gx overview`','### `gx symbols`','### `gx definition`','### `gx references`','## `--name` Matching Rules','## Path Rules','## Output Mode','## Practical Heuristics']\nassert all(item in text for item in checks)\nPY","2026-04-04 22:07",0,"关键章节和示例保留"

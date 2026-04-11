@@ -1,6 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,Reconfirm change surface after removing column,DONE,"Task files exist and column impact is identified","test -f .codex-tasks/20260404-symbols-declaration-index/SPEC.md","2026-04-04 20:58",0,"Target paths: CLAUDE.md, internal/language, internal/index, internal/query, README, tests"
-2,Remove column from extraction and index,DONE,"language.Symbol and index.Symbol carry line only","go test ./internal/language ./internal/index -timeout 60s","2026-04-04 21:07",0,"Removed Column from extracted and persisted symbols while keeping Line"
-3,Remove column from symbols output and unit tests,DONE,"symbols output includes file,line,name,kind,signature and related tests pass","go test ./cmd ./internal/query -timeout 60s","2026-04-04 21:07",0,"symbols now emits line-only declaration coordinates; unit tests updated"
-4,Refresh fixture expectations and docs,DONE,"symbol fixture expected JSON and README text match line-only behavior","go test ./... -timeout 60s","2026-04-04 21:07",0,"Regenerated all tests/*/symbol/* expected.json files and updated README docs"
-5,Run full validation,DONE,"All repository checks pass","go test ./... -timeout 60s && golangci-lint run ./...","2026-04-04 21:07",0,"Full go test and golangci-lint both passed"

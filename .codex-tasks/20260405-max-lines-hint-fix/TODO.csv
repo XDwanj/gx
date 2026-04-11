@@ -1,4 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务记录,DONE,"SPEC.md、TODO.csv、PROGRESS.md 已创建","test -f .codex-tasks/20260405-max-lines-hint-fix/SPEC.md && test -f .codex-tasks/20260405-max-lines-hint-fix/TODO.csv && test -f .codex-tasks/20260405-max-lines-hint-fix/PROGRESS.md","2026-04-05 11:49",0,"任务目录已创建"
-2,实现 --max-lines 截断提示修复,DONE,"runtime.go 输出明确提示内容未输出完且提到 --max-lines","go test ./internal/query -run TestDefinitionMaxLinesTruncationMentionsHowToContinue -timeout 60s","2026-04-05 11:50",0,"定义输出现在会提示已显示前几行、总行数以及建议的 --max-lines 值"
-3,执行验证并同步记录,DONE,"全量测试与 lint 结果已记录","go test ./... -timeout 60s && golangci-lint run ./...","2026-04-05 11:51",0,"全量测试与 lint 均通过"

@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务记录并确认影响面,DONE,已创建本次任务目录并确认代码测试文档受影响位置,test -f .codex-tasks/20260408-root-flag-to-C/SPEC.md,2026-04-08 19:10,0,已定位 cmd internal/app tests README 与嵌入 skill 文档的受影响位置
-2,修改命令入口与测试为仅支持 -C,DONE,根命令和命令测试不再暴露或依赖 `--root`,go test ./cmd -timeout 60s,2026-04-08 19:10,0,已将公开 flag 切换为 `-C` 并更新相关命令测试与 fixture
-3,同步更新 README 技能文档与 CLAUDE 规则,DONE,文档和嵌入技能示例均改为 `-C`,rg -n -- '--root' README.md README.zh-CN.md internal/skill/skill.md CLAUDE.md,2026-04-08 19:10,0,已同步 README README.zh-CN skill.md 和 CLAUDE 规则
-4,运行全量测试与 lint,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-08 19:10,0,已通过 `go test ./... -timeout 60s` `golangci-lint run ./...` 与 `go run . --help`
