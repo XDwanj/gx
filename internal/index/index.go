@@ -323,64 +323,95 @@ func logIndexProgress(logger *debugLogger, processedCount int, entryCount int, s
 
 func walk(root string, visit func(fileCandidate) error) error {
 	cleanRoot := filepath.Clean(root)
-	states := map[string]walkState{}
-
-	return filepath.Walk(cleanRoot, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		if path == cleanRoot {
-			states[path] = buildWalkState(cleanRoot, cleanRoot, walkState{})
-			return nil
-		}
-
-		name := info.Name()
-		if name == gitDirName {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if info.IsDir() && fileExists(filepath.Join(path, gxIgnoreFileName)) {
-			return filepath.SkipDir
-		}
-
-		relPath, relErr := filepath.Rel(cleanRoot, path)
-		if relErr != nil {
-			return nil
-		}
-		relPath = filepath.Clean(relPath)
-
-		parentState, ok := states[filepath.Dir(path)]
-		if !ok {
-			return nil
-		}
-
-		if parentState.matches(relPath, info.IsDir()) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if info.IsDir() {
-			states[path] = buildWalkState(cleanRoot, path, parentState)
-			return nil
-		}
-
-		return visit(fileCandidate{
-			AbsPath: path,
-			RelPath: relPath,
-			Info:    info,
-		})
-	})
+	rootState := buildWalkState("", cleanRoot, walkState{})
+	seenDirs := map[string]struct{}{
+		cleanRoot: {},
+	}
+	return walkDirectory(cleanRoot, cleanRoot, "", rootState, seenDirs, visit)
 }
 
-func buildWalkState(root string, dir string, parent walkState) walkState {
+func walkDirectory(root string, physicalDir string, relDir string, state walkState, seenDirs map[string]struct{}, visit func(fileCandidate) error) error {
+	entries, err := os.ReadDir(physicalDir)
+	if err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		relPath := name
+		if relDir != "" {
+			relPath = filepath.Join(relDir, name)
+		}
+
+		logicalPath := filepath.Join(root, relPath)
+		physicalPath := filepath.Join(physicalDir, name)
+		info, resolvedPath, isDir, ok := resolveWalkEntry(physicalPath)
+		if !ok {
+			continue
+		}
+
+		if name == gitDirName && isDir {
+			continue
+		}
+		if state.matches(relPath, isDir) {
+			continue
+		}
+
+		if isDir {
+			if fileExists(filepath.Join(resolvedPath, gxIgnoreFileName)) {
+				continue
+			}
+			if _, seen := seenDirs[resolvedPath]; seen {
+				continue
+			}
+
+			seenDirs[resolvedPath] = struct{}{}
+			childState := buildWalkState(relPath, resolvedPath, state)
+			err := walkDirectory(root, resolvedPath, relPath, childState, seenDirs, visit)
+			delete(seenDirs, resolvedPath)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := visit(fileCandidate{
+			AbsPath: logicalPath,
+			RelPath: relPath,
+			Info:    info,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func resolveWalkEntry(path string) (os.FileInfo, string, bool, bool) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, "", false, false
+	}
+
+	resolvedPath := path
+	isDir := info.IsDir()
+	if info.Mode()&os.ModeSymlink != 0 {
+		resolvedPath, err = filepath.EvalSymlinks(path)
+		if err != nil {
+			return nil, "", false, false
+		}
+		info, err = os.Stat(path)
+		if err != nil {
+			return nil, "", false, false
+		}
+		isDir = info.IsDir()
+	}
+
+	return info, resolvedPath, isDir, true
+}
+
+func buildWalkState(scope string, dir string, parent walkState) walkState {
 	nextPatterns := parent.patterns
-	scope := ignoreScope(root, dir)
 
 	nextPatterns = appendIgnoreFilePatterns(nextPatterns, scope, filepath.Join(dir, gitIgnoreFileName))
 	nextPatterns = appendIgnoreFilePatterns(nextPatterns, scope, filepath.Join(dir, dotIgnoreFileName))
@@ -451,18 +482,6 @@ func joinIgnoreScope(parts ...string) string {
 		filtered = append(filtered, strings.Trim(part, "/"))
 	}
 	return strings.Join(filtered, "/")
-}
-
-func ignoreScope(root string, dir string) string {
-	if dir == root {
-		return ""
-	}
-
-	relPath, err := filepath.Rel(root, dir)
-	if err != nil {
-		return ""
-	}
-	return strings.ReplaceAll(filepath.Clean(relPath), "\\", "/")
 }
 
 func (state walkState) matches(relPath string, isDir bool) bool {

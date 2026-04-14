@@ -173,6 +173,44 @@ func TestOverviewCommandResolvesRelativePathAgainstRelativeSymlinkRoot(t *testin
 	}
 }
 
+func TestOverviewCommandIndexesDirectorySymlink(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"shared/src/main.rs": "fn main() {}\n",
+	})
+	if err := os.Symlink(filepath.Join(targetRoot, "shared", "src"), filepath.Join(targetRoot, "linked-src")); err != nil {
+		t.Fatalf("create directory symlink: %v", err)
+	}
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newOverviewCmd()
+		runErr = command.RunE(command, []string{"linked-src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run overview command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "linked-src/main.rs") {
+		t.Fatalf("expected symlinked directory overview, got %q", stdout)
+	}
+	if strings.Contains(stdout, "shared/src/main.rs") {
+		t.Fatalf("expected output to preserve symlink path, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestOverviewCommandDefaultsToExplicitDirectory(t *testing.T) {
 	ensureCommandLanguages(t, "rust")
 	targetRoot := commandProject(t, map[string]string{
@@ -199,6 +237,44 @@ func TestOverviewCommandDefaultsToExplicitDirectory(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "src/,") {
 		t.Fatalf("expected explicit -C overview, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestSymbolsCommandIndexesDirectorySymlink(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"shared/src/main.rs": "fn main() {}\n",
+	})
+	if err := os.Symlink(filepath.Join(targetRoot, "shared", "src"), filepath.Join(targetRoot, "linked-src")); err != nil {
+		t.Fatalf("create directory symlink: %v", err)
+	}
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		runErr = command.RunE(command, []string{"linked-src"})
+	})
+	if runErr != nil {
+		t.Fatalf("run symbols command: %v", runErr)
+	}
+	if !strings.Contains(stdout, "linked-src/main.rs,1,main,func") {
+		t.Fatalf("expected symlinked directory symbols, got %q", stdout)
+	}
+	if strings.Contains(stdout, "shared/src/main.rs") {
+		t.Fatalf("expected output to preserve symlink path, got %q", stdout)
 	}
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
