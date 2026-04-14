@@ -1,6 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,梳理 overview 现有执行链与多路径契约,DONE,"确认单路径分支、分页规则和多路径输出方案","gx symbols --name '{newOverviewCmd,DirectoryOverview,MarkdownOverview,Symbols}' cmd internal",2026-04-09T11:25:51+0800,0,确认单路径保持原样，多路径改为按 target 分段输出。
-2,实现 overview 多路径支持,DONE,"overview 接受多个路径并复用 internal/query 逻辑","go test ./cmd ./internal/query -run 'Test.*Overview.*' -timeout 60s",2026-04-09T11:25:51+0800,0,新增 internal/query Overview 聚合入口并保留单路径分支契约。
-3,补充测试覆盖多路径场景,DONE,"新增命令/查询测试覆盖多路径目录、文件、Markdown","go test ./cmd ./internal/query -run 'Test.*Overview.*|Test.*PathArgs.*' -timeout 60s",2026-04-09T11:25:51+0800,0,补了默认输出、多路径 JSON、按目录独立分页三类测试。
-4,同步 README 与 embedded skill 文档,DONE,"README 和 internal/skill/skill.md 反映 overview 多路径契约","rg -n \"overview \\[path ...\\]|accepts multiple paths|pagination applies independently\" README.md internal/skill/skill.md",2026-04-09T11:25:51+0800,0,README 与 embedded skill 已同步为多路径契约。
-5,运行全量测试与 lint,DONE,"全仓测试和 lint 全部通过","go test ./... -timeout 60s && golangci-lint run ./...",2026-04-09T11:25:51+0800,0,已通过 go test ./... -timeout 60s 与 golangci-lint run ./...。

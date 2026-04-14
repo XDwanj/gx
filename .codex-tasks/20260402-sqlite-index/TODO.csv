@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,Design SQLite storage schema and migration touchpoints,DONE,Schema and touched files are identified,test -f .codex-tasks/20260402-sqlite-index/SPEC.md,2026-04-02T00:00:00Z,0,Used a simple store_meta plus file_entries schema and kept query-layer interfaces unchanged.
-2,Implement SQLite-backed index load/save and cache path updates,DONE,Index storage uses SQLite and builds,go test ./internal/index -timeout 60s,2026-04-02T00:00:00Z,0,Cache files now use .sqlite3 and load/save go through database/sql with modernc SQLite.
-3,Update or add tests for cache behavior and command compatibility,DONE,Relevant tests cover new storage and pass,go test ./cmd ./internal/index -timeout 60s,2026-04-02T00:00:00Z,0,Added cache clean command coverage and SQLite round-trip/header assertions.
-4,Run full verification and fix regressions,DONE,Repository tests and lint pass,go test ./... -timeout 60s,2026-04-02T00:00:00Z,0,Full go test and golangci-lint both passed.

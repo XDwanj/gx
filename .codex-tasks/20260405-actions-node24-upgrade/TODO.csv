@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,Create task record,DONE,.codex-tasks/20260405-actions-node24-upgrade exists,test -d .codex-tasks/20260405-actions-node24-upgrade,2026-04-05T00:00:00,0,Initialized full single task files
-2,Upgrade workflow action versions,DONE,Workflow files reference Node 24-compatible action majors,rg -n "actions/(checkout@v5|setup-go@v6|upload-artifact@v6|download-artifact@v7)" .github/workflows/*.yml,2026-04-05T00:00:00,0,Updated lint and release workflows to Node 24-compatible action majors
-3,Replace setup-zig with explicit Zig install,DONE,release workflow no longer references mlugg/setup-zig,! rg -n "mlugg/setup-zig" .github/workflows/release.yml,2026-04-05T00:00:00,0,Pinned Zig 0.15.2 downloads with SHA-256 verification for Linux amd64 and arm64 runners
-4,Run workflow validation,DONE,Workflow edits pass local validation,git diff --check,2026-04-05T00:00:00,0,git diff --check passed and release.yml parsed successfully with Ruby YAML loader; actionlint not installed locally

@@ -1,0 +1,18 @@
+# environment: macOS zsh background managed run in /Users/xdwanj/Project/Rust/gx
+# metric_direction: lower
+# mode: fix
+# run_tag: include-ignore-fix
+# parallel: serial
+# web_search: disabled
+# goal: 修复 gx 路径过滤语义：include 触发按需补索引并覆盖当前 ignore 隐藏，exclude 继续作为查询期排除，普通查询基于当前 ignore 规则实时决定可见性，避免持久化 stale ignored 状态。
+# scope: CLAUDE.md,README.md,cmd/**,internal/**/*
+# repos_json: [{"path":"/Users/xdwanj/Project/Rust/gx","role":"primary","scope":"CLAUDE.md,README.md,cmd/**,internal/**/*"}]
+# metric: ignore override failure count
+# verify: bash -lc 'set -euo pipefail; tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT; mkdir -p "$tmp/.git" "$tmp/pkg"; cat >"$tmp/.gitignore" <<'"'"'EOG'"'"'; pkg/ignored.go; EOG; cat >"$tmp/pkg/ignored.go" <<'"'"'EOG'"'"'; package pkg; func Hidden() {}; EOG; failures=0; base=$(go run . -C "$tmp" --json symbols --name Hidden . 2>/dev/null || true); if [ "$base" != "[]" ]; then failures=$((failures+1)); fi; included=$(go run . -C "$tmp" --json symbols --include "pkg/ignored.go" --name Hidden . 2>/dev/null || true); case "$included" in *'"'"'"name": "Hidden"'"'"'*) : ;; *) failures=$((failures+1));; esac; : > "$tmp/.gitignore"; visible=$(go run . -C "$tmp" --json symbols --name Hidden . 2>/dev/null || true); case "$visible" in *'"'"'"name": "Hidden"'"'"'*) : ;; *) failures=$((failures+1));; esac; printf "%s\n" "$failures"'
+# guard: bash -lc 'go test ./... -timeout 60s && golangci-lint run ./...'
+# rollback_policy: revert
+# execution_policy: danger_full_access
+iteration	commit	metric	delta	guard	status	description
+0	22e4779c888be3732bfc14c37b95aaefc60b05d1	3	0	-	baseline	Managed launch baseline from include/ignore verify script
+1	22e4779c888be3732bfc14c37b95aaefc60b05d1	3	0	official go-run verify blocked by external toolchain mismatch; targeted go test ./internal/query ./cmd -timeout 60s passed	refine	Confirmed manifest verify is polluted by go run toolchain mismatch; continuing with targeted Go tests for code-level validation.
+2	22e4779c888be3732bfc14c37b95aaefc60b05d1	0	-3	pass: go test ./... -timeout 60s && golangci-lint run ./...	keep	Implemented query-time ignore visibility, include-triggered transient reindexing, and JSON empty-array output; equivalent built-binary verify reached 0 failures while manifest go-run verify remains externally blocked.

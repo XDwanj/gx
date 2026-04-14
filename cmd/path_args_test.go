@@ -371,6 +371,293 @@ func TestCommandsRemoveScopeFlag(t *testing.T) {
 	}
 }
 
+func TestSymbolsCommandSupportsGlobPathArgs(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs":    "fn main() {}\n",
+		"pkg/helper.rs":  "fn helper() {}\n",
+		"other/extra.rs": "fn extra() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		runErr = command.RunE(command, []string{"{src,pkg}/*.rs"})
+	})
+	if runErr != nil {
+		t.Fatalf("run symbols command with glob path: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.rs,1,main,func") {
+		t.Fatalf("expected src/main.rs symbol, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "pkg/helper.rs,1,helper,func") {
+		t.Fatalf("expected pkg/helper.rs symbol, got %q", stdout)
+	}
+	if strings.Contains(stdout, "other/extra.rs") {
+		t.Fatalf("expected glob path args to filter results, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestSymbolsCommandReportsMissingGlobPathMatches(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs": "fn main() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	_, _ = captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		runErr = command.RunE(command, []string{"missing/**/*.rs"})
+	})
+	if runErr == nil {
+		t.Fatal("expected missing glob path error")
+	}
+	if !strings.Contains(runErr.Error(), "gx: no indexed files match missing/**/*.rs") {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+}
+
+func TestDefinitionCommandSupportsIncludeExcludePathGlobs(t *testing.T) {
+	ensureCommandLanguages(t, "go")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.go":        "package main\n\nfunc helper() {}\n",
+		"src/helper_test.go": "package main\n\nfunc helper() {}\n",
+		"src/mocks/mock.go":  "package main\n\nfunc helper() {}\n",
+		"other/extra.go":     "package main\n\nfunc helper() {}\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newDefinitionCmd()
+		if err := command.Flags().Set("name", "helper"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		if err := command.Flags().Set("include", "src/**"); err != nil {
+			t.Fatalf("set include flag: %v", err)
+		}
+		if err := command.Flags().Set("exclude", "{**/*_test.go,**/mocks/**}"); err != nil {
+			t.Fatalf("set exclude flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("run definition command with include/exclude globs: %v", runErr)
+	}
+	if !strings.Contains(stdout, "file: src/main.go") {
+		t.Fatalf("expected src/main.go definition, got %q", stdout)
+	}
+	if strings.Contains(stdout, "helper_test.go") || strings.Contains(stdout, "mocks/mock.go") || strings.Contains(stdout, "other/extra.go") {
+		t.Fatalf("expected include/exclude globs to filter definitions, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestReferencesCommandSupportsIncludeExcludePathGlobs(t *testing.T) {
+	ensureCommandLanguages(t, "rust")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.rs":        "fn helper() {}\nfn main() { helper(); }\n",
+		"src/helper_test.rs": "fn helper() {}\nfn test_call() { helper(); }\n",
+		"src/mocks/mock.rs":  "fn helper() {}\nfn mock_call() { helper(); }\n",
+		"other/extra.rs":     "fn helper() {}\nfn extra() { helper(); }\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newReferencesCmd()
+		if err := command.Flags().Set("name", "helper"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		if err := command.Flags().Set("include", "src/**"); err != nil {
+			t.Fatalf("set include flag: %v", err)
+		}
+		if err := command.Flags().Set("exclude", "{**/*_test.rs,**/mocks/**}"); err != nil {
+			t.Fatalf("set exclude flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("run references command with include/exclude globs: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.rs") {
+		t.Fatalf("expected src/main.rs references, got %q", stdout)
+	}
+	if strings.Contains(stdout, "helper_test.rs") || strings.Contains(stdout, "mocks/mock.rs") || strings.Contains(stdout, "other/extra.rs") {
+		t.Fatalf("expected include/exclude globs to filter references, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestCalleesCommandSupportsExcludePathGlobs(t *testing.T) {
+	ensureCommandLanguages(t, "go")
+	targetRoot := commandProject(t, map[string]string{
+		"src/main.go":       "package main\n\nfunc helper() {}\nfunc A() { helper() }\n",
+		"src/mocks/mock.go": "package main\n\nfunc helper() {}\nfunc A() { helper() }\n",
+		"other/extra.go":    "package main\n\nfunc helper() {}\nfunc A() { helper() }\n",
+	})
+	t.Chdir(t.TempDir())
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	stdout, stderr := captureProcessOutput(t, func() {
+		command := newCalleesCmd()
+		if err := command.Flags().Set("name", "A"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		if err := command.Flags().Set("exclude", "{**/mocks/**,other/**}"); err != nil {
+			t.Fatalf("set exclude flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("run callees command with exclude globs: %v", runErr)
+	}
+	if !strings.Contains(stdout, "src/main.go") {
+		t.Fatalf("expected src/main.go callee rows, got %q", stdout)
+	}
+	if strings.Contains(stdout, "mocks/mock.go") || strings.Contains(stdout, "other/extra.go") {
+		t.Fatalf("expected exclude globs to filter callees, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestSymbolsCommandIncludeOverridesIgnoreAndIgnoreRemovalRestoresVisibility(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ensureCommandLanguages(t, "go")
+	t.Chdir(t.TempDir())
+
+	targetRoot := commandProject(t, map[string]string{
+		".gitignore":     "pkg/ignored.go\n",
+		"pkg/ignored.go": "package pkg\n\nfunc Hidden() {}\n",
+	})
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot, JSON: true}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	var runErr error
+	baseStdout, baseStderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		if err := command.Flags().Set("name", "Hidden"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("base query: %v", runErr)
+	}
+	if baseStdout != "[]\n" {
+		t.Fatalf("expected ignored base query to emit empty json array, got %q", baseStdout)
+	}
+	if strings.TrimSpace(baseStderr) != "" {
+		t.Fatalf("expected ignored base query stderr to be empty, got %q", baseStderr)
+	}
+
+	runErr = nil
+	includedStdout, includedStderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		if err := command.Flags().Set("name", "Hidden"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		if err := command.Flags().Set("include", "pkg/ignored.go"); err != nil {
+			t.Fatalf("set include flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("include query: %v", runErr)
+	}
+	if !strings.Contains(includedStdout, "\"name\": \"Hidden\"") {
+		t.Fatalf("expected include query to restore ignored symbol, got %q", includedStdout)
+	}
+	if strings.TrimSpace(includedStderr) != "" {
+		t.Fatalf("expected include query stderr to be empty, got %q", includedStderr)
+	}
+
+	if err := os.WriteFile(filepath.Join(targetRoot, ".gitignore"), []byte{}, 0o644); err != nil {
+		t.Fatalf("clear .gitignore: %v", err)
+	}
+
+	runErr = nil
+	visibleStdout, visibleStderr := captureProcessOutput(t, func() {
+		command := newSymbolsCmd()
+		if err := command.Flags().Set("name", "Hidden"); err != nil {
+			t.Fatalf("set name flag: %v", err)
+		}
+		runErr = command.RunE(command, []string{"."})
+	})
+	if runErr != nil {
+		t.Fatalf("visible query: %v", runErr)
+	}
+	if !strings.Contains(visibleStdout, "\"name\": \"Hidden\"") {
+		t.Fatalf("expected symbol to become visible after clearing ignore, got %q", visibleStdout)
+	}
+	if strings.TrimSpace(visibleStderr) != "" {
+		t.Fatalf("expected visible query stderr to be empty, got %q", visibleStderr)
+	}
+}
+
 func ensureCommandLanguages(t *testing.T, languages ...string) {
 	t.Helper()
 	if err := lang.Add(io.Discard, io.Discard, languages); err != nil {

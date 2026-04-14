@@ -92,7 +92,8 @@ gx -C /path/to/project overview proto/api.proto
 Use `symbols` to find declarations.
 
 - Returns definitions, not usages.
-- Accepts files, directories, or a mix.
+- Accepts files, directories, path globs, or a mix.
+- `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - `--name` uses glob matching.
 - Default result limit is `100`.
 - Use `--limit`, `--offset`, and `--all` for broad matches.
@@ -102,6 +103,7 @@ Examples:
 ```bash
 gx symbols --name '*Search*' internal/tmdb
 gx symbols --kind func --name 'Search' .
+gx symbols --include 'internal/**' --exclude '**/*_test.go' --name '*Search*' .
 gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 ```
 
@@ -110,7 +112,8 @@ gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 Use `definition` when you already know the symbol and want the body immediately.
 
 - Returns the symbol body with source file and line.
-- Accepts files, directories, or a mix.
+- Accepts files, directories, path globs, or a mix.
+- `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `5`.
 - `--limit` controls how many definitions you get.
 - `--max-lines` controls how large each definition body can be.
@@ -121,6 +124,7 @@ Examples:
 ```bash
 gx definition --name 'Search' internal/tmdb
 gx definition --name 'Client' internal/tmdb/client.go
+gx definition --include 'internal/**' --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' .
 gx definition --name '*Search*' --limit 1 --max-lines 80 internal/tmdb
 gx definition --name 'CreateUserRequest' proto/api.proto -C /path/to/project | rg '\bemail\b'
 gx definition --name 'User' internal/model/user.go | rg '\bEmail\b'
@@ -131,7 +135,8 @@ gx definition --name 'User' internal/model/user.go | rg '\bEmail\b'
 Use `references` to find usages and impact.
 
 - Commonly includes the definition site as well.
-- Accepts files, directories, or a mix.
+- Accepts files, directories, path globs, or a mix.
+- `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - `--unique` deduplicates by enclosing function.
 - Default result limit is `50`.
 - Use `--limit`, `--offset`, and `--all` when a common name fans out widely.
@@ -141,6 +146,7 @@ Examples:
 ```bash
 gx references --name 'Search' .
 gx references --unique --name 'Search' .
+gx references --include 'internal/**' --exclude '**/*_test.go' --name 'Search' .
 gx references --name 'Search' --limit 25 --offset 25 .
 ```
 
@@ -149,7 +155,8 @@ gx references --name 'Search' --limit 25 --offset 25 .
 Use `callees` to inspect the syntax-level calls made inside a function body.
 
 - Returns call sites, not resolved definitions.
-- Accepts files, directories, or a mix.
+- Accepts files, directories, path globs, or a mix.
+- `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `50`.
 - Output fields are `file`, `line`, `caller`, `callee`, and `context`.
 
@@ -158,6 +165,7 @@ Examples:
 ```bash
 gx callees --name 'Search' .
 gx callees --name '*Search*' internal/tmdb
+gx callees --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' .
 gx callees --name 'Search' --limit 25 --offset 25 .
 ```
 
@@ -213,7 +221,8 @@ Why they are bad:
 ## Path Rules
 
 - `overview`, `symbols`, `definition`, `callees`, and `references` accept multiple paths.
-- Those paths may be directories, files, or a mix.
+- Those paths may be directories, files, path globs, or a mix.
+- `symbols`, `definition`, `callees`, and `references` also accept repeatable `--include` and `--exclude` glob filters over indexed file paths. `--include` can temporarily re-index matching ignored files for the current query.
 - Prefer the smallest scope that answers the question.
 - Use `-C` when you need to run `gx` against another directory context.
 
@@ -223,6 +232,7 @@ Examples:
 gx overview internal/tmdb internal/tmdb/search.go README.md
 gx symbols --name 'Search' .
 gx -C /path/to/project symbols --name 'Search' .
+gx symbols --include 'internal/**' --exclude '**/*_test.go' --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go
 gx callees --name 'Search' internal/tmdb/search.go internal/tools

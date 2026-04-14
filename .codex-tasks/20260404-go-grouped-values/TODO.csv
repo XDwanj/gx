@@ -1,5 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,建立任务记录并确认 grouped const/var 缺口,DONE,已确认 grouped const/var 当前未进入 Go symbol 索引,test -f .codex-tasks/20260404-go-grouped-values/SPEC.md,2026-04-04 18:06,0,已在真实项目和最小样例中确认 grouped const/var 存在缺口
-2,修正 Go query 以覆盖 grouped const 与 var,DONE,grouped const/var 的名字可被提取为 const,go test ./internal/language -timeout 60s,2026-04-04 18:15,0,已补 grouped var 的 var_spec_list 结构，并保留 grouped const/单值 const 兼容
-3,补 Go grouped const/var fixture 与回归测试,DONE,tests/go 对 grouped const/var 都有 symbol 与 definition 覆盖,go test ./cmd -run 'TestLanguageFixtures/go' -timeout 60s,2026-04-04 18:19,0,已新增 grouped_const_kind 与 grouped_var_kind 的 symbol/definition fixture
-4,运行全量测试与 lint,DONE,go test 与 golangci-lint 全部通过,golangci-lint run ./...,2026-04-04 18:21,0,已通过 go test ./... -timeout 60s 与 golangci-lint run ./...

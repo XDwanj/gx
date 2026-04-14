@@ -1,9 +1,14 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/XDwanj/gx/internal/query"
+
+	"github.com/spf13/cobra"
+)
 
 func newReferencesCmd() *cobra.Command {
 	var unique bool
+	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
 		Use:     "references [flags] [path ...]",
@@ -37,12 +42,18 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			return runtime.Query.References(idx, name, paths, unique, page)
+			return runtime.Query.References(idx, query.ReferencesOptions{
+				Paths:    pathFilters.query(paths),
+				NameGlob: name,
+				Unique:   unique,
+				Page:     page,
+			})
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match symbol names")
 	command.Flags().BoolVar(&unique, "unique", false, "Deduplicate by enclosing function")
+	registerPathFilterFlags(command.Flags(), &pathFilters)
 	_ = command.MarkFlagRequired("name")
 	return command
 }

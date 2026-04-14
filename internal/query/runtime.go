@@ -105,6 +105,12 @@ type scopeFilter struct {
 	paths        map[string]struct{}
 }
 
+type pathFilterMatchers struct {
+	includes []compiledGlob
+	excludes []compiledGlob
+	ignore   *index.IgnoreMatcher
+}
+
 type DirOverviewRow struct {
 	File    string `json:"file"`
 	Symbols string `json:"symbols"`
@@ -147,6 +153,40 @@ type PageRequest struct {
 	Offset int
 }
 
+type PathQuery struct {
+	Targets []string
+	Include []string
+	Exclude []string
+}
+
+type SymbolsOptions struct {
+	Paths    PathQuery
+	NameGlob *string
+	Kind     *index.SymbolKind
+	Page     PageRequest
+}
+
+type DefinitionOptions struct {
+	Paths    PathQuery
+	NameGlob string
+	Kind     *index.SymbolKind
+	MaxLines int
+	Page     PageRequest
+}
+
+type ReferencesOptions struct {
+	Paths    PathQuery
+	NameGlob string
+	Unique   bool
+	Page     PageRequest
+}
+
+type CalleesOptions struct {
+	Paths    PathQuery
+	NameGlob string
+	Page     PageRequest
+}
+
 type pageInfo struct {
 	Total      int
 	Offset     int
@@ -156,13 +196,16 @@ type pageInfo struct {
 	OutOfRange bool
 }
 
-func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind, page PageRequest) error {
-	rows, err := service.symbolRows(idx, paths, nameGlob, kind)
+func (service *Service) Symbols(idx *index.Index, options SymbolsOptions) error {
+	rows, err := service.symbolRows(idx, options.Paths, options.NameGlob, options.Kind)
 	if err != nil {
 		return err
 	}
 
 	if len(rows) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []SymbolRow{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
@@ -177,7 +220,7 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 		return rows[left].File < rows[right].File
 	})
 
-	rows, pageState := paginateRows(rows, page)
+	rows, pageState := paginateRows(rows, options.Page)
 	service.writePageHint(pageState)
 
 	if service.json {
@@ -189,7 +232,7 @@ func (service *Service) Symbols(idx *index.Index, paths []string, nameGlob *stri
 func (service *Service) Overview(idx *index.Index, paths []string, full bool, page PageRequest) error {
 	if len(paths) <= 1 {
 		if len(paths) == 0 {
-			return service.Symbols(idx, paths, nil, nil, page)
+			return service.Symbols(idx, SymbolsOptions{Paths: PathQuery{Targets: paths}, Page: page})
 		}
 		return service.singleOverview(idx, paths[0], full, page)
 	}
@@ -224,7 +267,10 @@ func (service *Service) singleOverview(idx *index.Index, target string, full boo
 	case overviewTargetMarkdown:
 		return service.MarkdownOverview(target)
 	default:
-		return service.Symbols(idx, []string{target}, nil, nil, PageRequest{})
+		return service.Symbols(idx, SymbolsOptions{
+			Paths: PathQuery{Targets: []string{target}},
+			Page:  PageRequest{},
+		})
 	}
 }
 
@@ -279,7 +325,7 @@ func (service *Service) overviewSectionForTarget(idx *index.Index, target string
 		if idx == nil {
 			return OverviewSection{}, false, fmt.Errorf("gx: overview index is required for files")
 		}
-		rows, err := service.symbolRows(idx, []string{target}, nil, nil)
+		rows, err := service.symbolRows(idx, PathQuery{Targets: []string{target}}, nil, nil)
 		if err != nil {
 			return OverviewSection{}, false, err
 		}
@@ -328,14 +374,14 @@ func classifyOverviewTarget(path string) overviewTargetKind {
 	return overviewTargetFile
 }
 
-func (service *Service) symbolRows(idx *index.Index, paths []string, nameGlob *string, kind *index.SymbolKind) ([]SymbolRow, error) {
-	filter, err := service.resolvePaths(idx, paths)
+func (service *Service) symbolRows(idx *index.Index, paths PathQuery, nameGlob *string, kind *index.SymbolKind) ([]SymbolRow, error) {
+	resolvedIdx, filter, err := service.resolveQueryContext(idx, paths)
 	if err != nil {
 		return nil, err
 	}
 
 	rows := make([]SymbolRow, 0)
-	for path, data := range idx.Entries {
+	for path, data := range resolvedIdx.Entries {
 		if filter != nil && !filter.contains(path) {
 			continue
 		}
@@ -375,13 +421,13 @@ func (service *Service) symbolRows(idx *index.Index, paths []string, nameGlob *s
 	return rows, nil
 }
 
-func (service *Service) Definition(idx *index.Index, nameGlob string, paths []string, kind *index.SymbolKind, maxLines int, page PageRequest) error {
-	filter, err := service.resolvePaths(idx, paths)
+func (service *Service) Definition(idx *index.Index, options DefinitionOptions) error {
+	resolvedIdx, filter, err := service.resolveQueryContext(idx, options.Paths)
 	if err != nil {
 		return err
 	}
 
-	matches, err := findDefinitionMatches(idx, nameGlob, kind)
+	matches, err := findDefinitionMatches(resolvedIdx, options.NameGlob, options.Kind)
 	if err != nil {
 		return err
 	}
@@ -397,17 +443,20 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 	}
 
 	if len(matches) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []DefinitionResult{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
 
 	sortDefinitionMatches(matches)
-	matches, pageState := paginateRows(matches, page)
+	matches, pageState := paginateRows(matches, options.Page)
 	service.writePageHint(pageState)
 
 	results := make([]DefinitionResult, 0, len(matches))
 	for _, match := range matches {
-		body, startLine, ok := readBody(idx.Root, match.path, match.symbol)
+		body, startLine, ok := readBody(resolvedIdx.Root, match.path, match.symbol)
 		if !ok {
 			body = ""
 			startLine = 0
@@ -421,11 +470,11 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 			Line: startLine,
 			Body: body,
 		}
-		if lineCount > maxLines && maxLines > 0 {
+		if lineCount > options.MaxLines && options.MaxLines > 0 {
 			lines := strings.Split(body, "\n")
 			result.Truncated = true
 			result.Lines = lineCount
-			result.Body = strings.Join(lines[:maxLines], "\n")
+			result.Body = strings.Join(lines[:options.MaxLines], "\n")
 		}
 		results = append(results, result)
 	}
@@ -460,17 +509,20 @@ func (service *Service) Definition(idx *index.Index, nameGlob string, paths []st
 	return nil
 }
 
-func (service *Service) References(idx *index.Index, nameGlob string, paths []string, unique bool, page PageRequest) error {
-	filter, err := service.resolvePaths(idx, paths)
+func (service *Service) References(idx *index.Index, options ReferencesOptions) error {
+	resolvedIdx, filter, err := service.resolveQueryContext(idx, options.Paths)
 	if err != nil {
 		return err
 	}
 
-	matchedNames, err := findReferenceNames(idx, nameGlob, filter)
+	matchedNames, err := findReferenceNames(resolvedIdx, options.NameGlob, filter)
 	if err != nil {
 		return err
 	}
 	if len(matchedNames) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []ReferenceRow{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
@@ -480,46 +532,48 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 	for _, matchedName := range matchedNames {
 		nameBytes = append(nameBytes, []byte(matchedName))
 	}
-	for path, data := range idx.Entries {
+	for path, data := range resolvedIdx.Entries {
 		if filter != nil && !filter.contains(path) {
 			continue
 		}
 
-		source, err := os.ReadFile(filepath.Join(idx.Root, path))
+		source, err := os.ReadFile(filepath.Join(resolvedIdx.Root, path))
 		if err != nil || !containsAnyName(source, nameBytes) {
 			continue
 		}
 
 		lines := splitLines(source)
-		for indexValue, matchedName := range matchedNames {
-			if !bytes.Contains(source, nameBytes[indexValue]) {
-				continue
+		references, findErr := language.FindReferencesForNames(
+			data.Meta.Language,
+			source,
+			filepath.Join(resolvedIdx.Root, path),
+			matchedNames,
+		)
+		if findErr != nil {
+			if language.IsNotInstalled(findErr) {
+				return findErr
 			}
+			continue
+		}
 
-			references, findErr := language.FindReferences(data.Meta.Language, source, filepath.Join(idx.Root, path), matchedName)
-			if findErr != nil {
-				if language.IsNotInstalled(findErr) {
-					return findErr
-				}
-				continue
+		for _, reference := range references {
+			context := ""
+			if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
+				context = strings.TrimSpace(lines[reference.Line-1])
 			}
-
-			for _, reference := range references {
-				context := ""
-				if reference.Line-1 >= 0 && reference.Line-1 < len(lines) {
-					context = strings.TrimSpace(lines[reference.Line-1])
-				}
-				rows = append(rows, ReferenceRow{
-					File:    displayPath(path),
-					Line:    reference.Line,
-					Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
-					Context: context,
-				})
-			}
+			rows = append(rows, ReferenceRow{
+				File:    displayPath(path),
+				Line:    reference.Line,
+				Caller:  findEnclosingSymbol(data.Symbols, reference.ByteOffset),
+				Context: context,
+			})
 		}
 	}
 
 	if len(rows) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []ReferenceRow{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
@@ -542,7 +596,7 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 		deduped = append(deduped, row)
 	}
 
-	if unique {
+	if options.Unique {
 		seen := map[string]bool{}
 		uniqueRows := make([]UniqueCallerRow, 0)
 		for _, row := range deduped {
@@ -561,10 +615,13 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 			})
 		}
 		if len(uniqueRows) == 0 {
+			if service.json {
+				return output.PrintJSON(service.stdout, []UniqueCallerRow{})
+			}
 			_, _ = fmt.Fprintln(service.stderr, "gx: no callers found")
 			return nil
 		}
-		uniqueRows, pageState := paginateRows(uniqueRows, page)
+		uniqueRows, pageState := paginateRows(uniqueRows, options.Page)
 		service.writePageHint(pageState)
 		if service.json {
 			return output.PrintJSON(service.stdout, uniqueRows)
@@ -572,7 +629,7 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 		return output.PrintTOON(service.stdout, uniqueRows)
 	}
 
-	deduped, pageState := paginateRows(deduped, page)
+	deduped, pageState := paginateRows(deduped, options.Page)
 	service.writePageHint(pageState)
 	if service.json {
 		return output.PrintJSON(service.stdout, deduped)
@@ -580,14 +637,14 @@ func (service *Service) References(idx *index.Index, nameGlob string, paths []st
 	return output.PrintTOON(service.stdout, deduped)
 }
 
-func (service *Service) Callees(idx *index.Index, nameGlob string, paths []string, page PageRequest) error {
-	filter, err := service.resolvePaths(idx, paths)
+func (service *Service) Callees(idx *index.Index, options CalleesOptions) error {
+	resolvedIdx, filter, err := service.resolveQueryContext(idx, options.Paths)
 	if err != nil {
 		return err
 	}
 
 	callableKind := index.SymbolKindFunc
-	matches, err := findDefinitionMatches(idx, nameGlob, &callableKind)
+	matches, err := findDefinitionMatches(resolvedIdx, options.NameGlob, &callableKind)
 	if err != nil {
 		return err
 	}
@@ -601,6 +658,9 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 		matches = filtered
 	}
 	if len(matches) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []CalleeRow{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
@@ -609,7 +669,7 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 	sourceCache := make(map[string][]byte)
 	linesCache := make(map[string][]string)
 	for _, match := range matches {
-		data, ok := idx.Entries[match.path]
+		data, ok := resolvedIdx.Entries[match.path]
 		if !ok {
 			continue
 		}
@@ -619,7 +679,7 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 
 		source, ok := sourceCache[match.path]
 		if !ok {
-			source, err = os.ReadFile(filepath.Join(idx.Root, match.path))
+			source, err = os.ReadFile(filepath.Join(resolvedIdx.Root, match.path))
 			if err != nil {
 				return err
 			}
@@ -630,7 +690,7 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 		callees, err := language.FindCallees(
 			data.Meta.Language,
 			source,
-			filepath.Join(idx.Root, match.path),
+			filepath.Join(resolvedIdx.Root, match.path),
 			match.symbol.ByteStart,
 			match.symbol.ByteEnd,
 		)
@@ -655,6 +715,9 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 	}
 
 	if len(rows) == 0 {
+		if service.json {
+			return output.PrintJSON(service.stdout, []CalleeRow{})
+		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
 	}
@@ -672,7 +735,7 @@ func (service *Service) Callees(idx *index.Index, nameGlob string, paths []strin
 		return rows[left].File < rows[right].File
 	})
 
-	rows, pageState := paginateRows(rows, page)
+	rows, pageState := paginateRows(rows, options.Page)
 	service.writePageHint(pageState)
 	if service.json {
 		return output.PrintJSON(service.stdout, rows)
@@ -1061,63 +1124,171 @@ func missingPathsError(paths []string) error {
 	return fmt.Errorf("gx: paths not found: %s", strings.Join(displayPaths, ", "))
 }
 
-func (service *Service) resolvePaths(idx *index.Index, paths []string) (*scopeFilter, error) {
-	if len(paths) == 0 {
-		return nil, nil
+func (service *Service) resolveQueryContext(idx *index.Index, query PathQuery) (*index.Index, *scopeFilter, error) {
+	preparedIdx, matchers, err := preparePathQueryIndex(idx, query)
+	if err != nil {
+		return nil, nil, err
+	}
+	filter, err := service.resolvePaths(preparedIdx, query, matchers)
+	if err != nil {
+		return nil, nil, err
+	}
+	return preparedIdx, filter, nil
+}
+
+func preparePathQueryIndex(idx *index.Index, query PathQuery) (*index.Index, pathFilterMatchers, error) {
+	includeMatchers, err := compilePathGlobs(query.Include, idx.Root)
+	if err != nil {
+		return nil, pathFilterMatchers{}, err
+	}
+	excludeMatchers, err := compilePathGlobs(query.Exclude, idx.Root)
+	if err != nil {
+		return nil, pathFilterMatchers{}, err
+	}
+
+	preparedIdx, err := withIncludedEntries(idx, includeMatchers)
+	if err != nil {
+		return nil, pathFilterMatchers{}, err
+	}
+
+	return preparedIdx, pathFilterMatchers{
+		includes: includeMatchers,
+		excludes: excludeMatchers,
+		ignore:   index.NewIgnoreMatcher(idx.Root),
+	}, nil
+}
+
+func withIncludedEntries(idx *index.Index, includes []compiledGlob) (*index.Index, error) {
+	if len(includes) == 0 {
+		return idx, nil
+	}
+
+	preparedIdx := idx
+	err := filepath.Walk(idx.Root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if path == idx.Root {
+			return nil
+		}
+		if info.IsDir() {
+			if info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		relPath, err := filepath.Rel(idx.Root, path)
+		if err != nil {
+			return nil
+		}
+		relPath = filepath.Clean(relPath)
+		if !anyPathGlobMatches(includes, relPath) {
+			return nil
+		}
+		if _, ok := preparedIdx.Entries[relPath]; ok {
+			return nil
+		}
+
+		data, indexable, err := index.LoadFileData(idx.Root, relPath)
+		if err != nil {
+			return err
+		}
+		if !indexable {
+			return nil
+		}
+
+		if preparedIdx == idx {
+			clonedEntries := make(map[string]index.FileData, len(idx.Entries)+1)
+			for existingPath, existingData := range idx.Entries {
+				clonedEntries[existingPath] = existingData
+			}
+			preparedIdx = &index.Index{
+				Root:    idx.Root,
+				Entries: clonedEntries,
+			}
+		}
+		preparedIdx.Entries[relPath] = data
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return preparedIdx, nil
+}
+
+func (service *Service) resolvePaths(idx *index.Index, query PathQuery, matchers pathFilterMatchers) (*scopeFilter, error) {
+	filter := &scopeFilter{
+		isSingleFile: len(query.Targets) == 1,
+		paths:        make(map[string]struct{}),
+	}
+
+	if len(query.Targets) == 0 {
+		for path := range idx.Entries {
+			filter.paths[path] = struct{}{}
+		}
+		return applyPathGlobs(filter, matchers.includes, matchers.excludes, matchers.ignore), nil
 	}
 
 	missingPaths := make([]string, 0)
-	for _, path := range paths {
-		relPath := normalizeRelativePath(path, idx.Root)
+	for _, target := range query.Targets {
+		relPath := normalizeRelativePath(target, idx.Root)
 		absPath := filepath.Join(idx.Root, relPath)
-		if _, err := os.Stat(absPath); err != nil {
-			missingPaths = append(missingPaths, relPath)
+
+		info, statErr := os.Stat(absPath)
+		if statErr == nil {
+			if info.IsDir() {
+				filter.isSingleFile = false
+				prefix := relPath
+				if prefix == "." {
+					prefix = ""
+				}
+
+				for entryPath := range idx.Entries {
+					if prefix == "" || entryPath == prefix || strings.HasPrefix(entryPath, prefix+string(filepath.Separator)) {
+						filter.paths[entryPath] = struct{}{}
+					}
+				}
+				continue
+			}
+
+			if _, ok := idx.Entries[relPath]; !ok {
+				return nil, service.fileLookupError(relPath, idx.Root)
+			}
+			filter.paths[relPath] = struct{}{}
+			continue
 		}
+
+		if !hasGlobMeta(relPath) {
+			missingPaths = append(missingPaths, relPath)
+			continue
+		}
+
+		matcher, matchErr := compilePathGlob(relPath)
+		if matchErr != nil {
+			return nil, matchErr
+		}
+
+		matched := false
+		for entryPath := range idx.Entries {
+			if !matcher.Match(displayPath(entryPath)) {
+				continue
+			}
+			filter.paths[entryPath] = struct{}{}
+			matched = true
+		}
+		if !matched {
+			return nil, fmt.Errorf("gx: no indexed files match %s", displayScopePath(relPath))
+		}
+		filter.isSingleFile = false
 	}
+
 	if len(missingPaths) > 0 {
 		return nil, missingPathsError(missingPaths)
 	}
 
-	filter := &scopeFilter{
-		isSingleFile: len(paths) == 1,
-		paths:        make(map[string]struct{}),
-	}
-
-	for _, path := range paths {
-		relPath := normalizeRelativePath(path, idx.Root)
-		absPath := filepath.Join(idx.Root, relPath)
-		info, err := os.Stat(absPath)
-		if err != nil {
-			return nil, missingPathsError([]string{relPath})
-		}
-
-		if info.IsDir() {
-			filter.isSingleFile = false
-			prefix := relPath
-			if prefix == "." {
-				prefix = ""
-			}
-
-			matched := false
-			for entryPath := range idx.Entries {
-				if prefix == "" || entryPath == prefix || strings.HasPrefix(entryPath, prefix+string(filepath.Separator)) {
-					filter.paths[entryPath] = struct{}{}
-					matched = true
-				}
-			}
-			if !matched {
-				return nil, fmt.Errorf("gx: no indexed files under %s", displayScopePath(relPath))
-			}
-			continue
-		}
-
-		if _, ok := idx.Entries[relPath]; !ok {
-			return nil, service.fileLookupError(relPath, idx.Root)
-		}
-		filter.paths[relPath] = struct{}{}
-	}
-
-	return filter, nil
+	return applyPathGlobs(filter, matchers.includes, matchers.excludes, matchers.ignore), nil
 }
 
 func (filter *scopeFilter) contains(path string) bool {
@@ -1126,6 +1297,37 @@ func (filter *scopeFilter) contains(path string) bool {
 	}
 	_, ok := filter.paths[path]
 	return ok
+}
+
+func applyPathGlobs(filter *scopeFilter, includes []compiledGlob, excludes []compiledGlob, ignoreMatcher *index.IgnoreMatcher) *scopeFilter {
+	if filter == nil {
+		return nil
+	}
+	if len(includes) == 0 && len(excludes) == 0 && ignoreMatcher == nil {
+		return filter
+	}
+
+	filtered := &scopeFilter{
+		isSingleFile: filter.isSingleFile,
+		paths:        make(map[string]struct{}),
+	}
+	for path := range filter.paths {
+		included := anyPathGlobMatches(includes, path)
+		if len(includes) > 0 && !included {
+			continue
+		}
+		if ignoreMatcher != nil && ignoreMatcher.Matches(path, false) && !included {
+			continue
+		}
+		if anyPathGlobMatches(excludes, path) {
+			continue
+		}
+		filtered.paths[path] = struct{}{}
+	}
+	if len(filtered.paths) != 1 {
+		filtered.isSingleFile = false
+	}
+	return filtered
 }
 
 func readBody(root string, file string, symbol index.Symbol) (string, int, bool) {

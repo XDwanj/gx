@@ -1,4 +1,0 @@
-id,task,status,completed_at,notes
-1,Confirm command surface and README structure,DONE,2026-04-02T09:25:00+08:00,Read command entrypoints and verified help output
-2,Write English and Chinese README files,DONE,2026-04-02T09:29:00+08:00,Created README.md and README.zh-CN.md
-3,Verify document content and finalize task,DONE,2026-04-02T09:30:00+08:00,Reviewed both files and checked git status

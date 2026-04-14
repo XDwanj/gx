@@ -9,7 +9,6 @@
 - Preserve output behavior across both human-readable and `--json` modes; do not add formatter-specific logic directly in Cobra handlers.
 - Follow Debug-First: do not add silent fallbacks, fake success paths, hidden caps, or error-swallowing branches just to keep the command running.
 - When behavior changes, add or update automated tests where practical. When running Go tests, use Go's built-in hard timeout: `go test ./... -timeout 60s`.
-- Treat files under `internal/grammars/` such as `parser.c`, `grammar.json`, `node-types.json`, `tree_sitter/*`, `scanner.c`, `scanner.h`, and `binding.cc` as generated or third-party sources. Do not edit them unless the task explicitly requires grammar regeneration or vendor updates.
 - Keep path handling explicit and normalized; prefer existing helpers for project-root and relative-path resolution before introducing new path logic.
 - For short user-facing guidance docs like embedded `skill.md`, prefer example-first structure over introductory explanation; keep conceptual framing to the minimum needed.
 - In docs and `skill.md`, use generic, common example names rather than project-specific naming.

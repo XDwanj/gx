@@ -1,5 +1,0 @@
-id,task,status,completed_at,notes
-1,Scan gx-cx drift across implementation and docs,DONE,2026-04-02T09:38:00+08:00,Located CLI name, error prefixes, cache namespace, ignore marker, skill text, and README drift
-2,Update implementation-facing gx identifiers,DONE,2026-04-02T09:43:00+08:00,Switched command name, user-visible prefixes, cache namespace, and ignore marker to gx
-3,Sync README and embedded skill docs while preserving cx origin note,DONE,2026-04-02T09:45:00+08:00,Rewrote examples to gx and preserved cx origin note where appropriate
-4,Add regression tests and run verification,DONE,2026-04-02T09:49:00+08:00,Added gx naming tests and passed go test ./... -timeout 60s plus CLI output checks

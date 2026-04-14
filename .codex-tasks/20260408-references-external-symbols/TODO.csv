@@ -1,4 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,Review references implementation and tests,DONE,Relevant code paths and regression target are identified,,2026-04-08 00:00:00,0,Confirmed the empty result comes from local declaration name matching only.
-2,Implement external-symbol fallback for references,DONE,References continue scanning when local declarations are absent and source contains matching reference names,go test ./internal/query -run TestReferencesFindsExternalSymbolUsages -timeout 60s,2026-04-08 00:00:00,0,Added reference-name extraction fallback sourced from in-scope files.
-3,Add regression test and run validation,DONE,Targeted and full test suites pass,go test ./... -timeout 60s,2026-04-08 00:00:00,0,Targeted references tests passed; full go test passed; golangci-lint is blocked by a local binary built with go1.25.8 against a go1.26.0 module.

@@ -1,8 +1,14 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/XDwanj/gx/internal/query"
+
+	"github.com/spf13/cobra"
+)
 
 func newCalleesCmd() *cobra.Command {
+	var pathFilters pathFilterFlags
+
 	command := &cobra.Command{
 		Use:     "callees [flags] [path ...]",
 		Aliases: []string{"c"},
@@ -35,11 +41,16 @@ func newCalleesCmd() *cobra.Command {
 				return err
 			}
 
-			return runtime.Query.Callees(idx, name, paths, page)
+			return runtime.Query.Callees(idx, query.CalleesOptions{
+				Paths:    pathFilters.query(paths),
+				NameGlob: name,
+				Page:     page,
+			})
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match caller symbol names")
+	registerPathFilterFlags(command.Flags(), &pathFilters)
 	_ = command.MarkFlagRequired("name")
 	return command
 }

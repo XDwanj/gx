@@ -1,6 +1,0 @@
-id,task,status,acceptance_criteria,validation_command,completed_at,retry_count,notes
-1,创建任务文件并记录执行上下文,DONE,任务目录与基础文件已创建,test -f .codex-tasks/20260403-path-args/TODO.csv,2026-04-03,0,已创建 SPEC/TODO/PROGRESS
-2,将 internal/query 的单 scope 过滤改为多路径过滤,DONE,查询层支持 0..N 路径过滤并保留现有输出语义,go test ./internal/query -timeout 60s,2026-04-03,0,改为多路径 union 过滤并保留单文件列省略语义
-3,调整 cmd 子命令为 trailing path args 并移除 --scope,DONE,四个子命令的 Use/Args/帮助文案与调用链已更新,go test ./cmd -timeout 60s,2026-04-03,0,overview 默认当前目录；其余命令支持多路径 args
-4,补充和更新测试,DONE,覆盖默认当前路径与多路径过滤,go test ./... -timeout 60s,2026-04-03,0,新增命令层与查询层路径参数测试
-5,运行完整验证,DONE,测试与 lint 全部通过,golangci-lint run ./...,2026-04-03,0,go test ./... 与 golangci-lint run ./... 均通过
