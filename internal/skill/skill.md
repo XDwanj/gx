@@ -111,7 +111,7 @@ gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 
 Use `definition` when you already know the symbol and want the body immediately.
 
-- Returns the symbol body with source file and line.
+- Returns the symbol body with a `file:line` header in terminal output. `--json` keeps separate `file` and `line` fields.
 - Accepts files, directories, path globs, or a mix.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `5`.
@@ -158,7 +158,7 @@ Use `callees` to inspect the syntax-level calls made inside a function body.
 - Accepts files, directories, path globs, or a mix.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `50`.
-- Output fields are `file`, `line`, `caller`, `callee`, and `context`.
+- Terminal output fields are `file`, `caller`, `callee`, and `context`, with `file` rendered as `path/to/file:line`. `--json` keeps separate `file` and `line` fields.
 
 Examples:
 

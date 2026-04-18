@@ -297,9 +297,10 @@ gx symbols --include 'internal/**' --exclude '**/*_test.go' --name 'new*'
 `gx --name` filters use shell-style glob patterns such as `'new*'`,
 `'*Runtime'`, and `'*build*'`.
 
-`gx symbols` returns a declaration index with `file`, `line`, `name`,
-`kind`, and `signature`, so you can cite matches directly before
-opening full definitions.
+`gx symbols` returns a declaration index with `file`, `name`, `kind`,
+and `signature` in terminal output, where `file` is rendered as
+`path/to/file:line` for direct jumping. `--json` keeps separate `file`
+and `line` fields so scripts can consume coordinates explicitly.
 
 Page through a large symbol set:
 
@@ -377,9 +378,9 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 
 - `gx overview [path ...]`: Show a table of contents for one or more files or directories. Defaults to the current working directory.
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
-- `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `line`, `name`, `kind`, and `signature`. `--name` accepts glob patterns such as `'new*'` or `'*Runtime*'`.
-- `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies.
-- `gx callees --name GLOB [path ...]`: Print syntax-level calls made inside matching `func` symbols as `file`, `line`, `caller`, `callee`, and `context`.
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `name`, `kind`, and `signature`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
+- `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies with a clickable `file:line` header in terminal output.
+- `gx callees --name GLOB [path ...]`: Print syntax-level calls made inside matching `func` symbols as `file`, `caller`, `callee`, and `context`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
 - `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
 Short aliases: `gx o`, `gx s`, `gx d`, `gx r`

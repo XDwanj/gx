@@ -95,13 +95,13 @@ func TestSymbolsSingleFileOutput(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
+	if !strings.Contains(output, "{file,name,kind,signature}:") {
 		t.Fatalf("unexpected output: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,func") {
+	if !strings.Contains(output, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("missing main symbol: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,2,helper,func") {
+	if !strings.Contains(output, "\"src/main.rs:2\",helper,func") {
 		t.Fatalf("missing helper symbol line: %s", output)
 	}
 }
@@ -129,13 +129,13 @@ func TestSymbolsDirectoryScopeOutput(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
-		t.Fatalf("directory scope should include file and line fields: %s", output)
+	if !strings.Contains(output, "{file,name,kind,signature}:") {
+		t.Fatalf("directory scope should include clickable file locations: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,func") {
+	if !strings.Contains(output, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "src/helper.rs,1,helper,func") {
+	if !strings.Contains(output, "\"src/helper.rs:1\",helper,func") {
 		t.Fatalf("missing src/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
@@ -166,13 +166,13 @@ func TestSymbolsMultiplePathsUnionOutput(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,line,name,kind,signature}:") {
-		t.Fatalf("multiple paths should include file and line fields: %s", output)
+	if !strings.Contains(output, "{file,name,kind,signature}:") {
+		t.Fatalf("multiple paths should include clickable file locations: %s", output)
 	}
-	if !strings.Contains(output, "src/main.rs,1,main,func") {
+	if !strings.Contains(output, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("missing src/main.rs symbol: %s", output)
 	}
-	if !strings.Contains(output, "pkg/helper.rs,1,helper,func") {
+	if !strings.Contains(output, "\"pkg/helper.rs:1\",helper,func") {
 		t.Fatalf("missing pkg/helper.rs symbol: %s", output)
 	}
 	if strings.Contains(output, "other/extra.rs") {
@@ -259,10 +259,10 @@ func TestSymbolsSupportsPipeSeparatedAlternatives(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "main.go,3,WechatPay,func") {
+	if !strings.Contains(output, "\"main.go:3\",WechatPay,func") {
 		t.Fatalf("missing WechatPay symbol: %s", output)
 	}
-	if !strings.Contains(output, "main.go,4,AliPay,func") {
+	if !strings.Contains(output, "\"main.go:4\",AliPay,func") {
 		t.Fatalf("missing AliPay symbol: %s", output)
 	}
 	if strings.Contains(output, "StripePay") {
@@ -314,7 +314,7 @@ func TestDefinitionOutput(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "file: src/main.rs") {
+	if !strings.Contains(output, "file: src/main.rs:1") {
 		t.Fatalf("missing file header: %s", output)
 	}
 	if !strings.Contains(output, "fn main()") {
@@ -399,10 +399,10 @@ func TestDefinitionScopeFiltersResults(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "file: src/main.rs") {
+	if !strings.Contains(output, "file: src/main.rs:1") {
 		t.Fatalf("missing scoped definition: %s", output)
 	}
-	if strings.Contains(output, "file: other/main.rs") {
+	if strings.Contains(output, "file: other/main.rs:1") {
 		t.Fatalf("scope should exclude definitions outside directory: %s", output)
 	}
 }
@@ -742,7 +742,7 @@ func TestReferencesFindsExternalSymbolUsages(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "main.go,6") {
+	if !strings.Contains(output, "\"main.go:6\"") {
 		t.Fatalf("missing external reference row: %s", output)
 	}
 	if !strings.Contains(output, "SplitCutset") {
@@ -820,13 +820,13 @@ func TestCalleesReturnsCallSites(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{file,line,caller,callee,context}:") {
+	if !strings.Contains(output, "{file,caller,callee,context}:") {
 		t.Fatalf("unexpected output shape: %s", output)
 	}
 	for _, expected := range []string{
-		"main.go,9,A,B,B()",
-		"main.go,10,A,C,C()",
-		"main.go,11,A,fmt.Println,\"fmt.Println(\\\"hello\\\")\"",
+		"\"main.go:9\",A,B,B()",
+		"\"main.go:10\",A,C,C()",
+		"\"main.go:11\",A,fmt.Println,\"fmt.Println(\\\"hello\\\")\"",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("missing callee row %q in %s", expected, output)

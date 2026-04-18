@@ -84,7 +84,7 @@ func TestOverviewCommandSupportsMultiplePathArgs(t *testing.T) {
 	for _, expected := range []string{
 		"target: src/main.rs",
 		"target_kind: file",
-		"src/main.rs,1,main,func",
+		"\"src/main.rs:1\",main,func",
 		"target: README.md",
 		"target_kind: markdown",
 		"1,Title",

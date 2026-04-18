@@ -275,7 +275,7 @@ gx overview cmd/root.go
 gx symbols --name 'new*'
 ```
 
-`gx symbols` 默认返回可直接引用的声明索引，包含 `file`、`line`、`name`、`kind` 和 `signature`。
+`gx symbols` 默认返回可直接引用的声明索引。终端输出包含 `file`、`name`、`kind` 和 `signature`，其中 `file` 会直接渲染成 `path/to/file:line` 方便跳转；`--json` 仍保留独立的 `file` 和 `line` 字段，便于脚本消费。
 
 对较大的符号结果集做翻页：
 
@@ -351,9 +351,9 @@ flowchart TD
 
 - `gx overview [path ...]`：输出一个或多个文件或目录的目录式概览；省略路径时默认使用当前工作目录。
 - `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
-- `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`line`、`name`、`kind`、`signature` 的声明索引。
-- `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体。
-- `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部的语法级调用列表，字段为 `file`、`line`、`caller`、`callee`、`context`。
+- `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`name`、`kind`、`signature` 的声明索引；终端输出里的 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
+- `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体；终端头部使用可点击的 `file:line`。
+- `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部的语法级调用列表，终端字段为 `file`、`caller`、`callee`、`context`；其中 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
 - `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
 短别名：`gx o`、`gx s`、`gx d`、`gx r`

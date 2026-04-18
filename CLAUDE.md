@@ -19,7 +19,7 @@
 - When adding fixture tests under `tests/`, ensure every public `gx` kind is covered by the fixture matrix; do not stop at per-language happy-path cases.
 - For terminal `--help` additions, prefer compact lists over tables unless the user explicitly asks for a table.
 - When suggesting commands that use `-C`, verify how positional relative paths are resolved in the implementation first; do not assume `.` automatically follows `-C`.
-- For `gx symbols` declaration-index output, do not add a `column` field unless the user explicitly asks for it or a concrete tool integration requires it; prefer `file + line` as the default coordinate contract.
+- For `gx symbols` declaration-index output, do not add a `column` field unless the user explicitly asks for it or a concrete tool integration requires it; prefer clickable `file:line` in terminal output, while keeping separate `file` and `line` fields in `--json`.
 - For Go import and formatting cleanup in this repo, prefer `goimports` before rerunning lint; do not default to `gofumpt` as the first fix tool for import grouping issues.
 - When a public contract changes, always check whether `README`, embedded `skill.md`, terminal `--help`, and `tests/` also need synchronized updates.
 - When the user explicitly asks to replace a public CLI contract, do not keep the old flag or alias as a compatibility path unless the user asks for a transition period.

@@ -70,7 +70,7 @@ func TestSymbolsCommandDefaultsToCurrentDirectory(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,1,main,func") {
+	if !strings.Contains(stdout, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("expected current directory symbols, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -107,10 +107,10 @@ func TestSymbolsCommandSupportsMultiplePathArgs(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,1,main,func") {
+	if !strings.Contains(stdout, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("expected src/main.rs symbol, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "pkg/helper.rs,1,helper,func") {
+	if !strings.Contains(stdout, "\"pkg/helper.rs:1\",helper,func") {
 		t.Fatalf("expected pkg/helper.rs symbol, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -306,7 +306,7 @@ func TestSymbolsCommandResolvesRelativePathAgainstExplicitDirectory(t *testing.T
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,1,main,func") {
+	if !strings.Contains(stdout, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("expected explicit -C scoped symbols, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -345,7 +345,7 @@ func TestDefinitionCommandResolvesRelativePathAgainstExplicitDirectory(t *testin
 	if runErr != nil {
 		t.Fatalf("run definition command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "file: src/main.rs") {
+	if !strings.Contains(stdout, "file: src/main.rs:1") {
 		t.Fatalf("expected explicit -C scoped definition, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {
@@ -473,10 +473,10 @@ func TestSymbolsCommandSupportsGlobPathArgs(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command with glob path: %v", runErr)
 	}
-	if !strings.Contains(stdout, "src/main.rs,1,main,func") {
+	if !strings.Contains(stdout, "\"src/main.rs:1\",main,func") {
 		t.Fatalf("expected src/main.rs symbol, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "pkg/helper.rs,1,helper,func") {
+	if !strings.Contains(stdout, "\"pkg/helper.rs:1\",helper,func") {
 		t.Fatalf("expected pkg/helper.rs symbol, got %q", stdout)
 	}
 	if strings.Contains(stdout, "other/extra.rs") {

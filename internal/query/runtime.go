@@ -95,6 +95,31 @@ type UniqueCallerRow struct {
 	Line   int    `json:"line"`
 }
 
+type symbolTextRow struct {
+	File      string `json:"file"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	Signature string `json:"signature"`
+}
+
+type referenceTextRow struct {
+	File    string `json:"file"`
+	Caller  string `json:"caller,omitempty"`
+	Context string `json:"context"`
+}
+
+type calleeTextRow struct {
+	File    string `json:"file"`
+	Caller  string `json:"caller"`
+	Callee  string `json:"callee"`
+	Context string `json:"context"`
+}
+
+type uniqueCallerTextRow struct {
+	File   string `json:"file"`
+	Caller string `json:"caller"`
+}
+
 type definitionMatch struct {
 	path   string
 	symbol index.Symbol
@@ -226,7 +251,7 @@ func (service *Service) Symbols(idx *index.Index, options SymbolsOptions) error 
 	if service.json {
 		return output.PrintJSON(service.stdout, rows)
 	}
-	return output.PrintTOON(service.stdout, rows)
+	return output.PrintTOON(service.stdout, humanizeRows(rows))
 }
 
 func (service *Service) Overview(idx *index.Index, paths []string, full bool, page PageRequest) error {
@@ -353,7 +378,7 @@ func (service *Service) printOverviewSections(sections []OverviewSection) error 
 		}
 
 		var rendered bytes.Buffer
-		if err := output.PrintTOON(&rendered, section.Rows); err != nil {
+		if err := output.PrintTOON(&rendered, humanizeRows(section.Rows)); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(service.stdout, rendered.String()); err != nil {
@@ -487,7 +512,7 @@ func (service *Service) Definition(idx *index.Index, options DefinitionOptions) 
 		if indexValue > 0 {
 			_, _ = fmt.Fprintln(service.stdout)
 		}
-		if _, err := fmt.Fprintf(service.stdout, "file: %s\nline: %d", result.File, result.Line); err != nil {
+		if _, err := fmt.Fprintf(service.stdout, "file: %s", formatLocation(result.File, result.Line)); err != nil {
 			return err
 		}
 		if result.Lines > 0 {
@@ -626,7 +651,7 @@ func (service *Service) References(idx *index.Index, options ReferencesOptions) 
 		if service.json {
 			return output.PrintJSON(service.stdout, uniqueRows)
 		}
-		return output.PrintTOON(service.stdout, uniqueRows)
+		return output.PrintTOON(service.stdout, humanizeRows(uniqueRows))
 	}
 
 	deduped, pageState := paginateRows(deduped, options.Page)
@@ -634,7 +659,7 @@ func (service *Service) References(idx *index.Index, options ReferencesOptions) 
 	if service.json {
 		return output.PrintJSON(service.stdout, deduped)
 	}
-	return output.PrintTOON(service.stdout, deduped)
+	return output.PrintTOON(service.stdout, humanizeRows(deduped))
 }
 
 func (service *Service) Callees(idx *index.Index, options CalleesOptions) error {
@@ -740,7 +765,7 @@ func (service *Service) Callees(idx *index.Index, options CalleesOptions) error 
 	if service.json {
 		return output.PrintJSON(service.stdout, rows)
 	}
-	return output.PrintTOON(service.stdout, rows)
+	return output.PrintTOON(service.stdout, humanizeRows(rows))
 }
 
 func findDefinitionMatches(idx *index.Index, nameGlob string, kind *index.SymbolKind) ([]definitionMatch, error) {
@@ -905,6 +930,61 @@ func (service *Service) DirectoryOverview(idx *index.Index, dir string, full boo
 		return output.PrintJSON(service.stdout, rows)
 	}
 	return output.PrintTOON(service.stdout, rows)
+}
+
+func formatLocation(path string, line int) string {
+	if line <= 0 {
+		return path
+	}
+	return fmt.Sprintf("%s:%d", path, line)
+}
+
+func humanizeRows(rows any) any {
+	switch typed := rows.(type) {
+	case []SymbolRow:
+		human := make([]symbolTextRow, 0, len(typed))
+		for _, row := range typed {
+			human = append(human, symbolTextRow{
+				File:      formatLocation(row.File, row.Line),
+				Name:      row.Name,
+				Kind:      row.Kind,
+				Signature: row.Signature,
+			})
+		}
+		return human
+	case []ReferenceRow:
+		human := make([]referenceTextRow, 0, len(typed))
+		for _, row := range typed {
+			human = append(human, referenceTextRow{
+				File:    formatLocation(row.File, row.Line),
+				Caller:  row.Caller,
+				Context: row.Context,
+			})
+		}
+		return human
+	case []CalleeRow:
+		human := make([]calleeTextRow, 0, len(typed))
+		for _, row := range typed {
+			human = append(human, calleeTextRow{
+				File:    formatLocation(row.File, row.Line),
+				Caller:  row.Caller,
+				Callee:  row.Callee,
+				Context: row.Context,
+			})
+		}
+		return human
+	case []UniqueCallerRow:
+		human := make([]uniqueCallerTextRow, 0, len(typed))
+		for _, row := range typed {
+			human = append(human, uniqueCallerTextRow{
+				File:   formatLocation(row.File, row.Line),
+				Caller: row.Caller,
+			})
+		}
+		return human
+	default:
+		return rows
+	}
 }
 
 func (service *Service) directoryOverviewRows(idx *index.Index, dir string) ([]DirOverviewRow, error) {
