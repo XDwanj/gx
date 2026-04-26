@@ -7,6 +7,7 @@ import (
 )
 
 func newCalleesCmd() *cobra.Command {
+	var defineIn string
 	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
@@ -33,8 +34,12 @@ func newCalleesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			if err != nil {
+				return err
+			}
 
-			debugf(rootCmd.ErrOrStderr(), "callees name=%s paths=%v", name, paths)
+			debugf(rootCmd.ErrOrStderr(), "callees name=%s paths=%v define_in=%s", name, paths, resolvedDefineIn)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
@@ -45,11 +50,13 @@ func newCalleesCmd() *cobra.Command {
 				Paths:    pathFilters.query(paths),
 				NameGlob: name,
 				Page:     page,
+				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
 			})
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match caller symbol names")
+	registerDefineInFlag(command.Flags(), &defineIn)
 	registerPathFilterFlags(command.Flags(), &pathFilters)
 	_ = command.MarkFlagRequired("name")
 	return command

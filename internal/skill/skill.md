@@ -27,6 +27,12 @@ gx callees --name 'Search' internal/tmdb
 gx references --unique --name 'Search' .
 ```
 
+Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`, accepts optional `GX_OPENAI_MODEL`, and applies to `symbols`, `definition`, `callees`, and `references`.
+
+```bash
+gx references --name 'login' --define-in internal/domain/user.go .
+```
+
 ## Kinds And Coverage
 
 Public `--kind` values:

@@ -73,3 +73,18 @@ func TestQueryHelpIncludesPathFilterFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryHelpIncludesDefineInFlag(t *testing.T) {
+	for _, commandName := range []string{"symbols", "definition", "references", "callees"} {
+		stdout, stderr, exitCode := executeRootForTest(t, commandName, "--help")
+		if exitCode != 0 {
+			t.Fatalf("%s help exit code = %d, stderr=%q", commandName, exitCode, stderr)
+		}
+		if stderr != "" {
+			t.Fatalf("%s help stderr = %q", commandName, stderr)
+		}
+		if !strings.Contains(stdout, "--define-in string") {
+			t.Fatalf("expected --define-in flag in %s help, got %q", commandName, stdout)
+		}
+	}
+}

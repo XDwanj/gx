@@ -8,6 +8,7 @@ import (
 
 func newReferencesCmd() *cobra.Command {
 	var unique bool
+	var defineIn string
 	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
@@ -34,8 +35,12 @@ func newReferencesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			if err != nil {
+				return err
+			}
 
-			debugf(rootCmd.ErrOrStderr(), "references name=%s paths=%v unique=%t", name, paths, unique)
+			debugf(rootCmd.ErrOrStderr(), "references name=%s paths=%v unique=%t define_in=%s", name, paths, unique, resolvedDefineIn)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
@@ -47,12 +52,14 @@ func newReferencesCmd() *cobra.Command {
 				NameGlob: name,
 				Unique:   unique,
 				Page:     page,
+				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
 			})
 		},
 	}
 
 	command.Flags().String("name", "", "Glob pattern to match symbol names")
 	command.Flags().BoolVar(&unique, "unique", false, "Deduplicate by enclosing function")
+	registerDefineInFlag(command.Flags(), &defineIn)
 	registerPathFilterFlags(command.Flags(), &pathFilters)
 	_ = command.MarkFlagRequired("name")
 	return command

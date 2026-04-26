@@ -2,6 +2,7 @@ package query
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/XDwanj/gx/internal/aifilter"
 	"github.com/XDwanj/gx/internal/index"
 	"github.com/XDwanj/gx/internal/lang"
 )
@@ -72,6 +74,24 @@ func calleesOptions(paths []string, nameGlob string, page PageRequest) CalleesOp
 		NameGlob: nameGlob,
 		Page:     page,
 	}
+}
+
+type fakeAISelector struct {
+	calls    int
+	provider string
+	selectFn func(aifilter.SelectionRequest) []string
+}
+
+func (selector *fakeAISelector) ProviderID() string {
+	if selector.provider == "" {
+		return "fake"
+	}
+	return selector.provider
+}
+
+func (selector *fakeAISelector) Select(_ context.Context, request aifilter.SelectionRequest) ([]string, error) {
+	selector.calls++
+	return selector.selectFn(request), nil
 }
 
 func TestSymbolsSingleFileOutput(t *testing.T) {
@@ -711,6 +731,92 @@ func TestReferencesScopeFiltersResults(t *testing.T) {
 	}
 	if strings.Contains(output, "other/main.rs") {
 		t.Fatalf("scope should exclude references outside file: %s", output)
+	}
+}
+
+func TestReferencesDefineInUsesAIAndCachesSelection(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"user.go":     "package main\n\ntype userService struct{}\n\nfunc (userService) login() {}\n",
+		"employee.go": "package main\n\ntype employeeService struct{}\n\nfunc (employeeService) login() {}\n",
+		"main.go":     "package main\n\nfunc run(user userService, employee employeeService) {\n\tuser.login()\n\temployee.login()\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0)
+			for _, candidate := range request.Candidates {
+				if strings.Contains(candidate.Context, "user.login") ||
+					strings.Contains(candidate.Context, "userService") {
+					selected = append(selected, candidate.ID)
+				}
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, aiSelector: selector}
+	options := referencesOptions(nil, "login", false, PageRequest{})
+	options.AI = AIOptions{DefineIn: "user.go"}
+
+	if err := service.References(idx, options); err != nil {
+		t.Fatalf("references query: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "user.login") {
+		t.Fatalf("expected selected user reference, got %s", output)
+	}
+	if strings.Contains(output, "employee.login") || strings.Contains(output, "employeeService") {
+		t.Fatalf("expected employee references to be filtered, got %s", output)
+	}
+	if selector.calls != 1 {
+		t.Fatalf("expected first query to call AI once, got %d", selector.calls)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := service.References(idx, options); err != nil {
+		t.Fatalf("cached references query: %v", err)
+	}
+	if selector.calls != 1 {
+		t.Fatalf("expected second query to use cache, got %d AI calls", selector.calls)
+	}
+}
+
+func TestReferencesDefineInRequiresOpenAIEnv(t *testing.T) {
+	t.Setenv("GX_OPENAI_API_KEY", "")
+	t.Setenv("GX_OPENAI_BASE_URL", "")
+	ensureInstalled(t, "rust")
+	root := tempProject(t, map[string]string{
+		"src/main.rs": "fn login() {}\nfn main() { login(); }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+	options := referencesOptions(nil, "login", false, PageRequest{})
+	options.AI = AIOptions{DefineIn: "src/main.rs"}
+
+	err = service.References(idx, options)
+	if err == nil {
+		t.Fatal("expected missing OpenAI env error")
+	}
+	if !strings.Contains(err.Error(), "GX_OPENAI_API_KEY") {
+		t.Fatalf("expected env error, got %v", err)
 	}
 }
 

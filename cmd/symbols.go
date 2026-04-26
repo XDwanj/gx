@@ -10,6 +10,7 @@ import (
 func newSymbolsCmd() *cobra.Command {
 	var name string
 	var kind string
+	var defineIn string
 	var pathFilters pathFilterFlags
 
 	command := &cobra.Command{
@@ -32,8 +33,12 @@ func newSymbolsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			if err != nil {
+				return err
+			}
 
-			debugf(rootCmd.ErrOrStderr(), "symbols paths=%v name=%s kind=%s", paths, name, kind)
+			debugf(rootCmd.ErrOrStderr(), "symbols paths=%v name=%s kind=%s define_in=%s", paths, name, kind, resolvedDefineIn)
 
 			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
 			if err != nil {
@@ -59,12 +64,14 @@ func newSymbolsCmd() *cobra.Command {
 				NameGlob: namePtr,
 				Kind:     kindPtr,
 				Page:     page,
+				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
 			})
 		},
 	}
 
 	command.Flags().StringVar(&name, "name", "", "Glob pattern to match symbol names")
 	command.Flags().StringVar(&kind, "kind", "", "Filter by symbol kind")
+	registerDefineInFlag(command.Flags(), &defineIn)
 	registerPathFilterFlags(command.Flags(), &pathFilters)
 	if err := registerKindFlagCompletion(command, "kind"); err != nil {
 		panic(err)

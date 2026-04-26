@@ -356,6 +356,12 @@ flowchart TD
 - `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部的语法级调用列表，终端字段为 `file`、`caller`、`callee`、`context`；其中 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
 - `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
+`symbols`、`definition`、`callees` 和 `references` 还支持 `--define-in FILE`，用于让 AI 按 `FILE` 中定义的符号对候选结果做消歧。该功能需要设置 `GX_OPENAI_API_KEY` 和 `GX_OPENAI_BASE_URL`；`GX_OPENAI_MODEL` 可选，默认是 `gpt-4o-mini`。AI 筛选结果会缓存到项目 SQLite 缓存中。
+
+```bash
+gx references --name login --define-in internal/domain/user.go .
+```
+
 短别名：`gx o`、`gx s`、`gx d`、`gx r`
 
 支持的符号类型：

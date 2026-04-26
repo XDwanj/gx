@@ -2,6 +2,7 @@ package query
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/XDwanj/gx/internal/aifilter"
 	"github.com/XDwanj/gx/internal/index"
 	"github.com/XDwanj/gx/internal/language"
 	"github.com/XDwanj/gx/internal/output"
@@ -51,11 +53,12 @@ func NewRuntime(root string, json bool, verbose bool) *Runtime {
 }
 
 type Service struct {
-	root    string
-	stdout  io.Writer
-	stderr  io.Writer
-	json    bool
-	verbose bool
+	root       string
+	stdout     io.Writer
+	stderr     io.Writer
+	json       bool
+	verbose    bool
+	aiSelector aifilter.Selector
 }
 
 type SymbolRow struct {
@@ -184,11 +187,16 @@ type PathQuery struct {
 	Exclude []string
 }
 
+type AIOptions struct {
+	DefineIn string
+}
+
 type SymbolsOptions struct {
 	Paths    PathQuery
 	NameGlob *string
 	Kind     *index.SymbolKind
 	Page     PageRequest
+	AI       AIOptions
 }
 
 type DefinitionOptions struct {
@@ -197,6 +205,7 @@ type DefinitionOptions struct {
 	Kind     *index.SymbolKind
 	MaxLines int
 	Page     PageRequest
+	AI       AIOptions
 }
 
 type ReferencesOptions struct {
@@ -204,12 +213,14 @@ type ReferencesOptions struct {
 	NameGlob string
 	Unique   bool
 	Page     PageRequest
+	AI       AIOptions
 }
 
 type CalleesOptions struct {
 	Paths    PathQuery
 	NameGlob string
 	Page     PageRequest
+	AI       AIOptions
 }
 
 type pageInfo struct {
@@ -222,9 +233,12 @@ type pageInfo struct {
 }
 
 func (service *Service) Symbols(idx *index.Index, options SymbolsOptions) error {
-	rows, err := service.symbolRows(idx, options.Paths, options.NameGlob, options.Kind)
+	rows, resolvedIdx, err := service.symbolRowsInContext(idx, options.Paths, options.NameGlob, options.Kind)
 	if err != nil {
 		return err
+	}
+	if options.AI.DefineIn != "" && options.NameGlob == nil {
+		return fmt.Errorf("gx: --define-in requires --name")
 	}
 
 	if len(rows) == 0 {
@@ -244,6 +258,24 @@ func (service *Service) Symbols(idx *index.Index, options SymbolsOptions) error 
 		}
 		return rows[left].File < rows[right].File
 	})
+
+	if options.AI.DefineIn != "" {
+		target, err := service.resolveAITarget(resolvedIdx, options.AI.DefineIn, *options.NameGlob, options.Kind)
+		if err != nil {
+			return err
+		}
+		rows, err = service.filterSymbolRowsWithAI(resolvedIdx, "symbols", *options.NameGlob, target, rows)
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			if service.json {
+				return output.PrintJSON(service.stdout, []SymbolRow{})
+			}
+			_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+			return nil
+		}
+	}
 
 	rows, pageState := paginateRows(rows, options.Page)
 	service.writePageHint(pageState)
@@ -400,9 +432,14 @@ func classifyOverviewTarget(path string) overviewTargetKind {
 }
 
 func (service *Service) symbolRows(idx *index.Index, paths PathQuery, nameGlob *string, kind *index.SymbolKind) ([]SymbolRow, error) {
+	rows, _, err := service.symbolRowsInContext(idx, paths, nameGlob, kind)
+	return rows, err
+}
+
+func (service *Service) symbolRowsInContext(idx *index.Index, paths PathQuery, nameGlob *string, kind *index.SymbolKind) ([]SymbolRow, *index.Index, error) {
 	resolvedIdx, filter, err := service.resolveQueryContext(idx, paths)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rows := make([]SymbolRow, 0)
@@ -414,7 +451,7 @@ func (service *Service) symbolRows(idx *index.Index, paths PathQuery, nameGlob *
 			if nameGlob != nil {
 				ok, err := globMatch(*nameGlob, symbol.Name)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				if !ok {
 					continue
@@ -443,7 +480,7 @@ func (service *Service) symbolRows(idx *index.Index, paths PathQuery, nameGlob *
 		return rows[left].File < rows[right].File
 	})
 
-	return rows, nil
+	return rows, resolvedIdx, nil
 }
 
 func (service *Service) Definition(idx *index.Index, options DefinitionOptions) error {
@@ -476,6 +513,23 @@ func (service *Service) Definition(idx *index.Index, options DefinitionOptions) 
 	}
 
 	sortDefinitionMatches(matches)
+	if options.AI.DefineIn != "" {
+		target, err := service.resolveAITarget(resolvedIdx, options.AI.DefineIn, options.NameGlob, options.Kind)
+		if err != nil {
+			return err
+		}
+		matches, err = service.filterDefsWithAI(resolvedIdx, "definition", options.NameGlob, target, matches)
+		if err != nil {
+			return err
+		}
+		if len(matches) == 0 {
+			if service.json {
+				return output.PrintJSON(service.stdout, []DefinitionResult{})
+			}
+			_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+			return nil
+		}
+	}
 	matches, pageState := paginateRows(matches, options.Page)
 	service.writePageHint(pageState)
 
@@ -621,6 +675,24 @@ func (service *Service) References(idx *index.Index, options ReferencesOptions) 
 		deduped = append(deduped, row)
 	}
 
+	if options.AI.DefineIn != "" {
+		target, err := service.resolveAITarget(resolvedIdx, options.AI.DefineIn, options.NameGlob, nil)
+		if err != nil {
+			return err
+		}
+		deduped, err = service.filterReferenceRowsWithAI(resolvedIdx, options.NameGlob, target, deduped)
+		if err != nil {
+			return err
+		}
+		if len(deduped) == 0 {
+			if service.json {
+				return output.PrintJSON(service.stdout, []ReferenceRow{})
+			}
+			_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+			return nil
+		}
+	}
+
 	if options.Unique {
 		seen := map[string]bool{}
 		uniqueRows := make([]UniqueCallerRow, 0)
@@ -688,6 +760,23 @@ func (service *Service) Callees(idx *index.Index, options CalleesOptions) error 
 		}
 		_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
 		return nil
+	}
+	if options.AI.DefineIn != "" {
+		target, targetErr := service.resolveAITarget(resolvedIdx, options.AI.DefineIn, options.NameGlob, &callableKind)
+		if targetErr != nil {
+			return targetErr
+		}
+		matches, err = service.filterDefsWithAI(resolvedIdx, "callees", options.NameGlob, target, matches)
+		if err != nil {
+			return err
+		}
+		if len(matches) == 0 {
+			if service.json {
+				return output.PrintJSON(service.stdout, []CalleeRow{})
+			}
+			_, _ = fmt.Fprintln(service.stderr, "gx: no matches")
+			return nil
+		}
 	}
 
 	rows := make([]CalleeRow, 0)
@@ -985,6 +1074,243 @@ func humanizeRows(rows any) any {
 	default:
 		return rows
 	}
+}
+
+const (
+	aiSnippetRadius           = 4
+	aiTargetBodyMaxRunes      = 8_000
+	aiCandidateBodyMaxRunes   = 4_000
+	aiCandidateSnippetMaxRune = 2_000
+)
+
+func (service *Service) resolveAITarget(idx *index.Index, defineIn string, nameGlob string, kind *index.SymbolKind) (aifilter.Target, error) {
+	relPath := normalizeRelativePath(defineIn, idx.Root)
+	data, ok := idx.Entries[relPath]
+	if !ok {
+		return aifilter.Target{}, service.fileLookupError(relPath, idx.Root)
+	}
+
+	matches := make([]index.Symbol, 0)
+	for _, symbol := range data.Symbols {
+		matched, err := globMatch(nameGlob, symbol.Name)
+		if err != nil {
+			return aifilter.Target{}, err
+		}
+		if !matched {
+			continue
+		}
+		if kind != nil && symbol.Kind != *kind {
+			continue
+		}
+		matches = append(matches, symbol)
+	}
+	if len(matches) == 0 {
+		return aifilter.Target{}, fmt.Errorf("gx: --define-in %s has no symbol matching %q", displayScopePath(relPath), nameGlob)
+	}
+	if len(matches) > 1 {
+		return aifilter.Target{}, fmt.Errorf("gx: --define-in %s matches multiple symbols for %q; narrow --name", displayScopePath(relPath), nameGlob)
+	}
+
+	body, line, ok := readBody(idx.Root, relPath, matches[0])
+	if !ok {
+		body = ""
+		line = matches[0].Line
+	}
+	return aifilter.Target{
+		File:      displayPath(relPath),
+		Line:      line,
+		Name:      matches[0].Name,
+		Kind:      string(matches[0].Kind),
+		Signature: matches[0].Signature,
+		Body:      truncatePromptText(body, aiTargetBodyMaxRunes),
+	}, nil
+}
+
+func (service *Service) filterSymbolRowsWithAI(idx *index.Index, command string, name string, target aifilter.Target, rows []SymbolRow) ([]SymbolRow, error) {
+	candidates := make([]aifilter.Candidate, 0, len(rows))
+	for indexValue, row := range rows {
+		snippet, err := snippetForLine(idx.Root, row.File, row.Line)
+		if err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, aifilter.Candidate{
+			ID:        candidateID(indexValue),
+			File:      row.File,
+			Line:      row.Line,
+			Name:      row.Name,
+			Kind:      row.Kind,
+			Signature: row.Signature,
+			Snippet:   snippet,
+		})
+	}
+
+	selected, err := service.selectCandidateIDs(idx.Root, command, name, target, candidates)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]SymbolRow, 0, len(rows))
+	for indexValue, row := range rows {
+		if selected[candidateID(indexValue)] {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered, nil
+}
+
+func (service *Service) filterDefsWithAI(idx *index.Index, command, name string, target aifilter.Target, matches []definitionMatch) ([]definitionMatch, error) {
+	candidates := make([]aifilter.Candidate, 0, len(matches))
+	for indexValue, match := range matches {
+		body, line, ok := readBody(idx.Root, match.path, match.symbol)
+		if !ok {
+			body = ""
+			line = match.symbol.Line
+		}
+		candidates = append(candidates, aifilter.Candidate{
+			ID:        candidateID(indexValue),
+			File:      displayPath(match.path),
+			Line:      line,
+			Name:      match.symbol.Name,
+			Kind:      string(match.symbol.Kind),
+			Signature: match.symbol.Signature,
+			Body:      truncatePromptText(body, aiCandidateBodyMaxRunes),
+		})
+	}
+
+	selected, err := service.selectCandidateIDs(idx.Root, command, name, target, candidates)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]definitionMatch, 0, len(matches))
+	for indexValue, match := range matches {
+		if selected[candidateID(indexValue)] {
+			filtered = append(filtered, match)
+		}
+	}
+	return filtered, nil
+}
+
+func (service *Service) filterReferenceRowsWithAI(idx *index.Index, name string, target aifilter.Target, rows []ReferenceRow) ([]ReferenceRow, error) {
+	candidates := make([]aifilter.Candidate, 0, len(rows))
+	for indexValue, row := range rows {
+		snippet, err := snippetForLine(idx.Root, row.File, row.Line)
+		if err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, aifilter.Candidate{
+			ID:      candidateID(indexValue),
+			File:    row.File,
+			Line:    row.Line,
+			Name:    name,
+			Caller:  row.Caller,
+			Context: row.Context,
+			Snippet: snippet,
+		})
+	}
+
+	selected, err := service.selectCandidateIDs(idx.Root, "references", name, target, candidates)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]ReferenceRow, 0, len(rows))
+	for indexValue, row := range rows {
+		if selected[candidateID(indexValue)] {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered, nil
+}
+
+func (service *Service) selectCandidateIDs(root, command, name string, target aifilter.Target, candidates []aifilter.Candidate) (map[string]bool, error) {
+	selector := service.aiSelector
+	if selector == nil {
+		var err error
+		selector, err = aifilter.NewClientFromEnv()
+		if err != nil {
+			return nil, err
+		}
+	}
+	request := aifilter.SelectionRequest{
+		Command:    command,
+		Name:       name,
+		Target:     target,
+		Candidates: candidates,
+	}
+	providerID := selector.ProviderID()
+	key, err := aifilter.CacheKey(providerID, request)
+	if err != nil {
+		return nil, err
+	}
+	cache, err := aifilter.OpenCache(root)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = cache.Close()
+	}()
+
+	selectedIDs, found, err := cache.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		selectedIDs, err = selector.Select(context.Background(), request)
+		if err != nil {
+			return nil, err
+		}
+		if err := cache.Put(key, providerID, selectedIDs); err != nil {
+			return nil, err
+		}
+	}
+
+	return validateSelectedIDs(candidates, selectedIDs)
+}
+
+func validateSelectedIDs(candidates []aifilter.Candidate, selectedIDs []string) (map[string]bool, error) {
+	valid := make(map[string]bool, len(candidates))
+	for _, candidate := range candidates {
+		valid[candidate.ID] = true
+	}
+
+	selected := make(map[string]bool, len(selectedIDs))
+	for _, id := range selectedIDs {
+		if !valid[id] {
+			return nil, fmt.Errorf("gx: AI selected unknown candidate id: %s", id)
+		}
+		selected[id] = true
+	}
+	return selected, nil
+}
+
+func candidateID(indexValue int) string {
+	return fmt.Sprintf("c%d", indexValue)
+}
+
+func snippetForLine(root string, file string, line int) (string, error) {
+	source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file)))
+	if err != nil {
+		return "", err
+	}
+	lines := splitLines(source)
+	if line <= 0 || line > len(lines) {
+		return "", nil
+	}
+	start := line - aiSnippetRadius - 1
+	if start < 0 {
+		start = 0
+	}
+	end := line + aiSnippetRadius
+	if end > len(lines) {
+		end = len(lines)
+	}
+	return truncatePromptText(strings.Join(lines[start:end], "\n"), aiCandidateSnippetMaxRune), nil
+}
+
+func truncatePromptText(text string, limit int) string {
+	runes := []rune(text)
+	if limit <= 0 || len(runes) <= limit {
+		return text
+	}
+	return string(runes[:limit]) + "\n... truncated ..."
 }
 
 func (service *Service) directoryOverviewRows(idx *index.Index, dir string) ([]DirOverviewRow, error) {

@@ -399,6 +399,12 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 - `gx callees --name GLOB [path ...]`: Print syntax-level calls made inside matching `func` symbols as `file`, `caller`, `callee`, and `context`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
 - `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
+`symbols`, `definition`, `callees`, and `references` also accept `--define-in FILE` to ask AI to disambiguate matches against the symbol defined in `FILE`. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`; `GX_OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI selections are cached in the project SQLite cache.
+
+```bash
+gx references --name login --define-in internal/domain/user.go .
+```
+
 Short aliases: `gx o`, `gx s`, `gx d`, `gx r`
 
 Supported symbol kinds:
