@@ -70,6 +70,7 @@ func newRootCmd() *cobra.Command {
 		newDefinitionCmd(),
 		newCalleesCmd(),
 		newReferencesCmd(),
+		newTreeCmd(),
 		newLangCmd(),
 		newVersionCmd(),
 		newSkillCmd(),

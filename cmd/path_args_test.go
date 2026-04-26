@@ -440,10 +440,43 @@ func TestCommandsRemoveScopeFlag(t *testing.T) {
 		newDefinitionCmd(),
 		newCalleesCmd(),
 		newReferencesCmd(),
+		newTreeCmd(),
 	} {
 		if command.Flags().Lookup("scope") != nil {
 			t.Fatalf("%s should not expose --scope", command.Name())
 		}
+	}
+}
+
+func TestTreeCommandRejectsPaginationFlags(t *testing.T) {
+	ensureCommandLanguages(t, "go")
+	targetRoot := commandProject(t, map[string]string{
+		"main.go": "package main\n\nfunc helper() {}\nfunc run() { helper() }\n",
+	})
+
+	previousCmd := rootCmd
+	previousFlags := rootFlags
+	rootCmd = newRootCmd()
+	rootFlags = app.Flags{Directory: targetRoot, Offset: 1}
+	t.Cleanup(func() {
+		rootCmd = previousCmd
+		rootFlags = previousFlags
+	})
+
+	command := newTreeCmd()
+	if err := command.Flags().Set("name", "run"); err != nil {
+		t.Fatalf("set name flag: %v", err)
+	}
+	if err := command.Flags().Set("define-in", "main.go"); err != nil {
+		t.Fatalf("set define-in flag: %v", err)
+	}
+
+	err := command.RunE(command, []string{"."})
+	if err == nil {
+		t.Fatal("expected tree command to reject pagination")
+	}
+	if !strings.Contains(err.Error(), "tree does not support pagination") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

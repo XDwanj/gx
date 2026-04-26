@@ -16,6 +16,7 @@ Use the usual narrowing loop:
 3. `definition` to read the implementation body.
 4. `callees` to inspect outgoing calls.
 5. `references` to inspect impact.
+6. `tree` with `--define-in` when you need an AI-pruned in/out tree.
 
 Default examples:
 
@@ -25,12 +26,14 @@ gx symbols --kind func --name 'Search' .
 gx definition --name 'Search' internal/tmdb
 gx callees --name 'Search' internal/tmdb
 gx references --unique --name 'Search' .
+gx tree --name 'Search' --define-in internal/tmdb/search.go .
 ```
 
-Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`, accepts optional `GX_OPENAI_MODEL`, and applies to `symbols`, `definition`, `callees`, and `references`.
+Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`, accepts optional `GX_OPENAI_MODEL`, and applies to `symbols`, `definition`, `callees`, `references`, and `tree`. The `tree` command requires `--define-in`.
 
 ```bash
 gx references --name 'login' --define-in internal/domain/user.go .
+gx tree --name 'login' --define-in internal/domain/user.go .
 ```
 
 ## Kinds And Coverage
@@ -174,6 +177,30 @@ gx callees --name 'Search' .
 gx callees --name '*Search*' internal/tmdb
 gx callees --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' .
 gx callees --name 'Search' --limit 25 --offset 25 .
+```
+
+### `gx tree`
+
+Use `tree` to inspect AI-pruned incoming calls, outgoing calls, or both for a function.
+
+- Requires `--name` and `--define-in`.
+- Defaults to `--direction both` and `--depth 8`.
+- Runs AI pruning in parallel with an in-process limit of 256 API requests.
+- `--direction in` shows functions that call into the target.
+- `--direction out` shows project functions called by the target.
+- `--verbose` shows tree expansion plus AI cache/API pruning progress.
+- Does not support `--limit`, `--offset`, or `--all`; use `--depth` to control output size.
+- Accepts files, directories, path globs, or a mix.
+- `--include` and `--exclude` filter indexed file paths using glob matching.
+- Terminal and `--json` output use nested `in` / `out` objects. Each node includes `file` as `path/to/file:line` and `symbol`; `cycle` appears only when recursion finds a cycle. Call context is used for AI pruning but is not printed.
+
+Examples:
+
+```bash
+gx tree --name 'Search' --define-in internal/tmdb/search.go .
+gx tree --name 'Search' --define-in internal/tmdb/search.go --direction in .
+gx tree --name 'Search' --define-in internal/tmdb/search.go --direction out --depth 2 .
+gx tree --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' --define-in internal/tmdb/search.go .
 ```
 
 ### `gx cache`

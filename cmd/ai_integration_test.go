@@ -133,6 +133,46 @@ func run(user UserService, employee EmployeeService) {
 				}
 			},
 		},
+		{
+			name:    "tree",
+			command: "tree",
+			assertFunc: func(t *testing.T, stdout string) {
+				t.Helper()
+				var result struct {
+					In *struct {
+						File   string `json:"file"`
+						Symbol string `json:"symbol"`
+						In     []struct {
+							File   string `json:"file"`
+							Symbol string `json:"symbol"`
+						} `json:"in"`
+					} `json:"in"`
+					Out *struct {
+						File   string `json:"file"`
+						Symbol string `json:"symbol"`
+						Out    []struct {
+							File   string `json:"file"`
+							Symbol string `json:"symbol"`
+							Out    []struct {
+								File   string `json:"file"`
+								Symbol string `json:"symbol"`
+							} `json:"out"`
+						} `json:"out"`
+					} `json:"out"`
+				}
+				decodeAIIntegrationJSON(t, stdout, &result)
+				if result.In == nil || result.Out == nil {
+					t.Fatalf("expected in and out trees, got %s", stdout)
+				}
+				if !strings.Contains(stdout, "auditUser") || !strings.Contains(stdout, "run") {
+					t.Fatalf("expected user login in and out tree rows, got %s", stdout)
+				}
+				if strings.Contains(stdout, "auditEmployee") || strings.Contains(stdout, "employee.login") ||
+					strings.Contains(stdout, "employee.go") || strings.Contains(stdout, "context") {
+					t.Fatalf("expected employee tree rows to be filtered, got %s", stdout)
+				}
+			},
+		},
 	}
 
 	for _, testCase := range tests {

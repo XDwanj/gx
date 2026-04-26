@@ -11,6 +11,7 @@
 - 直接输出某个符号的定义体，避免为了看一个函数或类型而打开整个文件。
 - 列出匹配函数体内部的语法级出调用。
 - 查找某个符号的引用位置，并支持按调用者去重，便于估算重构影响范围。
+- 通过 `gx tree` 生成经过 AI 剪枝的函数 in/out 树。
 - 管理语言 grammar 的启用状态，以及项目索引缓存。
 - 通过 `skill` 子命令输出内置的 agent 使用说明。
 
@@ -308,6 +309,18 @@ gx references --name buildRuntime
 gx references --name buildRuntime --unique
 ```
 
+生成经过 AI 剪枝的 in/out 树。`tree` 默认深度是 8，AI 剪枝会并行执行，
+进程内 API 请求并发上限是 256，并要求用 `--define-in` 指明根函数所在文件。
+使用 `--verbose` 可以查看 tree 展开和 AI cache/API 剪枝进度。输出按 `in` /
+`out` 嵌套；每个节点包含显示为 `path/to/file:line` 的 `file` 和 `symbol`。
+使用 `--depth` 控制输出大小，不使用分页 flags：
+
+```bash
+gx tree --name buildRuntime --define-in cmd/root.go
+gx tree --name buildRuntime --define-in cmd/root.go --direction in
+gx tree --name buildRuntime --define-in cmd/root.go --direction out --depth 2
+```
+
 ## 工作原理
 
 `gx` 的大多数导航命令都走同一条执行链路：
@@ -316,7 +329,7 @@ gx references --name buildRuntime --unique
 2. 从 SQLite 读取项目索引缓存；如果缓存缺失或文件已变化，就重建或增量更新。
 3. 建索引时遍历项目文件，按扩展名识别语言，并用 Tree-sitter 解析受支持的源码文件。
 4. 提取函数、方法、结构体、接口、类型等符号，并连同行列坐标与文件 mtime 一起写入索引。
-5. 最后由 `overview`、`symbols`、`definition`、`callees`、`references` 在内存索引上执行查询，并输出 TOON 或 JSON。
+5. 最后由 `overview`、`symbols`、`definition`、`callees`、`references`、`tree` 在内存索引上执行查询，并输出 TOON 或 JSON。
 
 ```mermaid
 flowchart TD

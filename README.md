@@ -12,6 +12,7 @@ This project is derived from `cx`, but its public command name in this repositor
 - Prints the body of a symbol directly, so you can inspect one function or type without opening the whole file.
 - Lists the syntax-level callees inside a matching function body.
 - Finds references for a symbol, with an optional unique-per-caller view to estimate refactor blast radius.
+- Builds AI-pruned in/out trees for a function with `gx tree`.
 - Manages language grammar availability and index cache state.
 - Exposes an embedded `skill` document that tells AI agents how to use the tool efficiently.
 
@@ -349,6 +350,19 @@ Estimate blast radius by caller:
 gx references --name buildRuntime --unique
 ```
 
+Build an AI-pruned in/out tree. `tree` defaults to depth 8, runs AI
+pruning in parallel with an in-process limit of 256 API requests, and requires
+`--define-in` to identify the exact root function. Use `--verbose` to see tree
+expansion and AI cache/API pruning progress. Output is nested by `in` / `out`;
+each node prints `file` as `path/to/file:line` and `symbol`. Use
+`--depth` rather than pagination flags to control output size:
+
+```bash
+gx tree --name buildRuntime --define-in cmd/root.go
+gx tree --name buildRuntime --define-in cmd/root.go --direction in
+gx tree --name buildRuntime --define-in cmd/root.go --direction out --depth 2
+```
+
 ## How it works
 
 `gx` follows a shared pipeline for most navigation commands:
@@ -357,7 +371,7 @@ gx references --name buildRuntime --unique
 2. Load the cached project index from SQLite, or rebuild/update it if files changed.
 3. During indexing, walk the project tree, detect languages by extension, and parse supported files with Tree-sitter.
 4. Extract symbols such as functions, methods, structs, traits, and types, then persist them with source coordinates and file mtimes.
-5. Run `overview`, `symbols`, `definition`, `callees`, or `references` against the in-memory index and print TOON or JSON output.
+5. Run `overview`, `symbols`, `definition`, `callees`, `references`, or `tree` against the in-memory index and print TOON or JSON output.
 
 ```mermaid
 flowchart TD

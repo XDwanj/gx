@@ -3,11 +3,13 @@ package query
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/XDwanj/gx/internal/aifilter"
@@ -76,7 +78,17 @@ func calleesOptions(paths []string, nameGlob string, page PageRequest) CalleesOp
 	}
 }
 
+func treeOptions(paths []string, nameGlob string, direction string, depth int) TreeOptions {
+	return TreeOptions{
+		Paths:     PathQuery{Targets: paths},
+		NameGlob:  nameGlob,
+		Direction: direction,
+		Depth:     depth,
+	}
+}
+
 type fakeAISelector struct {
+	mu       sync.Mutex
 	calls    int
 	provider string
 	selectFn func(aifilter.SelectionRequest) []string
@@ -90,8 +102,16 @@ func (selector *fakeAISelector) ProviderID() string {
 }
 
 func (selector *fakeAISelector) Select(_ context.Context, request aifilter.SelectionRequest) ([]string, error) {
+	selector.mu.Lock()
 	selector.calls++
+	selector.mu.Unlock()
 	return selector.selectFn(request), nil
+}
+
+func (selector *fakeAISelector) Calls() int {
+	selector.mu.Lock()
+	defer selector.mu.Unlock()
+	return selector.calls
 }
 
 func TestSymbolsSingleFileOutput(t *testing.T) {
@@ -778,8 +798,8 @@ func TestReferencesDefineInUsesAIAndCachesSelection(t *testing.T) {
 	if strings.Contains(output, "employee.login") || strings.Contains(output, "employeeService") {
 		t.Fatalf("expected employee references to be filtered, got %s", output)
 	}
-	if selector.calls != 1 {
-		t.Fatalf("expected first query to call AI once, got %d", selector.calls)
+	if selector.Calls() != 1 {
+		t.Fatalf("expected first query to call AI once, got %d", selector.Calls())
 	}
 
 	stdout.Reset()
@@ -787,8 +807,8 @@ func TestReferencesDefineInUsesAIAndCachesSelection(t *testing.T) {
 	if err := service.References(idx, options); err != nil {
 		t.Fatalf("cached references query: %v", err)
 	}
-	if selector.calls != 1 {
-		t.Fatalf("expected second query to use cache, got %d AI calls", selector.calls)
+	if selector.Calls() != 1 {
+		t.Fatalf("expected second query to use cache, got %d AI calls", selector.Calls())
 	}
 }
 
@@ -1003,6 +1023,196 @@ func TestCalleesScopeFiltersResults(t *testing.T) {
 	}
 	if strings.TrimSpace(stderr.String()) != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestTreeCalleesUsesAIToResolveCallTargets(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"user.go":     "package main\n\ntype UserService struct{}\n\nfunc (UserService) login() { auditUser() }\nfunc auditUser() {}\n",
+		"employee.go": "package main\n\ntype EmployeeService struct{}\n\nfunc (EmployeeService) login() { auditEmployee() }\nfunc auditEmployee() {}\n",
+		"main.go":     "package main\n\nfunc run(user UserService, employee EmployeeService) {\n\tuser.login()\n\temployee.login()\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0)
+			for _, candidate := range request.Candidates {
+				if request.Command != "tree-out" {
+					continue
+				}
+				if strings.Contains(candidate.Context, "user.login") && strings.Contains(candidate.Body, "auditUser") {
+					selected = append(selected, candidate.ID)
+				}
+				if strings.Contains(candidate.Context, "employee.login") && strings.Contains(candidate.Body, "auditEmployee") {
+					selected = append(selected, candidate.ID)
+				}
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true, aiSelector: selector}
+	options := treeOptions(nil, "run", TreeDirectionOut, 1)
+	options.AI = AIOptions{DefineIn: "main.go"}
+
+	if err := service.Tree(idx, options); err != nil {
+		t.Fatalf("tree query: %v", err)
+	}
+
+	var result TreeResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode tree json: %v\nstdout=%s", err, stdout.String())
+	}
+	if result.Out == nil || len(result.Out.Out) != 2 {
+		t.Fatalf("expected root plus two out nodes, got %+v: %s", result.Out, stdout.String())
+	}
+	if result.Out.Out[0].File != "user.go:5" || result.Out.Out[0].Symbol != "login" {
+		t.Fatalf("expected user login out node first, got %+v", result.Out.Out[0])
+	}
+	if result.Out.Out[1].File != "employee.go:5" || result.Out.Out[1].Symbol != "login" {
+		t.Fatalf("expected employee login out node second, got %+v", result.Out.Out[1])
+	}
+	if strings.Contains(stdout.String(), "context") {
+		t.Fatalf("expected tree output to omit context, got %s", stdout.String())
+	}
+	if selector.Calls() != 2 {
+		t.Fatalf("expected two AI pruning calls, got %d", selector.Calls())
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestTreeCallersUsesAIToPruneReferences(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"user.go":     "package main\n\ntype UserService struct{}\n\nfunc (UserService) login() {}\n",
+		"employee.go": "package main\n\ntype EmployeeService struct{}\n\nfunc (EmployeeService) login() {}\n",
+		"main.go":     "package main\n\nfunc run(user UserService, employee EmployeeService) {\n\tuser.login()\n\temployee.login()\n}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0)
+			for _, candidate := range request.Candidates {
+				if request.Command == "tree-in" && strings.Contains(candidate.Context, "user.login") {
+					selected = append(selected, candidate.ID)
+				}
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true, aiSelector: selector}
+	options := treeOptions(nil, "login", TreeDirectionIn, 1)
+	options.AI = AIOptions{DefineIn: "user.go"}
+
+	if err := service.Tree(idx, options); err != nil {
+		t.Fatalf("tree query: %v", err)
+	}
+
+	var result TreeResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode tree json: %v\nstdout=%s", err, stdout.String())
+	}
+	if result.In == nil || len(result.In.In) != 1 {
+		t.Fatalf("expected root plus one in node, got %+v: %s", result.In, stdout.String())
+	}
+	if result.In.In[0].File != "main.go:3" || result.In.In[0].Symbol != "run" {
+		t.Fatalf("expected run caller selected by user.login context, got %+v", result.In.In[0])
+	}
+	if strings.Contains(stdout.String(), "employee.login") || strings.Contains(stdout.String(), "context") {
+		t.Fatalf("expected tree output to omit pruned references and context, got %s", stdout.String())
+	}
+	if selector.Calls() != 1 {
+		t.Fatalf("expected one AI pruning call, got %d", selector.Calls())
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestTreeVerboseReportsAIPruning(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"main.go": "package main\n\nfunc helper() {}\nfunc run() { helper() }\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0, len(request.Candidates))
+			for _, candidate := range request.Candidates {
+				selected = append(selected, candidate.ID)
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true, verbose: true, aiSelector: selector}
+	options := treeOptions(nil, "run", TreeDirectionOut, 1)
+	options.AI = AIOptions{DefineIn: "main.go"}
+
+	if err := service.Tree(idx, options); err != nil {
+		t.Fatalf("tree query: %v", err)
+	}
+
+	debugOutput := stderr.String()
+	for _, expected := range []string{
+		"gx: debug: tree root=run",
+		"ai_limit=256",
+		"gx: debug: ai cache miss command=tree-out",
+		"gx: debug: ai request start command=tree-out",
+		"gx: debug: ai request done command=tree-out",
+		"gx: debug: tree out expand",
+	} {
+		if !strings.Contains(debugOutput, expected) {
+			t.Fatalf("expected verbose output to contain %q, got %q", expected, debugOutput)
+		}
+	}
+}
+
+func TestPrintTreeResultUsesIndentedNodes(t *testing.T) {
+	result := TreeResult{
+		Out: &TreeOutputNode{
+			File:   "main.go:3",
+			Symbol: "run",
+			Out: []TreeOutputNode{
+				{File: "helper.go:5", Symbol: "helper"},
+			},
+		},
+	}
+
+	var stdout bytes.Buffer
+	if err := printTreeResult(&stdout, result); err != nil {
+		t.Fatalf("print tree result: %v", err)
+	}
+
+	expected := "out:\n  file: main.go:3\n  symbol: run\n  out:\n    - file: helper.go:5\n      symbol: helper\n"
+	if stdout.String() != expected {
+		t.Fatalf("unexpected tree output:\nexpected:\n%s\ngot:\n%s", expected, stdout.String())
 	}
 }
 

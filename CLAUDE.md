@@ -24,3 +24,6 @@
 - When a public contract changes, always check whether `README`, embedded `skill.md`, terminal `--help`, and `tests/` also need synchronized updates.
 - When the user explicitly asks to replace a public CLI contract, do not keep the old flag or alias as a compatibility path unless the user asks for a transition period.
 - For AI-assisted symbol disambiguation, treat `--define-in` as the explicit request to use AI; do not add separate auto-mode or opt-out flags unless the user asks for them.
+- For `gx tree`, use `8` as the default traversal depth unless the user explicitly asks for a different default.
+- For `gx tree` output, prefer nested indented tree objects with `file: file.go:32` and `symbol: Name`; do not show call context in the default output.
+- For `gx tree --direction`, use `in`, `out`, and `both`; do not expose `callers` or `callees` as direction values.

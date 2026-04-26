@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/XDwanj/gx/internal/aifilter"
 	"github.com/XDwanj/gx/internal/index"
@@ -18,10 +19,13 @@ import (
 
 const (
 	directoryOverviewMaxSymbols = 10
+	treeAIConcurrencyLimit      = 256
 	symbolPriorityPrimary       = iota
 	symbolPrioritySecondary
 	symbolPriorityFallback
 )
+
+var treeAIRequestLimiter = make(chan struct{}, treeAIConcurrencyLimit)
 
 const (
 	definitionPriorityTypes = iota
@@ -59,6 +63,7 @@ type Service struct {
 	json       bool
 	verbose    bool
 	aiSelector aifilter.Selector
+	debugMu    sync.Mutex
 }
 
 type SymbolRow struct {
@@ -123,9 +128,55 @@ type uniqueCallerTextRow struct {
 	Caller string `json:"caller"`
 }
 
+type treeTextRow struct {
+	Tree      string `json:"tree"`
+	Depth     int    `json:"depth"`
+	Path      string `json:"path"`
+	File      string `json:"file"`
+	Name      string `json:"name"`
+	Signature string `json:"signature,omitempty"`
+	Edge      string `json:"edge,omitempty"`
+	Context   string `json:"context,omitempty"`
+	Cycle     bool   `json:"cycle,omitempty"`
+}
+
 type definitionMatch struct {
 	path   string
 	symbol index.Symbol
+}
+
+type treeNode struct {
+	match  definitionMatch
+	target aifilter.Target
+}
+
+type treeEdge struct {
+	match   definitionMatch
+	target  aifilter.Target
+	edge    string
+	context string
+}
+
+type treeCallerCandidate struct {
+	match   definitionMatch
+	line    int
+	context string
+}
+
+type treeWalkState struct {
+	idx      *index.Index
+	filter   *scopeFilter
+	maxDepth int
+}
+
+type treeWalkResult struct {
+	rows []TreeRow
+	err  error
+}
+
+type treeEdgeResult struct {
+	edges []treeEdge
+	err   error
 }
 
 type scopeFilter struct {
@@ -221,6 +272,51 @@ type CalleesOptions struct {
 	NameGlob string
 	Page     PageRequest
 	AI       AIOptions
+}
+
+const (
+	TreeDirectionIn   = "in"
+	TreeDirectionOut  = "out"
+	TreeDirectionBoth = "both"
+)
+
+type TreeOptions struct {
+	Paths     PathQuery
+	NameGlob  string
+	Direction string
+	Depth     int
+	AI        AIOptions
+}
+
+type TreeRow struct {
+	Tree      string `json:"tree"`
+	Depth     int    `json:"depth"`
+	Path      string `json:"path"`
+	File      string `json:"file"`
+	Line      int    `json:"line"`
+	Name      string `json:"name"`
+	Signature string `json:"signature,omitempty"`
+	Edge      string `json:"edge,omitempty"`
+	Context   string `json:"context,omitempty"`
+	Cycle     bool   `json:"cycle,omitempty"`
+}
+
+type TreeResult struct {
+	In  *TreeOutputNode `json:"in,omitempty" toon:"in,omitempty"`
+	Out *TreeOutputNode `json:"out,omitempty" toon:"out,omitempty"`
+}
+
+type TreeOutputNode struct {
+	File   string           `json:"file" toon:"file"`
+	Symbol string           `json:"symbol" toon:"symbol"`
+	Cycle  bool             `json:"cycle,omitempty" toon:"cycle,omitempty"`
+	In     []TreeOutputNode `json:"in,omitempty" toon:"in,omitempty"`
+	Out    []TreeOutputNode `json:"out,omitempty" toon:"out,omitempty"`
+}
+
+type treeBuildNode struct {
+	row      TreeRow
+	children []*treeBuildNode
 }
 
 type pageInfo struct {
@@ -857,6 +953,428 @@ func (service *Service) Callees(idx *index.Index, options CalleesOptions) error 
 	return output.PrintTOON(service.stdout, humanizeRows(rows))
 }
 
+func (service *Service) Tree(idx *index.Index, options TreeOptions) error {
+	if options.AI.DefineIn == "" {
+		return fmt.Errorf("gx: tree requires --define-in")
+	}
+	if options.Depth < 0 {
+		return fmt.Errorf("gx: --depth must be greater than or equal to 0")
+	}
+
+	resolvedIdx, filter, err := service.resolveQueryContext(idx, options.Paths)
+	if err != nil {
+		return err
+	}
+
+	rootMatch, err := service.resolveAIMatch(resolvedIdx, options.AI.DefineIn, options.NameGlob)
+	if err != nil {
+		return err
+	}
+	if filter != nil && !filter.contains(rootMatch.path) {
+		return fmt.Errorf("gx: --define-in target is outside query paths: %s", displayPath(rootMatch.path))
+	}
+
+	root := treeNode{
+		match:  rootMatch,
+		target: treeTargetForMatch(resolvedIdx, rootMatch),
+	}
+	rootKey := treeNodeKey(rootMatch)
+	rows := make([]TreeRow, 0)
+	state := treeWalkState{
+		idx:      resolvedIdx,
+		filter:   filter,
+		maxDepth: options.Depth,
+	}
+	service.debugf(
+		"tree root=%s file=%s depth=%d direction=%s ai_limit=%d",
+		root.match.symbol.Name,
+		displayPath(root.match.path),
+		options.Depth,
+		options.Direction,
+		treeAIConcurrencyLimit,
+	)
+
+	switch options.Direction {
+	case "", TreeDirectionBoth:
+		inRows, outRows, err := service.walkBothTrees(state, root, rootKey)
+		if err != nil {
+			return err
+		}
+		rows = append(rows, inRows...)
+		rows = append(rows, outRows...)
+	case TreeDirectionIn:
+		rows = append(rows, treeRow(TreeDirectionIn, 0, "0", root, "", "", false))
+		childRows, err := service.walkInTree(state, root, "0", 0, map[string]bool{rootKey: true})
+		if err != nil {
+			return err
+		}
+		rows = append(rows, childRows...)
+	case TreeDirectionOut:
+		rows = append(rows, treeRow(TreeDirectionOut, 0, "0", root, "", "", false))
+		childRows, err := service.walkOutTree(state, root, "0", 0, map[string]bool{rootKey: true})
+		if err != nil {
+			return err
+		}
+		rows = append(rows, childRows...)
+	default:
+		return fmt.Errorf("gx: --direction must be in, out, or both")
+	}
+
+	result := buildTreeResult(rows)
+	if service.json {
+		return output.PrintJSON(service.stdout, result)
+	}
+	return printTreeResult(service.stdout, result)
+}
+
+func (service *Service) walkBothTrees(state treeWalkState, root treeNode, rootKey string) ([]TreeRow, []TreeRow, error) {
+	inCh := make(chan treeWalkResult, 1)
+	outCh := make(chan treeWalkResult, 1)
+
+	go func() {
+		rows := make([]TreeRow, 0, 1)
+		rows = append(rows, treeRow(TreeDirectionIn, 0, "0", root, "", "", false))
+		childRows, err := service.walkInTree(state, root, "0", 0, map[string]bool{rootKey: true})
+		rows = append(rows, childRows...)
+		inCh <- treeWalkResult{rows: rows, err: err}
+	}()
+	go func() {
+		rows := make([]TreeRow, 0, 1)
+		rows = append(rows, treeRow(TreeDirectionOut, 0, "0", root, "", "", false))
+		childRows, err := service.walkOutTree(state, root, "0", 0, map[string]bool{rootKey: true})
+		rows = append(rows, childRows...)
+		outCh <- treeWalkResult{rows: rows, err: err}
+	}()
+
+	inResult := <-inCh
+	outResult := <-outCh
+	if inResult.err != nil {
+		return nil, nil, inResult.err
+	}
+	if outResult.err != nil {
+		return nil, nil, outResult.err
+	}
+	return inResult.rows, outResult.rows, nil
+}
+
+func (service *Service) walkOutTree(state treeWalkState, parent treeNode, parentPath string, depth int, ancestors map[string]bool) ([]TreeRow, error) {
+	if depth >= state.maxDepth {
+		return nil, nil
+	}
+
+	edges, err := service.treeOutEdges(state.idx, state.filter, parent)
+	if err != nil {
+		return nil, err
+	}
+	service.debugf("tree out expand depth=%d path=%s node=%s edges=%d", depth, parentPath, parent.match.symbol.Name, len(edges))
+
+	results := make([]treeWalkResult, len(edges))
+	var wg sync.WaitGroup
+	for edgeIndex, edge := range edges {
+		childPath := fmt.Sprintf("%s.%d", parentPath, edgeIndex+1)
+		child := treeNode{match: edge.match, target: edge.target}
+		key := treeNodeKey(edge.match)
+		cycle := ancestors[key]
+		row := treeRow(TreeDirectionOut, depth+1, childPath, child, edge.edge, edge.context, cycle)
+		if cycle {
+			results[edgeIndex] = treeWalkResult{rows: []TreeRow{row}}
+			continue
+		}
+
+		childAncestors := cloneTreeAncestors(ancestors)
+		childAncestors[key] = true
+		wg.Add(1)
+		go func(indexValue int, childNode treeNode, path string, row TreeRow, nextAncestors map[string]bool) {
+			defer wg.Done()
+			childRows, walkErr := service.walkOutTree(state, childNode, path, depth+1, nextAncestors)
+			rows := append([]TreeRow{row}, childRows...)
+			results[indexValue] = treeWalkResult{rows: rows, err: walkErr}
+		}(edgeIndex, child, childPath, row, childAncestors)
+	}
+	wg.Wait()
+
+	rows := make([]TreeRow, 0)
+	for _, result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+		rows = append(rows, result.rows...)
+	}
+	return rows, nil
+}
+
+func (service *Service) walkInTree(state treeWalkState, parent treeNode, parentPath string, depth int, ancestors map[string]bool) ([]TreeRow, error) {
+	if depth >= state.maxDepth {
+		return nil, nil
+	}
+
+	edges, err := service.treeInEdges(state.idx, state.filter, parent)
+	if err != nil {
+		return nil, err
+	}
+	service.debugf("tree in expand depth=%d path=%s node=%s edges=%d", depth, parentPath, parent.match.symbol.Name, len(edges))
+
+	results := make([]treeWalkResult, len(edges))
+	var wg sync.WaitGroup
+	for edgeIndex, edge := range edges {
+		childPath := fmt.Sprintf("%s.%d", parentPath, edgeIndex+1)
+		child := treeNode{match: edge.match, target: edge.target}
+		key := treeNodeKey(edge.match)
+		cycle := ancestors[key]
+		row := treeRow(TreeDirectionIn, depth+1, childPath, child, edge.edge, edge.context, cycle)
+		if cycle {
+			results[edgeIndex] = treeWalkResult{rows: []TreeRow{row}}
+			continue
+		}
+
+		childAncestors := cloneTreeAncestors(ancestors)
+		childAncestors[key] = true
+		wg.Add(1)
+		go func(indexValue int, childNode treeNode, path string, row TreeRow, nextAncestors map[string]bool) {
+			defer wg.Done()
+			childRows, walkErr := service.walkInTree(state, childNode, path, depth+1, nextAncestors)
+			rows := append([]TreeRow{row}, childRows...)
+			results[indexValue] = treeWalkResult{rows: rows, err: walkErr}
+		}(edgeIndex, child, childPath, row, childAncestors)
+	}
+	wg.Wait()
+
+	rows := make([]TreeRow, 0)
+	for _, result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+		rows = append(rows, result.rows...)
+	}
+	return rows, nil
+}
+
+func (service *Service) treeOutEdges(idx *index.Index, filter *scopeFilter, parent treeNode) ([]treeEdge, error) {
+	data, ok := idx.Entries[parent.match.path]
+	if !ok {
+		return nil, nil
+	}
+	if !language.SupportsCallees(data.Meta.Language) {
+		return nil, fmt.Errorf("gx: callees not supported for language: %s", data.Meta.Language)
+	}
+
+	source, err := os.ReadFile(filepath.Join(idx.Root, parent.match.path))
+	if err != nil {
+		return nil, err
+	}
+	callees, err := language.FindCallees(
+		data.Meta.Language,
+		source,
+		filepath.Join(idx.Root, parent.match.path),
+		parent.match.symbol.ByteStart,
+		parent.match.symbol.ByteEnd,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := splitLines(source)
+	results := make([]treeEdgeResult, len(callees))
+	var wg sync.WaitGroup
+	for calleeIndex, callee := range callees {
+		context := lineContext(lines, callee.Line)
+		matches := findCallableMatchesByNames(idx, callNameCandidates(callee.Name), filter)
+		if len(matches) == 0 {
+			continue
+		}
+
+		wg.Add(1)
+		go func(indexValue int, calleeName string, callContext string, callMatches []definitionMatch) {
+			defer wg.Done()
+			filteredMatches, filterErr := service.filterTreeOutAI(idx, parent.target, calleeName, callContext, callMatches)
+			if filterErr != nil {
+				results[indexValue] = treeEdgeResult{err: filterErr}
+				return
+			}
+
+			callEdges := make([]treeEdge, 0, len(filteredMatches))
+			for _, match := range filteredMatches {
+				callEdges = append(callEdges, treeEdge{
+					match:   match,
+					target:  treeTargetForMatch(idx, match),
+					edge:    calleeName,
+					context: callContext,
+				})
+			}
+			results[indexValue] = treeEdgeResult{edges: callEdges}
+		}(calleeIndex, callee.Name, context, matches)
+	}
+	wg.Wait()
+
+	edges := make([]treeEdge, 0)
+	seen := map[string]bool{}
+	for _, result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+		for _, edge := range result.edges {
+			key := treeNodeKey(edge.match)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			edges = append(edges, edge)
+		}
+	}
+	return edges, nil
+}
+
+func (service *Service) treeInEdges(idx *index.Index, filter *scopeFilter, parent treeNode) ([]treeEdge, error) {
+	candidates, err := service.treeInCandidates(idx, filter, parent)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	candidates, err = service.filterTreeInWithAI(idx, parent.target, candidates)
+	if err != nil {
+		return nil, err
+	}
+
+	edges := make([]treeEdge, 0)
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		key := treeNodeKey(candidate.match)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		edges = append(edges, treeEdge{
+			match:   candidate.match,
+			target:  treeTargetForMatch(idx, candidate.match),
+			edge:    parent.match.symbol.Name,
+			context: candidate.context,
+		})
+	}
+	return edges, nil
+}
+
+func (service *Service) treeInCandidates(idx *index.Index, filter *scopeFilter, parent treeNode) ([]treeCallerCandidate, error) {
+	candidates := make([]treeCallerCandidate, 0)
+	nameBytes := [][]byte{[]byte(parent.match.symbol.Name)}
+	for path, data := range idx.Entries {
+		if filter != nil && !filter.contains(path) {
+			continue
+		}
+
+		source, err := os.ReadFile(filepath.Join(idx.Root, path))
+		if err != nil || !containsAnyName(source, nameBytes) {
+			continue
+		}
+
+		references, findErr := language.FindReferencesForNames(
+			data.Meta.Language,
+			source,
+			filepath.Join(idx.Root, path),
+			[]string{parent.match.symbol.Name},
+		)
+		if findErr != nil {
+			if language.IsNotInstalled(findErr) {
+				return nil, findErr
+			}
+			continue
+		}
+
+		lines := splitLines(source)
+		for _, reference := range references {
+			caller, ok := findEnclosingFuncSymbol(data.Symbols, reference.ByteOffset)
+			if !ok {
+				continue
+			}
+			if path == parent.match.path && caller.ByteStart == parent.match.symbol.ByteStart && reference.Line == parent.match.symbol.Line {
+				continue
+			}
+			candidates = append(candidates, treeCallerCandidate{
+				match:   definitionMatch{path: path, symbol: caller},
+				line:    reference.Line,
+				context: lineContext(lines, reference.Line),
+			})
+		}
+	}
+
+	sort.Slice(candidates, func(left int, right int) bool {
+		if candidates[left].match.path == candidates[right].match.path {
+			return candidates[left].line < candidates[right].line
+		}
+		return candidates[left].match.path < candidates[right].match.path
+	})
+	return candidates, nil
+}
+
+func findCallableMatchesByNames(idx *index.Index, names []string, filter *scopeFilter) []definitionMatch {
+	nameSet := make(map[string]bool, len(names))
+	for _, name := range names {
+		if name != "" {
+			nameSet[name] = true
+		}
+	}
+
+	matches := make([]definitionMatch, 0)
+	for path, data := range idx.Entries {
+		if filter != nil && !filter.contains(path) {
+			continue
+		}
+		for _, symbol := range data.Symbols {
+			if symbol.Kind != index.SymbolKindFunc {
+				continue
+			}
+			if !nameSet[symbol.Name] {
+				continue
+			}
+			matches = append(matches, definitionMatch{path: path, symbol: symbol})
+		}
+	}
+	sortDefinitionMatches(matches)
+	return matches
+}
+
+func callNameCandidates(name string) []string {
+	candidates := make([]string, 0, 3)
+	addCallNameCandidate := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		for _, candidate := range candidates {
+			if candidate == value {
+				return
+			}
+		}
+		candidates = append(candidates, value)
+	}
+
+	addCallNameCandidate(name)
+	if indexValue := strings.LastIndex(name, "::"); indexValue >= 0 {
+		addCallNameCandidate(name[indexValue+2:])
+	}
+	if indexValue := strings.LastIndex(name, "."); indexValue >= 0 {
+		addCallNameCandidate(name[indexValue+1:])
+	}
+	if indexValue := strings.LastIndex(name, ":"); indexValue >= 0 {
+		addCallNameCandidate(name[indexValue+1:])
+	}
+	return candidates
+}
+
+func cloneTreeAncestors(ancestors map[string]bool) map[string]bool {
+	cloned := make(map[string]bool, len(ancestors)+1)
+	for key, value := range ancestors {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func treeNodeKey(match definitionMatch) string {
+	return fmt.Sprintf("%s:%d", match.path, match.symbol.ByteStart)
+}
+
 func findDefinitionMatches(idx *index.Index, nameGlob string, kind *index.SymbolKind) ([]definitionMatch, error) {
 	matches := make([]definitionMatch, 0)
 	for path, data := range idx.Entries {
@@ -1071,6 +1589,22 @@ func humanizeRows(rows any) any {
 			})
 		}
 		return human
+	case []TreeRow:
+		human := make([]treeTextRow, 0, len(typed))
+		for _, row := range typed {
+			human = append(human, treeTextRow{
+				Tree:      row.Tree,
+				Depth:     row.Depth,
+				Path:      row.Path,
+				File:      formatLocation(row.File, row.Line),
+				Name:      row.Name,
+				Signature: row.Signature,
+				Edge:      row.Edge,
+				Context:   row.Context,
+				Cycle:     row.Cycle,
+			})
+		}
+		return human
 	default:
 		return rows
 	}
@@ -1124,6 +1658,198 @@ func (service *Service) resolveAITarget(idx *index.Index, defineIn string, nameG
 		Signature: matches[0].Signature,
 		Body:      truncatePromptText(body, aiTargetBodyMaxRunes),
 	}, nil
+}
+
+func (service *Service) resolveAIMatch(idx *index.Index, defineIn string, nameGlob string) (definitionMatch, error) {
+	callableKind := index.SymbolKindFunc
+	relPath := normalizeRelativePath(defineIn, idx.Root)
+	data, ok := idx.Entries[relPath]
+	if !ok {
+		return definitionMatch{}, service.fileLookupError(relPath, idx.Root)
+	}
+
+	matches := make([]index.Symbol, 0)
+	for _, symbol := range data.Symbols {
+		matched, err := globMatch(nameGlob, symbol.Name)
+		if err != nil {
+			return definitionMatch{}, err
+		}
+		if !matched {
+			continue
+		}
+		if symbol.Kind != callableKind {
+			continue
+		}
+		matches = append(matches, symbol)
+	}
+	if len(matches) == 0 {
+		return definitionMatch{}, fmt.Errorf("gx: --define-in %s has no function matching %q", displayScopePath(relPath), nameGlob)
+	}
+	if len(matches) > 1 {
+		return definitionMatch{}, fmt.Errorf("gx: --define-in %s matches multiple functions for %q; narrow --name", displayScopePath(relPath), nameGlob)
+	}
+	return definitionMatch{path: relPath, symbol: matches[0]}, nil
+}
+
+func treeTargetForMatch(idx *index.Index, match definitionMatch) aifilter.Target {
+	body, line, ok := readBody(idx.Root, match.path, match.symbol)
+	if !ok {
+		body = ""
+		line = match.symbol.Line
+	}
+	return aifilter.Target{
+		File:      displayPath(match.path),
+		Line:      line,
+		Name:      match.symbol.Name,
+		Kind:      string(match.symbol.Kind),
+		Signature: match.symbol.Signature,
+		Body:      truncatePromptText(body, aiTargetBodyMaxRunes),
+	}
+}
+
+func treeRow(tree string, depth int, path string, node treeNode, edge string, context string, cycle bool) TreeRow {
+	return TreeRow{
+		Tree:      tree,
+		Depth:     depth,
+		Path:      path,
+		File:      displayPath(node.match.path),
+		Line:      node.match.symbol.Line,
+		Name:      node.match.symbol.Name,
+		Signature: node.match.symbol.Signature,
+		Edge:      edge,
+		Context:   context,
+		Cycle:     cycle,
+	}
+}
+
+func buildTreeResult(rows []TreeRow) TreeResult {
+	result := TreeResult{}
+	if root := buildTreeRoot(rows, TreeDirectionIn); root != nil {
+		result.In = root
+	}
+	if root := buildTreeRoot(rows, TreeDirectionOut); root != nil {
+		result.Out = root
+	}
+	return result
+}
+
+func printTreeResult(writer io.Writer, result TreeResult) error {
+	if result.In != nil {
+		if _, err := fmt.Fprintln(writer, "in:"); err != nil {
+			return err
+		}
+		if err := printTreeNode(writer, *result.In, TreeDirectionIn, "  ", false); err != nil {
+			return err
+		}
+	}
+	if result.Out != nil {
+		if result.In != nil {
+			if _, err := fmt.Fprintln(writer); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintln(writer, "out:"); err != nil {
+			return err
+		}
+		if err := printTreeNode(writer, *result.Out, TreeDirectionOut, "  ", false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printTreeNode(writer io.Writer, node TreeOutputNode, direction string, indent string, listItem bool) error {
+	prefix := indent
+	if listItem {
+		if _, err := fmt.Fprintf(writer, "%s- file: %s\n", indent, node.File); err != nil {
+			return err
+		}
+		prefix = indent + "  "
+	} else if _, err := fmt.Fprintf(writer, "%sfile: %s\n", indent, node.File); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(writer, "%ssymbol: %s\n", prefix, node.Symbol); err != nil {
+		return err
+	}
+	if node.Cycle {
+		if _, err := fmt.Fprintf(writer, "%scycle: true\n", prefix); err != nil {
+			return err
+		}
+	}
+
+	children := node.Out
+	if direction == TreeDirectionIn {
+		children = node.In
+	}
+	if len(children) == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintf(writer, "%s%s:\n", prefix, direction); err != nil {
+		return err
+	}
+	for _, child := range children {
+		if err := printTreeNode(writer, child, direction, prefix+"  ", true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func buildTreeRoot(rows []TreeRow, direction string) *TreeOutputNode {
+	nodes := make(map[string]*treeBuildNode)
+	for _, row := range rows {
+		if row.Tree != direction {
+			continue
+		}
+
+		node := &treeBuildNode{row: row}
+		nodes[row.Path] = node
+		if row.Path == "0" {
+			continue
+		}
+
+		parent, ok := nodes[parentTreePath(row.Path)]
+		if ok {
+			parent.children = append(parent.children, node)
+		}
+	}
+
+	root, ok := nodes["0"]
+	if !ok {
+		return nil
+	}
+	output := treeOutputNode(root, direction)
+	return &output
+}
+
+func treeOutputNode(node *treeBuildNode, direction string) TreeOutputNode {
+	children := make([]TreeOutputNode, 0, len(node.children))
+	for _, child := range node.children {
+		children = append(children, treeOutputNode(child, direction))
+	}
+
+	outputNode := TreeOutputNode{
+		File:   formatLocation(node.row.File, node.row.Line),
+		Symbol: node.row.Name,
+		Cycle:  node.row.Cycle,
+	}
+	switch direction {
+	case TreeDirectionIn:
+		outputNode.In = children
+	case TreeDirectionOut:
+		outputNode.Out = children
+	}
+	return outputNode
+}
+
+func parentTreePath(path string) string {
+	indexValue := strings.LastIndex(path, ".")
+	if indexValue < 0 {
+		return ""
+	}
+	return path[:indexValue]
 }
 
 func (service *Service) filterSymbolRowsWithAI(idx *index.Index, command string, name string, target aifilter.Target, rows []SymbolRow) ([]SymbolRow, error) {
@@ -1220,6 +1946,71 @@ func (service *Service) filterReferenceRowsWithAI(idx *index.Index, name string,
 	return filtered, nil
 }
 
+func (service *Service) filterTreeOutAI(idx *index.Index, target aifilter.Target, name, ctx string, matches []definitionMatch) ([]definitionMatch, error) {
+	candidates := make([]aifilter.Candidate, 0, len(matches))
+	for indexValue, match := range matches {
+		body, line, ok := readBody(idx.Root, match.path, match.symbol)
+		if !ok {
+			body = ""
+			line = match.symbol.Line
+		}
+		candidates = append(candidates, aifilter.Candidate{
+			ID:        candidateID(indexValue),
+			File:      displayPath(match.path),
+			Line:      line,
+			Name:      match.symbol.Name,
+			Kind:      string(match.symbol.Kind),
+			Callee:    name,
+			Signature: match.symbol.Signature,
+			Context:   ctx,
+			Body:      truncatePromptText(body, aiCandidateBodyMaxRunes),
+		})
+	}
+
+	selected, err := service.selectCandidateIDs(idx.Root, "tree-out", name, target, candidates)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]definitionMatch, 0, len(matches))
+	for indexValue, match := range matches {
+		if selected[candidateID(indexValue)] {
+			filtered = append(filtered, match)
+		}
+	}
+	return filtered, nil
+}
+
+func (service *Service) filterTreeInWithAI(idx *index.Index, target aifilter.Target, candidates []treeCallerCandidate) ([]treeCallerCandidate, error) {
+	aiCandidates := make([]aifilter.Candidate, 0, len(candidates))
+	for indexValue, candidate := range candidates {
+		snippet, err := snippetForLine(idx.Root, displayPath(candidate.match.path), candidate.line)
+		if err != nil {
+			return nil, err
+		}
+		aiCandidates = append(aiCandidates, aifilter.Candidate{
+			ID:      candidateID(indexValue),
+			File:    displayPath(candidate.match.path),
+			Line:    candidate.line,
+			Name:    target.Name,
+			Caller:  candidate.match.symbol.Name,
+			Context: candidate.context,
+			Snippet: snippet,
+		})
+	}
+
+	selected, err := service.selectCandidateIDs(idx.Root, "tree-in", target.Name, target, aiCandidates)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]treeCallerCandidate, 0, len(candidates))
+	for indexValue, candidate := range candidates {
+		if selected[candidateID(indexValue)] {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered, nil
+}
+
 func (service *Service) selectCandidateIDs(root, command, name string, target aifilter.Target, candidates []aifilter.Candidate) (map[string]bool, error) {
 	selector := service.aiSelector
 	if selector == nil {
@@ -1253,16 +2044,34 @@ func (service *Service) selectCandidateIDs(root, command, name string, target ai
 		return nil, err
 	}
 	if !found {
+		service.debugf("ai cache miss command=%s name=%s target=%s candidates=%d limit=%d", command, name, target.Name, len(candidates), treeAIConcurrencyLimit)
+		treeAIRequestLimiter <- struct{}{}
+		service.debugf("ai request start command=%s name=%s target=%s candidates=%d", command, name, target.Name, len(candidates))
+		defer func() {
+			<-treeAIRequestLimiter
+		}()
 		selectedIDs, err = selector.Select(context.Background(), request)
 		if err != nil {
 			return nil, err
 		}
+		service.debugf("ai request done command=%s name=%s target=%s selected=%d", command, name, target.Name, len(selectedIDs))
 		if err := cache.Put(key, providerID, selectedIDs); err != nil {
 			return nil, err
 		}
+	} else {
+		service.debugf("ai cache hit command=%s name=%s target=%s candidates=%d selected=%d", command, name, target.Name, len(candidates), len(selectedIDs))
 	}
 
 	return validateSelectedIDs(candidates, selectedIDs)
+}
+
+func (service *Service) debugf(format string, args ...any) {
+	if !service.verbose {
+		return
+	}
+	service.debugMu.Lock()
+	defer service.debugMu.Unlock()
+	_, _ = fmt.Fprintf(service.stderr, "gx: debug: "+format+"\n", args...)
 }
 
 func validateSelectedIDs(candidates []aifilter.Candidate, selectedIDs []string) (map[string]bool, error) {
@@ -1769,6 +2578,35 @@ func findEnclosingSymbol(symbols []index.Symbol, byteOffset uint) string {
 		}
 	}
 	return result
+}
+
+func findEnclosingFuncSymbol(symbols []index.Symbol, byteOffset uint) (index.Symbol, bool) {
+	var result index.Symbol
+	found := false
+	bestWidth := ^uint(0)
+	for _, symbol := range symbols {
+		if symbol.Kind != index.SymbolKindFunc {
+			continue
+		}
+		if symbol.ByteStart > byteOffset || byteOffset >= symbol.ByteEnd {
+			continue
+		}
+		width := symbol.ByteEnd - symbol.ByteStart
+		if width >= bestWidth {
+			continue
+		}
+		bestWidth = width
+		result = symbol
+		found = true
+	}
+	return result, found
+}
+
+func lineContext(lines []string, line int) string {
+	if line <= 0 || line > len(lines) {
+		return ""
+	}
+	return strings.TrimSpace(lines[line-1])
 }
 
 func splitLines(source []byte) []string {

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	promptVersion = 2
+	promptVersion = 3
 	defaultModel  = "gpt-4o-mini"
 )
 
@@ -151,6 +151,8 @@ func selectionPrompt(request SelectionRequest) string {
 		"Use the target as the intended symbol. For symbols, definition, and callees, select candidates that are the same declaration as the target. " +
 		"For callees, each candidate is the caller definition whose calls will be listed. " +
 		"For references, select only candidates that refer to the target, including target definition sites when they are present. " +
+		"For tree-out, select only candidate definitions that the call site in context resolves to from inside the target. " +
+		"For tree-in, select only caller candidates where the reference in context calls or otherwise reaches the target. " +
 		"When the target is a method, do not select the same method name on another receiver, class, struct, object, or type. " +
 		"Preserve candidate IDs exactly. " +
 		"If no candidate matches, return an empty array.\n\n" +

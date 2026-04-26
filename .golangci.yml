@@ -64,7 +64,7 @@ linters:
     whitespace:
       # multi-func: true
       # 允许并检查多函数场景下的空白规范，避免函数间空白风格混乱。
-      multi-func: true
+      multi-func: false
   # exclusions: 统一排除策略，减少误报和非业务目录噪声。
   exclusions:
     # generated: lax
