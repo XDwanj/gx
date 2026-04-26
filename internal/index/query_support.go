@@ -3,6 +3,7 @@ package index
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/XDwanj/gx/internal/language"
 )
@@ -81,13 +82,20 @@ func LoadFileData(root string, relPath string) (FileData, bool, error) {
 	}
 
 	languageName := language.DetectLanguage(absPath)
-	if languageName == "" {
+	if languageName == "" && strings.TrimPrefix(filepath.Ext(absPath), ".") != "" {
 		return FileData{}, false, nil
 	}
 
 	source, err := os.ReadFile(absPath)
 	if err != nil {
 		return FileData{}, true, err
+	}
+
+	if languageName == "" {
+		languageName = language.DetectLanguageFromSource(absPath, source)
+		if languageName == "" {
+			return FileData{}, false, nil
+		}
 	}
 
 	symbols, err := language.ParseAndExtract(languageName, source, absPath)

@@ -1,6 +1,7 @@
 package language
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -28,6 +29,10 @@ import (
 const (
 	jsxExtension          = "jsx"
 	tsxExtension          = "tsx"
+	languageNameBash      = "bash"
+	languageNameLua       = "lua"
+	languageNamePython    = "python"
+	languageNameRuby      = "ruby"
 	grammarNameTSX        = "tsx"
 	grammarNameTypeScript = "typescript"
 )
@@ -139,7 +144,7 @@ var languages = []*Config{
 		},
 	},
 	{
-		Name:         "python",
+		Name:         languageNamePython,
 		Extensions:   []string{"py"},
 		Query:        pythonQuery,
 		SigBodyChild: "block",
@@ -147,7 +152,7 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			"call",
 		},
-		grammarName: func(_ string) string { return "python" },
+		grammarName: func(_ string) string { return languageNamePython },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_python.Language())
 		},
@@ -217,27 +222,27 @@ var languages = []*Config{
 		},
 	},
 	{
-		Name:         "ruby",
+		Name:         languageNameRuby,
 		Extensions:   []string{"rb"},
 		Query:        rubyQuery,
 		RefNodeTypes: []string{"identifier", "constant"},
 		CallNodeTypes: []string{
 			"call",
 		},
-		grammarName: func(_ string) string { return "ruby" },
+		grammarName: func(_ string) string { return languageNameRuby },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_ruby.Language())
 		},
 	},
 	{
-		Name:         "lua",
+		Name:         languageNameLua,
 		Extensions:   []string{"lua"},
 		Query:        luaQuery,
 		RefNodeTypes: []string{"identifier"},
 		CallNodeTypes: []string{
 			"function_call",
 		},
-		grammarName: func(_ string) string { return "lua" },
+		grammarName: func(_ string) string { return languageNameLua },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_lua.Language())
 		},
@@ -254,12 +259,12 @@ var languages = []*Config{
 		},
 	},
 	{
-		Name:         "bash",
+		Name:         languageNameBash,
 		Extensions:   []string{"sh", "bash"},
 		Query:        bashQuery,
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"word"},
-		grammarName:  func(_ string) string { return "bash" },
+		grammarName:  func(_ string) string { return languageNameBash },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_bash.Language())
 		},
@@ -292,6 +297,56 @@ func DetectLanguage(path string) string {
 				return config.Name
 			}
 		}
+	}
+	return ""
+}
+
+func DetectLanguageFromSource(path string, source []byte) string {
+	if languageName := DetectLanguage(path); languageName != "" {
+		return languageName
+	}
+	if strings.TrimPrefix(filepath.Ext(path), ".") != "" {
+		return ""
+	}
+	return detectShebangLanguage(source)
+}
+
+func detectShebangLanguage(source []byte) string {
+	line, _, _ := bytes.Cut(source, []byte("\n"))
+	if !bytes.HasPrefix(line, []byte("#!")) {
+		return ""
+	}
+
+	fields := strings.Fields(strings.TrimSpace(strings.TrimPrefix(string(line), "#!")))
+	if len(fields) == 0 {
+		return ""
+	}
+
+	interpreter := filepath.Base(fields[0])
+	if interpreter == "env" {
+		interpreter = envInterpreter(fields[1:])
+	}
+
+	switch {
+	case strings.HasPrefix(interpreter, "python"):
+		return languageNamePython
+	case interpreter == "sh" || interpreter == "bash" || interpreter == "dash" || interpreter == "ksh" || interpreter == "zsh":
+		return languageNameBash
+	case interpreter == "ruby":
+		return languageNameRuby
+	case interpreter == "lua":
+		return languageNameLua
+	default:
+		return ""
+	}
+}
+
+func envInterpreter(args []string) string {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return filepath.Base(arg)
 	}
 	return ""
 }

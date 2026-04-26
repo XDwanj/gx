@@ -1,6 +1,7 @@
 package index
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -142,7 +143,7 @@ func needsUpdate(root string, entries map[string]FileData) bool {
 
 	matchedCount := 0
 	_ = walk(root, func(candidate fileCandidate) error {
-		languageName := language.DetectLanguage(candidate.AbsPath)
+		languageName := detectCandidateLanguage(candidate.AbsPath)
 		if languageName == "" {
 			return nil
 		}
@@ -174,7 +175,7 @@ func needsUpdate(root string, entries map[string]FileData) bool {
 func hasInstalledIndexableFiles(root string) bool {
 	found := false
 	_ = walk(root, func(candidate fileCandidate) error {
-		languageName := language.DetectLanguage(candidate.AbsPath)
+		languageName := detectCandidateLanguage(candidate.AbsPath)
 		if languageName == "" || !langpkg.IsInstalled(languageName) {
 			return nil
 		}
@@ -189,7 +190,7 @@ func (idx *Index) fullCrawl(logger *debugLogger) error {
 	processedCount := 0
 
 	return walk(idx.Root, func(candidate fileCandidate) error {
-		languageName := language.DetectLanguage(candidate.AbsPath)
+		languageName := detectCandidateLanguage(candidate.AbsPath)
 		if languageName == "" {
 			return nil
 		}
@@ -231,7 +232,7 @@ func (idx *Index) incrementalUpdate(logger *debugLogger) error {
 	processedCount := 0
 
 	if err := walk(idx.Root, func(candidate fileCandidate) error {
-		languageName := language.DetectLanguage(candidate.AbsPath)
+		languageName := detectCandidateLanguage(candidate.AbsPath)
 		if languageName == "" {
 			return nil
 		}
@@ -248,7 +249,7 @@ func (idx *Index) incrementalUpdate(logger *debugLogger) error {
 	}
 
 	for relPath, candidate := range onDisk {
-		languageName := language.DetectLanguage(candidate.AbsPath)
+		languageName := detectCandidateLanguage(candidate.AbsPath)
 		if languageName == "" {
 			continue
 		}
@@ -319,6 +320,35 @@ func logIndexProgress(logger *debugLogger, processedCount int, entryCount int, s
 		return
 	}
 	logger.Printf("%s progress: processed %d files, %d indexed entries", stage, processedCount, entryCount)
+}
+
+func detectCandidateLanguage(path string) string {
+	if languageName := language.DetectLanguage(path); languageName != "" {
+		return languageName
+	}
+	if strings.TrimPrefix(filepath.Ext(path), ".") != "" {
+		return ""
+	}
+
+	line, err := readFirstLine(path)
+	if err != nil {
+		return ""
+	}
+	return language.DetectLanguageFromSource(path, line)
+}
+
+func readFirstLine(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	line, err := bufio.NewReader(file).ReadBytes('\n')
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return line, nil
 }
 
 func walk(root string, visit func(fileCandidate) error) error {

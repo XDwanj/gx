@@ -381,6 +381,35 @@ func TestLoadOrBuildVerboseLogsStages(t *testing.T) {
 	}
 }
 
+func TestLoadOrBuildIndexesExtensionlessPythonShebang(t *testing.T) {
+	cacheHome := t.TempDir()
+	t.Setenv("HOME", cacheHome)
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "tool"), []byte("#!/usr/bin/env python3\n\ndef run():\n    pass\n"), 0o755); err != nil {
+		t.Fatalf("write tool: %v", err)
+	}
+	if err := lang.Add(os.Stdout, os.Stderr, []string{"python"}); err != nil {
+		t.Fatalf("install python grammar: %v", err)
+	}
+
+	idx, err := LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	data, ok := idx.Entries["tool"]
+	if !ok {
+		t.Fatalf("expected extensionless tool to be indexed, entries=%v", idx.Entries)
+	}
+	if data.Meta.Language != "python" {
+		t.Fatalf("expected python language, got %q", data.Meta.Language)
+	}
+	if len(data.Symbols) != 1 || data.Symbols[0].Name != "run" {
+		t.Fatalf("unexpected symbols: %+v", data.Symbols)
+	}
+}
+
 func TestSaveStoreRoundTripsEntries(t *testing.T) {
 	cacheHome := t.TempDir()
 	t.Setenv("HOME", cacheHome)

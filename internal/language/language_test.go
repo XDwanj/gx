@@ -305,6 +305,48 @@ func TestDetectLanguageProtobuf(t *testing.T) {
 	}
 }
 
+func TestDetectLanguageFromSourceUsesShebangForExtensionlessScripts(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		source string
+		want   string
+	}{
+		{
+			name:   "python env",
+			path:   "script",
+			source: "#!/usr/bin/env python3\n\ndef main():\n    pass\n",
+			want:   "python",
+		},
+		{
+			name:   "bash direct",
+			path:   "run",
+			source: "#!/bin/bash\nmain() { echo ok; }\n",
+			want:   "bash",
+		},
+		{
+			name:   "extension wins",
+			path:   "script.py",
+			source: "#!/bin/bash\n",
+			want:   "python",
+		},
+		{
+			name:   "unsupported extension ignores shebang",
+			path:   "script.txt",
+			source: "#!/usr/bin/env python3\n",
+			want:   "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := DetectLanguageFromSource(test.path, []byte(test.source)); got != test.want {
+				t.Fatalf("unexpected language: got %q want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func assertKinds(t *testing.T, symbols []Symbol, expected map[string]SymbolKind) {
 	t.Helper()
 

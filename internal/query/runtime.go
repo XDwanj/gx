@@ -1186,8 +1186,15 @@ func (service *Service) writeScopedPageHint(scope string, info pageInfo) {
 
 func (service *Service) fileLookupError(relPath string, root string) error {
 	absPath := filepath.Join(root, relPath)
-	if _, err := os.Stat(absPath); err == nil && language.DetectLanguage(absPath) == "" {
-		return fmt.Errorf("gx: unsupported file type: .%s", strings.TrimPrefix(filepath.Ext(absPath), "."))
+	if info, err := os.Stat(absPath); err == nil && !info.IsDir() {
+		if language.DetectLanguage(absPath) == "" && strings.TrimPrefix(filepath.Ext(absPath), ".") != "" {
+			return fmt.Errorf("gx: unsupported file type: .%s", strings.TrimPrefix(filepath.Ext(absPath), "."))
+		}
+
+		source, readErr := os.ReadFile(absPath)
+		if readErr == nil && language.DetectLanguageFromSource(absPath, source) == "" {
+			return fmt.Errorf("gx: unsupported file type: .%s", strings.TrimPrefix(filepath.Ext(absPath), "."))
+		}
 	}
 	return fmt.Errorf("gx: file not in index: %s", displayPath(relPath))
 }
