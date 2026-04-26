@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.kt",
+    "line": 1,
+    "body": "class User(val name: String)"
+  }
+]

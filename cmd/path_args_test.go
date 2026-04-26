@@ -270,7 +270,7 @@ func TestSymbolsCommandIndexesDirectorySymlink(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run symbols command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "linked-src/main.rs,1,main,func") {
+	if !strings.Contains(stdout, "\"linked-src/main.rs:1\",main,func") {
 		t.Fatalf("expected symlinked directory symbols, got %q", stdout)
 	}
 	if strings.Contains(stdout, "shared/src/main.rs") {

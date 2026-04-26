@@ -150,6 +150,44 @@ const javaQuery = `
   name: (identifier) @name) @definition.constant
 `
 
+const kotlinQuery = `
+(class_declaration
+  (modifiers
+    (class_modifier) @class_modifier)
+  "class"
+  name: (identifier) @name) @definition.enum
+  (#eq? @class_modifier "enum")
+
+(class_declaration
+  "class"
+  name: (identifier) @name) @definition.class
+
+(class_declaration
+  "interface"
+  name: (identifier) @name) @definition.interface
+
+(object_declaration
+  name: (identifier) @name) @definition.class
+
+(function_declaration
+  name: (identifier) @name) @definition.function
+
+(property_declaration
+  (variable_declaration
+    (identifier) @name)) @definition.constant
+
+(property_declaration
+  (multi_variable_declaration
+    (variable_declaration
+      (identifier) @name))) @definition.constant
+
+(enum_entry
+  (identifier) @name) @definition.constant
+
+(type_alias
+  type: (identifier) @name) @definition.type
+`
+
 const luaQuery = `
 (function_declaration
   name: (identifier) @name) @definition.function

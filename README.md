@@ -19,7 +19,7 @@ This project is derived from `cx`, but its public command name in this repositor
 
 Current built-in language support includes:
 
-`bash`, `c`, `cpp`, `go`, `java`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `zig`
+`bash`, `c`, `cpp`, `go`, `java`, `kotlin`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `zig`
 
 Use `gx lang list` to see which grammars are currently enabled in your local cache.
 
@@ -87,6 +87,22 @@ below.
 | `module_declaration`                      | A Java module declaration   | `module`    |
 | `field_declaration` with `final` modifier | A field declared as `final` | `const`     |
 | `enum_constant`                           | An enum member declaration  | `const`     |
+
+### kotlin
+
+`kotlin` covers `.kt` and `.kts`.
+
+| Declaration form                       | What syntax it represents                    | `gx` kind   |
+| -------------------------------------- | -------------------------------------------- | ----------- |
+| `function_declaration`                 | A named function declaration                 | `func`      |
+| `property_declaration`                 | A `val` or `var` property declaration        | `const`     |
+| `class_declaration` with `class`       | A class declaration                          | `class`     |
+| `class_declaration` with `enum class`  | An enum class declaration                    | `enum`      |
+| `class_declaration` with `interface`   | An interface declaration                     | `interface` |
+| `object_declaration`                   | A named object declaration                   | `class`     |
+| `enum_entry`                           | An enum member declaration                   | `const`     |
+| `type_alias`                           | A named type alias declaration               | `type`      |
+| `multi_variable_declaration` variables | Destructured property declaration components | `const`     |
 
 ### lua
 

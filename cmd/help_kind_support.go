@@ -65,6 +65,17 @@ func languageKindSupportMatrix() []languageKindSupport {
 			},
 		},
 		{
+			Language: "kotlin",
+			Kinds: []index.SymbolKind{
+				index.SymbolKindFunc,
+				index.SymbolKindConst,
+				index.SymbolKindClass,
+				index.SymbolKindEnum,
+				index.SymbolKindInterface,
+				index.SymbolKindType,
+			},
+		},
+		{
 			Language: "lua",
 			Kinds: []index.SymbolKind{
 				index.SymbolKindFunc,

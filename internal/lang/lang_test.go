@@ -19,14 +19,21 @@ func TestGrammarCacheDirUsesGxNamespace(t *testing.T) {
 }
 
 func TestSupportedLanguagesExcludeRemovedGrammars(t *testing.T) {
+	foundKotlin := false
 	foundProtobuf := false
 	for _, language := range SupportedLanguages() {
 		if language == "elixir" || language == "solidity" {
 			t.Fatalf("unexpected removed language in supported list: %s", language)
 		}
+		if language == "kotlin" {
+			foundKotlin = true
+		}
 		if language == "protobuf" {
 			foundProtobuf = true
 		}
+	}
+	if !foundKotlin {
+		t.Fatal("expected kotlin in supported language list")
 	}
 	if !foundProtobuf {
 		t.Fatal("expected protobuf in supported language list")

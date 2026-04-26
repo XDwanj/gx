@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.kt",
+    "line": 1,
+    "body": "enum class Status {\n  Open,\n  Closed\n}"
+  }
+]

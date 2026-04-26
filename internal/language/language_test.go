@@ -208,6 +208,35 @@ enum Status { OPEN, CLOSED }
 	})
 }
 
+func TestParseAndExtractKotlinKinds(t *testing.T) {
+	ensureInstalled(t, "kotlin")
+
+	source := []byte(`interface Repository
+class User
+object Defaults
+enum class Status { Open, Closed }
+typealias UserId = String
+const val Limit = 10
+fun buildUser(): User = User()
+`)
+	symbols, err := ParseAndExtract("kotlin", source, "Demo.kt")
+	if err != nil {
+		t.Fatalf("parse kotlin kinds: %v", err)
+	}
+
+	assertKinds(t, symbols, map[string]SymbolKind{
+		"Repository": SymbolKindInterface,
+		"User":       SymbolKindClass,
+		"Defaults":   SymbolKindClass,
+		"Status":     SymbolKindEnum,
+		"Open":       SymbolKindConst,
+		"Closed":     SymbolKindConst,
+		"UserId":     SymbolKindType,
+		"Limit":      SymbolKindConst,
+		"buildUser":  SymbolKindFunc,
+	})
+}
+
 func TestParseAndExtractCppKinds(t *testing.T) {
 	ensureInstalled(t, "cpp")
 
@@ -305,6 +334,15 @@ func TestDetectLanguageProtobuf(t *testing.T) {
 	}
 }
 
+func TestDetectLanguageKotlin(t *testing.T) {
+	if got := DetectLanguage("src/main/kotlin/App.kt"); got != "kotlin" {
+		t.Fatalf("unexpected kotlin detection for .kt: %q", got)
+	}
+	if got := DetectLanguage("scripts/build.kts"); got != "kotlin" {
+		t.Fatalf("unexpected kotlin detection for .kts: %q", got)
+	}
+}
+
 func TestDetectLanguageFromSourceUsesShebangForExtensionlessScripts(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -344,6 +382,30 @@ func TestDetectLanguageFromSourceUsesShebangForExtensionlessScripts(t *testing.T
 				t.Fatalf("unexpected language: got %q want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestFindCalleesKotlin(t *testing.T) {
+	ensureInstalled(t, "kotlin")
+
+	source := []byte("fun render() {\n\tprintln(formatName(\"gx\"))\n}\n")
+	symbols, err := ParseAndExtract("kotlin", source, "main.kt")
+	if err != nil {
+		t.Fatalf("parse kotlin symbols: %v", err)
+	}
+	if len(symbols) == 0 {
+		t.Fatal("expected at least one symbol")
+	}
+
+	callees, err := FindCallees("kotlin", source, "main.kt", symbols[0].ByteStart, symbols[0].ByteEnd)
+	if err != nil {
+		t.Fatalf("find kotlin callees: %v", err)
+	}
+	if len(callees) != 2 {
+		t.Fatalf("expected 2 callees, got %d: %+v", len(callees), callees)
+	}
+	if callees[0].Name != "println" || callees[1].Name != "formatName" {
+		t.Fatalf("unexpected callees: %+v", callees)
 	}
 }
 

@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.kt",
+    "line": 1,
+    "body": "interface Repository {\n  fun load(): User\n}"
+  }
+]

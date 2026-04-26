@@ -11,6 +11,7 @@ import (
 	tree_sitter_swift "github.com/XDwanj/tree-sitter-swift/bindings/go"
 	tree_sitter_zig "github.com/XDwanj/tree-sitter-zig/bindings/go"
 	tree_sitter_proto "github.com/coder3101/tree-sitter-proto/bindings/go"
+	tree_sitter_kotlin "github.com/tree-sitter-grammars/tree-sitter-kotlin/bindings/go"
 	tree_sitter_lua "github.com/tree-sitter-grammars/tree-sitter-lua/bindings/go"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 	tree_sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
@@ -30,6 +31,7 @@ const (
 	jsxExtension          = "jsx"
 	tsxExtension          = "tsx"
 	languageNameBash      = "bash"
+	languageNameKotlin    = "kotlin"
 	languageNameLua       = "lua"
 	languageNamePython    = "python"
 	languageNameRuby      = "ruby"
@@ -219,6 +221,20 @@ var languages = []*Config{
 		grammarName: func(_ string) string { return "java" },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_java.Language())
+		},
+	},
+	{
+		Name:         languageNameKotlin,
+		Extensions:   []string{"kt", "kts"},
+		Query:        kotlinQuery,
+		SigDelimiter: '{',
+		RefNodeTypes: []string{"identifier"},
+		CallNodeTypes: []string{
+			"call_expression",
+		},
+		grammarName: func(_ string) string { return languageNameKotlin },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_kotlin.Language())
 		},
 	},
 	{

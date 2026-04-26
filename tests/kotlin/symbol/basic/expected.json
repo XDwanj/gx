@@ -1,0 +1,72 @@
+[
+  {
+    "file": "main.kt",
+    "line": 1,
+    "name": "Repository",
+    "kind": "interface",
+    "signature": "interface Repository"
+  },
+  {
+    "file": "main.kt",
+    "line": 2,
+    "name": "load",
+    "kind": "func",
+    "signature": "fun load(): User"
+  },
+  {
+    "file": "main.kt",
+    "line": 5,
+    "name": "User",
+    "kind": "class",
+    "signature": "class User(val name: String)"
+  },
+  {
+    "file": "main.kt",
+    "line": 7,
+    "name": "Defaults",
+    "kind": "class",
+    "signature": "object Defaults"
+  },
+  {
+    "file": "main.kt",
+    "line": 8,
+    "name": "Limit",
+    "kind": "const",
+    "signature": "const val Limit = 10"
+  },
+  {
+    "file": "main.kt",
+    "line": 11,
+    "name": "Status",
+    "kind": "enum",
+    "signature": "enum class Status"
+  },
+  {
+    "file": "main.kt",
+    "line": 12,
+    "name": "Open",
+    "kind": "const",
+    "signature": "Open"
+  },
+  {
+    "file": "main.kt",
+    "line": 13,
+    "name": "Closed",
+    "kind": "const",
+    "signature": "Closed"
+  },
+  {
+    "file": "main.kt",
+    "line": 16,
+    "name": "UserId",
+    "kind": "type",
+    "signature": "typealias UserId = String"
+  },
+  {
+    "file": "main.kt",
+    "line": 18,
+    "name": "buildUser",
+    "kind": "func",
+    "signature": "fun buildUser(): User"
+  }
+]

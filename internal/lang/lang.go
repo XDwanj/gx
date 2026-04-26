@@ -18,6 +18,7 @@ var supportedLanguages = []string{
 	"cpp",
 	"go",
 	"java",
+	"kotlin",
 	"lua",
 	"python",
 	"protobuf",

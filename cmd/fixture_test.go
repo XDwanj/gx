@@ -395,6 +395,7 @@ func supportedCalleesFixtureLanguages() []string {
 		"cpp",
 		"go",
 		"java",
+		"kotlin",
 		"lua",
 		"python",
 		"ruby",

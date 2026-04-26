@@ -1,0 +1,7 @@
+[
+  {
+    "file": "main.kt",
+    "line": 2,
+    "body": "const val Limit = 10"
+  }
+]

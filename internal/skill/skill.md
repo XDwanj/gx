@@ -54,6 +54,7 @@ Current language coverage:
 - `cpp`: `func`, `struct`, `class`, `enum`, `module`, `type`
 - `go`: `func`, `const`, `struct`, `interface`, `type`
 - `java`: `class`, `func`, `const`, `enum`, `interface`, `module`
+- `kotlin`: `func`, `const`, `class`, `enum`, `interface`, `type`
 - `lua`: `func`
 - `python`: `func`, `const`, `class`
 - `protobuf`: `struct`, `enum`, `interface`, `func`
