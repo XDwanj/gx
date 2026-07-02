@@ -7,6 +7,9 @@ run:
   # 作用：在 CI 或团队协作中避免“lint 顺手改依赖文件”的副作用，保证结果可复现。
   # 取值影响：如果依赖声明不完整，这里不会帮你修复，命令会直接失败并提醒你先整理依赖。
   modules-download-mode: readonly
+  # 允许并行运行
+  allow-parallel-runners: true
+  relative-path-mode: gomod
 
 # linters: 具体要启用哪些静态检查器，以及它们的参数和排除策略。
 linters:
@@ -82,13 +85,15 @@ linters:
       - std-error-handling # 标准错误处理写法中的误报。
     # rules: 精细化排除规则（按 linter + 路径匹配）。
     rules:
+      # lll: 仅对 lll 规则放宽对反引号字符串的行长限制，因为它们通常是多行文本（如 SQL、JSON）且不受 Go 代码风格约束。
+      - linters:
+          - lll
+        source: "`"
+      # goconst: 仅在测试文件中放宽 goconst 规则，因为测试数据中的重复字面量通常是可接受的，并且过度提取常量可能反而降低测试代码的可读性。
       - linters:
           - goconst # 测试文件中常见重复字面量（测试数据）通常可接受，因此对 goconst 放宽。
         # path 使用正则匹配 *_test.go 文件。
         path: (.+)_test\.go
-      - linters:
-          - revive
-        path: internal/grammars/.+\.go
     # paths: 整个路径层面的全量排除（正则）。
     # 这些目录通常是外部、内建或示例代码，不作为主业务质量门禁对象。
     paths:
@@ -104,7 +109,12 @@ formatters:
     - gofumpt # 在 gofmt 基础上执行更严格的风格整理。
     - goimports # 自动整理和分组导入。
   # settings: 格式化器参数。
-  settings: {}
+  settings:
+    goimports: {}
+      # local-prefixes: 指定“本地模块导入路径前缀”。
+      # 作用：goimports 会把该前缀的导入分到本地组，保持导入分组稳定。
+      # local-prefixes:
+      # - example.com/project_name # 本仓库模块前缀，归类到本地导入组。
   # exclusions: 格式化阶段的排除策略，避免改写生成代码或无关目录。
   exclusions:
     # generated: lax 与 linter 一致，宽松识别并排除生成文件。

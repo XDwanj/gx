@@ -952,11 +952,13 @@ func TestCalleesReturnsCallSites(t *testing.T) {
 	for _, expected := range []string{
 		"\"main.go:9\",A,B,B()",
 		"\"main.go:10\",A,C,C()",
-		"\"main.go:11\",A,fmt.Println,\"fmt.Println(\\\"hello\\\")\"",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("missing callee row %q in %s", expected, output)
 		}
+	}
+	if strings.Contains(output, "fmt.Println") {
+		t.Fatalf("expected callees to omit calls without a scoped definition: %s", output)
 	}
 	if strings.TrimSpace(stderr.String()) != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr.String())
@@ -1026,6 +1028,34 @@ func TestCalleesScopeFiltersResults(t *testing.T) {
 	}
 }
 
+func TestCalleesOnlyReturnsCallsDefinedInCurrentScope(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"src/main.go":   "package main\n\nfunc A() { helper() }\n",
+		"other/main.go": "package main\n\nfunc helper() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr}
+
+	if err := service.Callees(idx, calleesOptions(nil, "A", PageRequest{})); err != nil {
+		t.Fatalf("callees query: %v", err)
+	}
+
+	if strings.TrimSpace(stdout.String()) != "" {
+		t.Fatalf("expected no scoped callees, got %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "gx: no matches") {
+		t.Fatalf("expected no matches hint, got %q", stderr.String())
+	}
+}
+
 func TestTreeCalleesUsesAIToResolveCallTargets(t *testing.T) {
 	ensureInstalled(t, "go")
 	root := tempProject(t, map[string]string{
@@ -1091,6 +1121,58 @@ func TestTreeCalleesUsesAIToResolveCallTargets(t *testing.T) {
 	}
 }
 
+func TestTreeOnlyResolvesCallsDefinedInCurrentScope(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"src/main.go":     "package main\n\nfunc run() { helper() }\n",
+		"src/helper.go":   "package main\n\nfunc helper() {}\n",
+		"other/main.go":   "package main\n\nfunc other() { helper() }\n",
+		"other/helper.go": "package main\n\nfunc helper() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0, len(request.Candidates))
+			for _, candidate := range request.Candidates {
+				selected = append(selected, candidate.ID)
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true, aiSelector: selector}
+	options := treeOptions(nil, "run", TreeDirectionOut, 1)
+	options.AI = AIOptions{DefineIn: "src/main.go"}
+
+	if err := service.Tree(idx, options); err != nil {
+		t.Fatalf("tree query: %v", err)
+	}
+
+	var result TreeResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode tree json: %v\nstdout=%s", err, stdout.String())
+	}
+	if result.Out == nil || len(result.Out.Out) != 1 {
+		t.Fatalf("expected one scoped out node, got %+v: %s", result.Out, stdout.String())
+	}
+	if result.Out.Out[0].File != "src/helper.go:3" || result.Out.Out[0].Symbol != "helper" {
+		t.Fatalf("expected scoped helper out node, got %+v", result.Out.Out[0])
+	}
+	if strings.Contains(stdout.String(), "other/helper.go") {
+		t.Fatalf("expected tree to omit helper outside the current scope: %s", stdout.String())
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
 func TestTreeCallersUsesAIToPruneReferences(t *testing.T) {
 	ensureInstalled(t, "go")
 	root := tempProject(t, map[string]string{
@@ -1141,6 +1223,58 @@ func TestTreeCallersUsesAIToPruneReferences(t *testing.T) {
 	}
 	if selector.Calls() != 1 {
 		t.Fatalf("expected one AI pruning call, got %d", selector.Calls())
+	}
+	if strings.TrimSpace(stderr.String()) != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
+func TestTreeOnlyFindsCallersDefinedInCurrentScope(t *testing.T) {
+	ensureInstalled(t, "go")
+	root := tempProject(t, map[string]string{
+		"src/main.go":     "package main\n\nfunc run() { helper() }\n",
+		"src/helper.go":   "package main\n\nfunc helper() {}\n",
+		"other/main.go":   "package main\n\nfunc other() { helper() }\n",
+		"other/helper.go": "package main\n\nfunc helper() {}\n",
+	})
+
+	idx, err := index.LoadOrBuild(root)
+	if err != nil {
+		t.Fatalf("load index: %v", err)
+	}
+
+	selector := &fakeAISelector{
+		selectFn: func(request aifilter.SelectionRequest) []string {
+			selected := make([]string, 0, len(request.Candidates))
+			for _, candidate := range request.Candidates {
+				selected = append(selected, candidate.ID)
+			}
+			return selected
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	service := &Service{root: root, stdout: &stdout, stderr: &stderr, json: true, aiSelector: selector}
+	options := treeOptions(nil, "helper", TreeDirectionIn, 1)
+	options.AI = AIOptions{DefineIn: "src/helper.go"}
+
+	if err := service.Tree(idx, options); err != nil {
+		t.Fatalf("tree query: %v", err)
+	}
+
+	var result TreeResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode tree json: %v\nstdout=%s", err, stdout.String())
+	}
+	if result.In == nil || len(result.In.In) != 1 {
+		t.Fatalf("expected one scoped in node, got %+v: %s", result.In, stdout.String())
+	}
+	if result.In.In[0].File != "src/main.go:3" || result.In.In[0].Symbol != "run" {
+		t.Fatalf("expected scoped run caller, got %+v", result.In.In[0])
+	}
+	if strings.Contains(stdout.String(), "other/main.go") {
+		t.Fatalf("expected tree to omit caller outside the current scope: %s", stdout.String())
 	}
 	if strings.TrimSpace(stderr.String()) != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr.String())

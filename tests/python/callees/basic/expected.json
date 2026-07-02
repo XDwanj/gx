@@ -5,12 +5,5 @@
     "caller": "A",
     "callee": "helper",
     "context": "helper()"
-  },
-  {
-    "file": "main.py",
-    "line": 6,
-    "caller": "A",
-    "callee": "logger.info",
-    "context": "logger.info(\"hi\")"
   }
 ]

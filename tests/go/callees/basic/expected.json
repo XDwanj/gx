@@ -5,12 +5,5 @@
     "caller": "A",
     "callee": "helper",
     "context": "helper()"
-  },
-  {
-    "file": "main.go",
-    "line": 9,
-    "caller": "A",
-    "callee": "fmt.Println",
-    "context": "fmt.Println(\"hi\")"
   }
 ]

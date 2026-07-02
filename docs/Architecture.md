@@ -50,30 +50,13 @@
 - `typescript`
 - `zig`
 
-## 重要边界：`internal/grammars` 不是完整的支持范围
+## 重要边界：runtime grammar 不等于 `gx` 覆盖范围
 
-`internal/grammars/` 里当前仍保留这些本地 vendored grammar：
+`gx` 使用 gotreesitter 的内置 grammar registry 加载语法，但 `gx` 的公开语言范围仍由
+`internal/lang` 和 `internal/language` 中注册的语言决定。gotreesitter registry
+包含更多 grammar，不代表这些语言都已经成为 `gx` 的公开支持面。
 
-- `swift`
-- `typescript`
-- `zig`
-- `solidity`
-
-其中 `solidity` 已不再作为活跃语言注册，因此这个目录并不等于 `gx` 的完整语言支持边界。
-
-很多重要的活跃语言实际上直接使用上游 Go bindings：
-
-- `bash`
-- `c`
-- `cpp`
-- `go`
-- `java`
-- `lua`
-- `python`
-- `ruby`
-- `rust`
-
-这意味着，`kind` 设计必须由所有保留语言的综合 Tree-sitter 能力面来驱动，而不能只看 `internal/grammars/` 目录里出现了什么。
+这意味着，`kind` 设计必须由 `gx` 当前注册语言的综合 Tree-sitter 能力面来驱动，而不能只看 gotreesitter registry 中还提供了哪些额外 grammar。
 
 ## 方法
 
@@ -82,8 +65,8 @@
 1. 当前语言注册与抽取行为：
    - `internal/language/language.go`
    - `internal/language/queries.go`
-2. `internal/grammars/` 下本地 vendored 的 grammar 文件
-3. 本地 Go module cache 中的上游 Tree-sitter grammar 源码
+2. gotreesitter 内置 grammar registry 与对应 AST 节点形状
+3. 本地 fixture 与 `gx` 当前公开输出行为
 
 本次调查明确区分三个概念：
 
@@ -106,20 +89,20 @@
 
 ### 语言清单
 
-| 语言         | Grammar 来源          | 说明                                                                           |
-| ------------ | --------------------- | ------------------------------------------------------------------------------ |
-| `bash`       | 上游 binding          | 声明面很窄，主要是函数与赋值                                                   |
-| `c`          | 上游 binding          | 对函数、结构体、枚举、typedef 有较强结构支持                                   |
-| `cpp`        | 上游 binding          | 对函数、方法、类、结构体、枚举、命名空间有较强支持                             |
-| `go`         | 上游 binding          | 对函数、方法、常量、变量、结构体、接口、命名类型有较强支持                     |
-| `java`       | 上游 binding          | 对类、接口、枚举、方法、模块、枚举成员有较强支持                               |
-| `lua`        | 上游 binding          | 支持函数、表方法语法、赋值；没有原生类模型                                     |
-| `python`     | 上游 binding          | 支持类、函数、赋值、装饰定义；方法需要依赖上下文判断                           |
-| `ruby`       | 上游 binding          | 支持 class/module/method/constant 语法；没有原生 enum/interface 语法           |
-| `rust`       | 上游 binding          | 对结构体、枚举、trait、常量、模块、variant、类型别名有较强支持                 |
-| `swift`      | 本地 vendored grammar | 对 class/struct/enum/protocol/extension/typealias/method/property 语法支持很强 |
-| `typescript` | 本地 vendored grammar | 对 class、interface、enum、namespace/module、变量、方法、字段支持很强          |
-| `zig`        | 本地 vendored grammar | 支持函数、`const`/`var` 声明、container 类型与 error set                       |
+| 语言         | Grammar 来源            | 说明                                                                           |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------ |
+| `bash`       | gotreesitter registry   | 声明面很窄，主要是函数与赋值                                                   |
+| `c`          | gotreesitter registry   | 对函数、结构体、枚举、typedef 有较强结构支持                                   |
+| `cpp`        | gotreesitter registry   | 对函数、方法、类、结构体、枚举、命名空间有较强支持                             |
+| `go`         | gotreesitter registry   | 对函数、方法、常量、变量、结构体、接口、命名类型有较强支持                     |
+| `java`       | gotreesitter registry   | 对类、接口、枚举、方法、模块、枚举成员有较强支持                               |
+| `lua`        | gotreesitter registry   | 支持函数、表方法语法、赋值；没有原生类模型                                     |
+| `python`     | gotreesitter registry   | 支持类、函数、赋值、装饰定义；方法需要依赖上下文判断                           |
+| `ruby`       | gotreesitter registry   | 支持 class/module/method/constant 语法；没有原生 enum/interface 语法           |
+| `rust`       | gotreesitter registry   | 对结构体、枚举、trait、常量、模块、variant、类型别名有较强支持                 |
+| `swift`      | gotreesitter registry   | 对 class/struct/enum/protocol/extension/typealias/method/property 语法支持很强 |
+| `typescript` | gotreesitter registry   | 对 class、interface、enum、namespace/module、变量、方法、字段支持很强          |
+| `zig`        | gotreesitter registry   | 支持函数、`const`/`var` 声明、container 类型与 error set                       |
 
 ### 能力矩阵
 

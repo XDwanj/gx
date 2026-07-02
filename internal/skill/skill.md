@@ -162,9 +162,9 @@ gx references --name 'Search' --limit 25 --offset 25 .
 
 ### `gx callees`
 
-Use `callees` to inspect the syntax-level calls made inside a function body.
+Use `callees` to inspect calls made inside a function body when the callee is defined in the same source directory and current query scope.
 
-- Returns call sites, not resolved definitions.
+- Returns scoped call sites, not resolved definitions.
 - Accepts files, directories, path globs, or a mix.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `50`.
@@ -187,7 +187,8 @@ Use `tree` to inspect AI-pruned incoming calls, outgoing calls, or both for a fu
 - Defaults to `--direction both` and `--depth 8`.
 - Runs AI pruning in parallel with an in-process limit of 256 API requests.
 - `--direction in` shows functions that call into the target.
-- `--direction out` shows project functions called by the target.
+- `--direction out` shows scoped project functions called by the target.
+- Tree expansion only links functions defined in the same source directory and current query scope.
 - `--verbose` shows tree expansion plus AI cache/API pruning progress.
 - Does not support `--limit`, `--offset`, or `--all`; use `--depth` to control output size.
 - Accepts files, directories, path globs, or a mix.

@@ -5,12 +5,5 @@
     "caller": "A",
     "callee": "helper",
     "context": "helper()"
-  },
-  {
-    "file": "main.rb",
-    "line": 5,
-    "caller": "A",
-    "callee": "logger.info",
-    "context": "logger.info(\"hi\")"
   }
 ]

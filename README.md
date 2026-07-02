@@ -10,7 +10,7 @@ This project is derived from `cx`, but its public command name in this repositor
 - Shows Markdown heading outlines for `.md` and `.markdown` files in `gx overview`.
 - Searches symbols across the project with kind and glob filters.
 - Prints the body of a symbol directly, so you can inspect one function or type without opening the whole file.
-- Lists the syntax-level callees inside a matching function body.
+- Lists calls to functions defined in the same source scope as a matching function body.
 - Finds references for a symbol, with an optional unique-per-caller view to estimate refactor blast radius.
 - Builds AI-pruned in/out trees for a function with `gx tree`.
 - Manages language grammar availability and index cache state.
@@ -259,10 +259,10 @@ Build cross-compilation artifacts under `dist/`:
 make cross
 ```
 
-For non-Darwin targets, the project needs a cgo-capable cross compiler. The
-default `Makefile` configuration expects `zig cc` for Linux and Windows targets.
-On macOS, `make cross-darwin` builds both `darwin/arm64` and `darwin/amd64`
-artifacts with `clang`.
+Cross builds use the pure-Go gotreesitter runtime with `CGO_ENABLED=0`. Release
+artifacts are built with gotreesitter `grammar_subset` tags so the binary embeds
+only the grammars that `gx` exposes. On macOS, `make cross-darwin` builds both
+`darwin/arm64` and `darwin/amd64` artifacts.
 
 ## Quick start
 
@@ -332,7 +332,7 @@ Read one symbol body directly:
 gx definition --name buildRuntime --limit 1 --max-lines 40
 ```
 
-List the syntax-level calls made inside one symbol body:
+List calls made inside one symbol body when the callee is defined in the same source directory and current query scope:
 
 ```bash
 gx callees --name buildRuntime
@@ -350,7 +350,8 @@ Estimate blast radius by caller:
 gx references --name buildRuntime --unique
 ```
 
-Build an AI-pruned in/out tree. `tree` defaults to depth 8, runs AI
+Build an AI-pruned in/out tree. `tree` only links functions defined in the same
+source directory and current query scope. It defaults to depth 8, runs AI
 pruning in parallel with an in-process limit of 256 API requests, and requires
 `--define-in` to identify the exact root function. Use `--verbose` to see tree
 expansion and AI cache/API pruning progress. Output is nested by `in` / `out`;
@@ -398,7 +399,7 @@ flowchart TD
     D -->|skill| S[Print embedded agent guide]
 ```
 
-The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, `callees` reparses matching symbol bodies and extracts syntax-level call expressions, and `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
+The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, `callees` reparses matching symbol bodies and prints only calls whose target name has a function definition in the same source directory and current query scope, and `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
 
 Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, `callees`, or `references`.
 
@@ -410,7 +411,7 @@ Markdown support is intentionally limited to `gx overview` for file outlines. Ma
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `name`, `kind`, and `signature`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
 - `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies with a clickable `file:line` header in terminal output.
-- `gx callees --name GLOB [path ...]`: Print syntax-level calls made inside matching `func` symbols as `file`, `caller`, `callee`, and `context`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
+- `gx callees --name GLOB [path ...]`: Print calls made inside matching `func` symbols when the callee has a function definition in the same source directory and current query scope; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
 - `gx references --name GLOB [--unique] [path ...]`: Find usages for matching symbol names.
 
 `symbols`, `definition`, `callees`, and `references` also accept `--define-in FILE` to ask AI to disambiguate matches against the symbol defined in `FILE`. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`; `GX_OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI selections are cached in the project SQLite cache.

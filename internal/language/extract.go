@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	sitter "github.com/tree-sitter/go-tree-sitter"
+	gts "github.com/odvcencio/gotreesitter"
 )
 
 const (
@@ -13,6 +13,7 @@ const (
 	symbolKindPriorityValue     = 2
 	symbolKindPriorityCallable  = 3
 	symbolKindPriorityContainer = 4
+	definitionKindFunction      = "definition.function"
 )
 
 type Reference struct {
@@ -20,29 +21,23 @@ type Reference struct {
 	ByteOffset uint
 }
 
-func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, source []byte) []Symbol {
-	cursor := sitter.NewQueryCursor()
-	defer cursor.Close()
-
-	matches := cursor.Matches(query, tree.RootNode(), source)
-	captureNames := query.CaptureNames()
+func extractSymbols(config *Config, query *gts.Query, tree *gts.Tree, languageValue *gts.Language, source []byte) []Symbol {
+	cursor := query.Exec(tree.RootNode(), languageValue, source)
 	symbols := make([]Symbol, 0)
 
-	for match := matches.Next(); match != nil; match = matches.Next() {
-		nameNodes := make([]sitter.Node, 0, 1)
-		var definitionNode *sitter.Node
+	for match, ok := cursor.NextMatch(); ok; match, ok = cursor.NextMatch() {
+		nameNodes := make([]*gts.Node, 0, 1)
+		var definitionNode *gts.Node
 		definitionKind := ""
 
 		for _, capture := range match.Captures {
-			name := captureNames[capture.Index]
-			node := capture.Node
-			if name == "name" {
-				nameNodes = append(nameNodes, node)
+			if capture.Name == "name" {
+				nameNodes = append(nameNodes, capture.Node)
 				continue
 			}
-			if strings.HasPrefix(name, "definition.") {
-				definitionNode = &node
-				definitionKind = name
+			if strings.HasPrefix(capture.Name, "definition.") {
+				definitionNode = capture.Node
+				definitionKind = capture.Name
 			}
 		}
 
@@ -50,29 +45,42 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 			continue
 		}
 
-		kind, ok := resolveKind(config, definitionKind, definitionNode.Kind())
+		kind, ok := resolveKind(config, definitionKind, definitionNode.Type(languageValue))
 		if !ok {
 			continue
 		}
 
-		signature := buildSignature(config, definitionNode, source)
-		isTest := detectTestSymbol(config.Name, definitionNode, source)
-		position := definitionNode.StartPosition()
+		byteStart := symbolStartByte(config, languageValue, definitionKind, definitionNode)
+		signature := buildSignature(config, languageValue, definitionNode, source, byteStart)
+		isTest := detectTestSymbol(config.Name, languageValue, definitionNode, source)
+		position := definitionNode.StartPoint()
 		line := int(position.Row) + 1
 		for _, nameNode := range nameNodes {
 			symbols = append(symbols, Symbol{
-				Name:      nameNode.Utf8Text(source),
+				Name:      nameNode.Text(source),
 				Kind:      kind,
 				Signature: signature,
 				Line:      line,
-				ByteStart: definitionNode.StartByte(),
-				ByteEnd:   definitionNode.EndByte(),
+				ByteStart: uint(byteStart),
+				ByteEnd:   uint(definitionNode.EndByte()),
 				IsTest:    isTest,
 			})
 		}
 	}
 
 	return deduplicate(symbols)
+}
+
+func symbolStartByte(config *Config, languageValue *gts.Language, definitionKind string, node *gts.Node) uint32 {
+	if config.Name != languageNameZig || definitionKind != definitionKindFunction {
+		return node.StartByte()
+	}
+	for _, child := range node.Children() {
+		if child.Type(languageValue) == "fn" {
+			return child.StartByte()
+		}
+	}
+	return node.StartByte()
 }
 
 func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKind, bool) {
@@ -88,7 +96,7 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 	}
 
 	switch captureName {
-	case "definition.function", "definition.macro", "definition.method":
+	case definitionKindFunction, "definition.macro", "definition.method":
 		return SymbolKindFunc, true
 	case "definition.struct":
 		return SymbolKindStruct, true
@@ -109,19 +117,16 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 	}
 }
 
-func buildSignature(config *Config, node *sitter.Node, source []byte) string {
-	start := node.StartByte()
+func buildSignature(config *Config, languageValue *gts.Language, node *gts.Node, source []byte, start uint32) string {
 	end := node.EndByte()
 	if int(end) > len(source) {
-		end = uint(len(source))
+		end = uint32(len(source))
 	}
 	text := source[start:end]
 
 	if config.SigBodyChild != "" {
-		cursor := node.Walk()
-		defer cursor.Close()
-		for _, child := range node.Children(cursor) {
-			if child.Kind() == config.SigBodyChild {
+		for _, child := range node.Children() {
+			if child.Type(languageValue) == config.SigBodyChild {
 				if int(child.StartByte()) <= len(source) {
 					signature := strings.TrimSpace(string(source[start:child.StartByte()]))
 					signature = strings.TrimSpace(strings.TrimSuffix(signature, ":"))
@@ -196,32 +201,32 @@ func symbolKindSpecificity(kind SymbolKind) int {
 	}
 }
 
-func detectTestSymbol(languageName string, node *sitter.Node, source []byte) bool {
-	if languageName != "rust" {
+func detectTestSymbol(languageName string, languageValue *gts.Language, node *gts.Node, source []byte) bool {
+	if languageName != languageNameRust {
 		return false
 	}
-	return hasRustTestAttribute(node, source)
+	return hasRustTestAttribute(languageValue, node, source)
 }
 
-func hasRustTestAttribute(node *sitter.Node, source []byte) bool {
-	for sibling := node.PrevNamedSibling(); sibling != nil; sibling = sibling.PrevNamedSibling() {
-		if sibling.Kind() != "attribute_item" {
+func hasRustTestAttribute(languageValue *gts.Language, node *gts.Node, source []byte) bool {
+	for sibling := previousNamedSibling(node); sibling != nil; sibling = previousNamedSibling(sibling) {
+		if sibling.Type(languageValue) != "attribute_item" {
 			break
 		}
-		if isTestAttribute(sibling.Utf8Text(source)) {
+		if isTestAttribute(sibling.Text(source)) {
 			return true
 		}
 	}
 
 	for parent := node.Parent(); parent != nil; parent = parent.Parent() {
-		if parent.Kind() != "mod_item" {
+		if parent.Type(languageValue) != "mod_item" {
 			continue
 		}
-		for sibling := parent.PrevNamedSibling(); sibling != nil; sibling = sibling.PrevNamedSibling() {
-			if sibling.Kind() != "attribute_item" {
+		for sibling := previousNamedSibling(parent); sibling != nil; sibling = previousNamedSibling(sibling) {
+			if sibling.Type(languageValue) != "attribute_item" {
 				break
 			}
-			if strings.Contains(sibling.Utf8Text(source), "cfg(test)") {
+			if strings.Contains(sibling.Text(source), "cfg(test)") {
 				return true
 			}
 		}
@@ -239,4 +244,13 @@ func isTestAttribute(text string) bool {
 		return true
 	}
 	return strings.Contains(trimmed, "cfg(test)")
+}
+
+func previousNamedSibling(node *gts.Node) *gts.Node {
+	for sibling := node.PrevSibling(); sibling != nil; sibling = sibling.PrevSibling() {
+		if sibling.IsNamed() {
+			return sibling
+		}
+	}
+	return nil
 }

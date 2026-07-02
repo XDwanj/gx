@@ -23,23 +23,18 @@ jobs:
           - runner: ubuntu-latest
             goos: linux
             goarch: amd64
-            cc: zig cc -target x86_64-linux-gnu
           - runner: ubuntu-latest
             goos: linux
             goarch: arm64
-            cc: zig cc -target aarch64-linux-gnu
           - runner: ubuntu-latest
             goos: windows
             goarch: amd64
-            cc: zig cc -target x86_64-windows-gnu
           - runner: macos-latest
             goos: darwin
             goarch: amd64
-            cc: clang -arch x86_64
           - runner: macos-latest
             goos: darwin
             goarch: arm64
-            cc: clang -arch arm64
 
     steps:
       - name: Checkout
@@ -50,13 +45,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Setup Zig
-        if: runner.os == 'Linux'
-        uses: mlugg/setup-zig@v2.2.1
-
       - name: Build release archive
         env:
-          CC: ${{ matrix.cc }}
           VERSION: ${{ github.ref_name }}
         run: scripts/build-release-artifact.sh "${{ matrix.goos }}" "${{ matrix.goarch }}" dist
 

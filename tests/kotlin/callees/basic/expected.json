@@ -5,12 +5,5 @@
     "caller": "render",
     "callee": "helper",
     "context": "helper()"
-  },
-  {
-    "file": "main.kt",
-    "line": 5,
-    "caller": "render",
-    "callee": "println",
-    "context": "println(\"hi\")"
   }
 ]

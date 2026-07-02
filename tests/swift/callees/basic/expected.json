@@ -5,12 +5,5 @@
     "caller": "A",
     "callee": "helper",
     "context": "helper()"
-  },
-  {
-    "file": "main.swift",
-    "line": 5,
-    "caller": "A",
-    "callee": "logger.run",
-    "context": "logger.run(\"hi\")"
   }
 ]

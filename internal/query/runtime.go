@@ -910,6 +910,11 @@ func (service *Service) Callees(idx *index.Index, options CalleesOptions) error 
 
 		lines := linesCache[match.path]
 		for _, callee := range callees {
+			callMatches := findScopedCallableMatchesByCall(resolvedIdx, match.path, callee.Name, filter)
+			if len(callMatches) == 0 {
+				continue
+			}
+
 			context := ""
 			if callee.Line-1 >= 0 && callee.Line-1 < len(lines) {
 				context = strings.TrimSpace(lines[callee.Line-1])
@@ -1178,7 +1183,7 @@ func (service *Service) treeOutEdges(idx *index.Index, filter *scopeFilter, pare
 	var wg sync.WaitGroup
 	for calleeIndex, callee := range callees {
 		context := lineContext(lines, callee.Line)
-		matches := findCallableMatchesByNames(idx, callNameCandidates(callee.Name), filter)
+		matches := findScopedCallableMatchesByCall(idx, parent.match.path, callee.Name, filter)
 		if len(matches) == 0 {
 			continue
 		}
@@ -1263,6 +1268,9 @@ func (service *Service) treeInCandidates(idx *index.Index, filter *scopeFilter, 
 		if filter != nil && !filter.contains(path) {
 			continue
 		}
+		if !sameDefinitionScope(parent.match.path, path) {
+			continue
+		}
 
 		source, err := os.ReadFile(filepath.Join(idx.Root, path))
 		if err != nil || !containsAnyName(source, nameBytes) {
@@ -1335,6 +1343,17 @@ func findCallableMatchesByNames(idx *index.Index, names []string, filter *scopeF
 	return matches
 }
 
+func findScopedCallableMatchesByCall(idx *index.Index, callerPath string, name string, filter *scopeFilter) []definitionMatch {
+	matches := findCallableMatchesByNames(idx, callNameCandidates(name), filter)
+	scoped := make([]definitionMatch, 0, len(matches))
+	for _, match := range matches {
+		if sameDefinitionScope(callerPath, match.path) {
+			scoped = append(scoped, match)
+		}
+	}
+	return scoped
+}
+
 func callNameCandidates(name string) []string {
 	candidates := make([]string, 0, 3)
 	addCallNameCandidate := func(value string) {
@@ -1361,6 +1380,10 @@ func callNameCandidates(name string) []string {
 		addCallNameCandidate(name[indexValue+1:])
 	}
 	return candidates
+}
+
+func sameDefinitionScope(leftPath string, rightPath string) bool {
+	return filepath.Dir(leftPath) == filepath.Dir(rightPath)
 }
 
 func cloneTreeAncestors(ancestors map[string]bool) map[string]bool {

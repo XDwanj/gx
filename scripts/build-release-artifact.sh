@@ -17,6 +17,7 @@ archive_base_name="${PROJECT_NAME}_${normalized_version}_${target_os}_${target_a
 build_root="$(mktemp -d "${TEMP_DIR_TEMPLATE}")"
 package_dir="${build_root}/${archive_base_name}"
 go_ldflags="-X github.com/XDwanj/gx/internal/app.Version=${version}"
+grammar_tags="${GRAMMAR_TAGS:-grammar_subset grammar_subset_bash grammar_subset_c grammar_subset_cpp grammar_subset_go grammar_subset_java grammar_subset_kotlin grammar_subset_lua grammar_subset_proto grammar_subset_python grammar_subset_ruby grammar_subset_rust grammar_subset_swift grammar_subset_typescript grammar_subset_tsx grammar_subset_zig}"
 
 cleanup() {
 	rm -rf "${build_root}"
@@ -32,7 +33,7 @@ if [ "${target_os}" = "${WINDOWS_OS}" ]; then
 	binary_file_name="${BINARY_NAME}${WINDOWS_EXTENSION}"
 fi
 
-GOOS="${target_os}" GOARCH="${target_arch}" CGO_ENABLED=1 go build -trimpath -ldflags "${go_ldflags}" -o "${package_dir}/${binary_file_name}" .
+GOOS="${target_os}" GOARCH="${target_arch}" CGO_ENABLED=0 go build -trimpath -tags "${grammar_tags}" -ldflags "${go_ldflags}" -o "${package_dir}/${binary_file_name}" .
 cp README.md LICENSE "${package_dir}/"
 
 if [ "${target_os}" = "${WINDOWS_OS}" ]; then

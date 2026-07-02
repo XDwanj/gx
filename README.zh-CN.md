@@ -9,7 +9,7 @@
 - 在读完整文件前，先给出文件或目录级别的结构概览。
 - 按符号名、符号类型、文件路径在整个项目里检索符号。
 - 直接输出某个符号的定义体，避免为了看一个函数或类型而打开整个文件。
-- 列出匹配函数体内部的语法级出调用。
+- 列出匹配函数体内部、且在同一源码作用域内有定义的出调用。
 - 查找某个符号的引用位置，并支持按调用者去重，便于估算重构影响范围。
 - 通过 `gx tree` 生成经过 AI 剪枝的函数 in/out 树。
 - 管理语言 grammar 的启用状态，以及项目索引缓存。
@@ -240,9 +240,10 @@ git push origin v1.2.3
 make cross
 ```
 
-非 Darwin 目标需要支持 cgo 的交叉 C 编译器。当前 `Makefile` 默认对
-Linux 和 Windows 目标使用 `zig cc`。在 macOS 上可以通过 `make cross-darwin`
-构建 `darwin/arm64` 和 `darwin/amd64` 两种产物。
+交叉编译使用纯 Go 的 gotreesitter runtime，并设置 `CGO_ENABLED=0`。Release
+产物会使用 gotreesitter 的 `grammar_subset` tags，只嵌入 `gx` 对外支持的
+grammar。在 macOS 上可以通过 `make cross-darwin` 构建 `darwin/arm64` 和
+`darwin/amd64` 两种产物。
 
 ## 快速开始
 
@@ -291,7 +292,7 @@ gx symbols --name 'new*' --limit 20 --offset 20
 gx definition --name buildRuntime --limit 1 --max-lines 40
 ```
 
-查看某个函数内部调用了哪些函数：
+查看某个函数内部调用了哪些同目录、当前查询范围内已定义的函数：
 
 ```bash
 gx callees --name buildRuntime
@@ -309,7 +310,8 @@ gx references --name buildRuntime
 gx references --name buildRuntime --unique
 ```
 
-生成经过 AI 剪枝的 in/out 树。`tree` 默认深度是 8，AI 剪枝会并行执行，
+生成经过 AI 剪枝的 in/out 树。`tree` 只连接同目录、当前查询范围内已定义的函数。
+默认深度是 8，AI 剪枝会并行执行，
 进程内 API 请求并发上限是 256，并要求用 `--define-in` 指明根函数所在文件。
 使用 `--verbose` 可以查看 tree 展开和 AI cache/API 剪枝进度。输出按 `in` /
 `out` 嵌套；每个节点包含显示为 `path/to/file:line` 的 `file` 和 `symbol`。
@@ -356,7 +358,7 @@ flowchart TD
     D -->|skill| S[输出内置 agent 指南]
 ```
 
-索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号，包括源码坐标。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`callees` 会重新解析命中的函数体并抽取语法级调用表达式；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
+索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号，包括源码坐标。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`callees` 会重新解析命中的函数体，只输出目标名字在同一源码目录、当前查询范围内有函数定义的调用；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
 
 ## 命令说明
 
@@ -366,7 +368,7 @@ flowchart TD
 - `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`name`、`kind`、`signature` 的声明索引；终端输出里的 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
 - `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体；终端头部使用可点击的 `file:line`。
-- `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部的语法级调用列表，终端字段为 `file`、`caller`、`callee`、`context`；其中 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
+- `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部、且目标名字在同一源码目录和当前查询范围内有函数定义的调用列表；终端字段为 `file`、`caller`、`callee`、`context`，其中 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
 - `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
 `symbols`、`definition`、`callees` 和 `references` 还支持 `--define-in FILE`，用于让 AI 按 `FILE` 中定义的符号对候选结果做消歧。该功能需要设置 `GX_OPENAI_API_KEY` 和 `GX_OPENAI_BASE_URL`；`GX_OPENAI_MODEL` 可选，默认是 `gpt-4o-mini`。AI 筛选结果会缓存到项目 SQLite 缓存中。

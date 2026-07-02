@@ -36,6 +36,112 @@ func TestParseAndExtractRust(t *testing.T) {
 	}
 }
 
+func TestParseAndExtractSupportedLanguageSmoke(t *testing.T) {
+	tests := []struct {
+		language string
+		path     string
+		source   string
+		expected map[string]SymbolKind
+	}{
+		{
+			language: "bash",
+			path:     "build.sh",
+			source:   "build() { echo ok; }\n",
+			expected: map[string]SymbolKind{"build": SymbolKindFunc},
+		},
+		{
+			language: "c",
+			path:     "demo.c",
+			source:   "int add(int left, int right) { return left + right; }\n",
+			expected: map[string]SymbolKind{"add": SymbolKindFunc},
+		},
+		{
+			language: "cpp",
+			path:     "demo.cpp",
+			source:   "struct User {};\nint add(int left, int right) { return left + right; }\n",
+			expected: map[string]SymbolKind{"User": SymbolKindStruct, "add": SymbolKindFunc},
+		},
+		{
+			language: "go",
+			path:     "demo.go",
+			source:   "package demo\n\ntype User struct{}\nfunc Build() {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindStruct, "Build": SymbolKindFunc},
+		},
+		{
+			language: "java",
+			path:     "Demo.java",
+			source:   "class User { void build() {} }\n",
+			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
+		},
+		{
+			language: "kotlin",
+			path:     "Demo.kt",
+			source:   "class User\nfun build() {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
+		},
+		{
+			language: "lua",
+			path:     "demo.lua",
+			source:   "function build() end\n",
+			expected: map[string]SymbolKind{"build": SymbolKindFunc},
+		},
+		{
+			language: "protobuf",
+			path:     "demo.proto",
+			source:   "syntax = \"proto3\";\nmessage User {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindStruct},
+		},
+		{
+			language: "python",
+			path:     "demo.py",
+			source:   "class User:\n    pass\n\ndef build():\n    pass\n",
+			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
+		},
+		{
+			language: "ruby",
+			path:     "demo.rb",
+			source:   "class User\nend\ndef build\nend\n",
+			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
+		},
+		{
+			language: "rust",
+			path:     "demo.rs",
+			source:   "struct User;\nfn build() {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindStruct, "build": SymbolKindFunc},
+		},
+		{
+			language: "swift",
+			path:     "Demo.swift",
+			source:   "struct User {}\nfunc build() {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindStruct, "build": SymbolKindFunc},
+		},
+		{
+			language: "typescript",
+			path:     "demo.ts",
+			source:   "class User {}\nfunction build() {}\n",
+			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
+		},
+		{
+			language: "zig",
+			path:     "demo.zig",
+			source:   "pub fn build() void {}\n",
+			expected: map[string]SymbolKind{"build": SymbolKindFunc},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.language, func(t *testing.T) {
+			ensureInstalled(t, test.language)
+
+			symbols, err := ParseAndExtract(test.language, []byte(test.source), test.path)
+			if err != nil {
+				t.Fatalf("parse %s: %v", test.language, err)
+			}
+			assertKinds(t, symbols, test.expected)
+		})
+	}
+}
+
 func TestParseAndExtractTSX(t *testing.T) {
 	ensureInstalled(t, "typescript")
 
