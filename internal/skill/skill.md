@@ -85,6 +85,7 @@ Use `overview` before reading code.
 - Directory mode supports `--limit`, `--offset`, and `--all`.
 - In multi-path mode, pagination applies independently to each directory target.
 - File mode and Markdown outline mode ignore pagination flags.
+- Markdown outline rows include `line`, `level`, and `heading`.
 - When you know a field name but not the enclosing struct, class, or message name, use `overview` first to find candidate declarations.
 
 Examples:

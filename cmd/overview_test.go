@@ -48,7 +48,7 @@ func TestOverviewCommandSupportsMarkdownFile(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("run overview command: %v", runErr)
 	}
-	if !strings.Contains(stdout, "1,Title") || !strings.Contains(stdout, "2,Section") {
+	if !strings.Contains(stdout, "1,1,Title") || !strings.Contains(stdout, "3,2,Section") {
 		t.Fatalf("unexpected stdout: %q", stdout)
 	}
 	if strings.TrimSpace(stderr) != "" {
@@ -87,8 +87,8 @@ func TestOverviewCommandSupportsMultiplePathArgs(t *testing.T) {
 		"\"src/main.rs:1\",main,func",
 		"target: README.md",
 		"target_kind: markdown",
-		"1,Title",
-		"2,Section",
+		"1,1,Title",
+		"3,2,Section",
 	} {
 		if !strings.Contains(stdout, expected) {
 			t.Fatalf("expected %q in stdout, got %q", expected, stdout)
@@ -127,7 +127,7 @@ func TestOverviewCommandMultiplePathsEmitSectionedJSON(t *testing.T) {
 	if len(sections[0].Rows) != 1 || sections[0].Rows[0]["name"] != "main" {
 		t.Fatalf("unexpected file rows: %+v", sections[0].Rows)
 	}
-	if len(sections[1].Rows) != 2 || sections[1].Rows[0]["heading"] != "Title" {
+	if len(sections[1].Rows) != 2 || sections[1].Rows[0]["heading"] != "Title" || sections[1].Rows[0]["line"] != float64(1) {
 		t.Fatalf("unexpected markdown rows: %+v", sections[1].Rows)
 	}
 	if strings.TrimSpace(stderr) != "" {

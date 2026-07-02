@@ -364,7 +364,7 @@ flowchart TD
 
 ### 导航相关
 
-- `gx overview [path ...]`：输出一个或多个文件或目录的目录式概览；省略路径时默认使用当前工作目录。
+- `gx overview [path ...]`：输出一个或多个文件或目录的目录式概览；Markdown 大纲包含 `line`、`level`、`heading`；省略路径时默认使用当前工作目录。
 - `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`name`、`kind`、`signature` 的声明索引；终端输出里的 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
 - `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体；终端头部使用可点击的 `file:line`。

@@ -1414,16 +1414,16 @@ func TestMarkdownOverviewOutput(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "{level,heading}:") {
+	if !strings.Contains(output, "{line,level,heading}:") {
 		t.Fatalf("unexpected output: %s", output)
 	}
 	for _, expected := range []string{
-		"1,Title",
-		"2,Section",
-		"3,Deep Dive",
-		"4,Level Four",
-		"5,Level Five",
-		"6,Level Six",
+		"1,1,Title",
+		"3,2,Section",
+		"5,3,Deep Dive",
+		"7,4,Level Four",
+		"9,5,Level Five",
+		"11,6,Level Six",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("missing heading %q in output %s", expected, output)
@@ -1449,9 +1449,9 @@ func TestMarkdownOverviewIgnoresFencedCodeAndSupportsSetext(t *testing.T) {
 
 	output := stdout.String()
 	for _, expected := range []string{
-		"1,Document Title",
-		"2,Section",
-		"3,Real Heading",
+		"1,1,Document Title",
+		"9,2,Section",
+		"12,3,Real Heading",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("missing heading %q in output %s", expected, output)

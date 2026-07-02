@@ -290,6 +290,8 @@ Inspect a Markdown document outline:
 gx overview README.md
 ```
 
+Markdown outline rows include `line`, `level`, and `heading`.
+
 Inspect the structure of a single file:
 
 ```bash
@@ -401,13 +403,13 @@ flowchart TD
 
 The index is file-oriented: each indexed file stores its language, modification time, and extracted symbols, including source coordinates. `definition` uses stored byte ranges to slice the original source file directly, `callees` reparses matching symbol bodies and prints only calls whose target name has a function definition in the same source directory and current query scope, and `references` reparses candidate files and scans syntax nodes that match the requested identifier name. This means `gx` is faster and more structured than plain text grep, but it is still a lightweight syntax-driven navigator rather than a full type-checking language server.
 
-Markdown support is intentionally limited to `gx overview` for file outlines. Markdown files are not indexed for `symbols`, `definition`, `callees`, or `references`.
+Markdown support is intentionally limited to `gx overview` for file outlines with `line`, `level`, and `heading`. Markdown files are not indexed for `symbols`, `definition`, `callees`, or `references`.
 
 ## Commands
 
 ### Navigation
 
-- `gx overview [path ...]`: Show a table of contents for one or more files or directories. Defaults to the current working directory.
+- `gx overview [path ...]`: Show a table of contents for one or more files or directories. Markdown outlines include `line`, `level`, and `heading`. Defaults to the current working directory.
 - `gx overview --full <dir>`: Show a fuller per-file directory overview.
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`: Search symbols across the project and print a declaration index with `file`, `name`, `kind`, and `signature`; terminal output renders `file` as `path/to/file:line`, while `--json` keeps separate `file` and `line`.
 - `gx definition --name GLOB [--kind KIND] [--max-lines N] [path ...]`: Print matching symbol bodies with a clickable `file:line` header in terminal output.

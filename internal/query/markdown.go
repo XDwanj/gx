@@ -20,12 +20,14 @@ const (
 )
 
 type markdownOverviewRow struct {
+	Line    int    `json:"line"`
 	Level   int    `json:"level"`
 	Heading string `json:"heading"`
 }
 
 type markdownHeading struct {
 	Level int
+	Line  int
 	Text  string
 }
 
@@ -78,6 +80,7 @@ func (service *Service) markdownOverviewRows(path string) ([]markdownOverviewRow
 	rows := make([]markdownOverviewRow, 0, len(headings))
 	for _, heading := range headings {
 		rows = append(rows, markdownOverviewRow{
+			Line:    heading.Line,
 			Level:   heading.Level,
 			Heading: heading.Text,
 		})
@@ -111,6 +114,7 @@ func extractMarkdownHeadings(source []byte) []markdownHeading {
 		}
 
 		if heading, ok := parseATXHeading(line); ok {
+			heading.Line = index + 1
 			headings = append(headings, heading)
 			continue
 		}
@@ -120,6 +124,7 @@ func extractMarkdownHeadings(source []byte) []markdownHeading {
 		}
 
 		if heading, ok := parseSetextHeading(line, lines[index+1]); ok {
+			heading.Line = index + 1
 			headings = append(headings, heading)
 			index++
 		}
