@@ -1,0 +1,23 @@
+[
+  {
+    "file": "App.vue",
+    "line": 1,
+    "name": "template",
+    "kind": "module",
+    "signature": "<template>"
+  },
+  {
+    "file": "App.vue",
+    "line": 4,
+    "name": "script",
+    "kind": "module",
+    "signature": "<script setup lang=\"ts\">"
+  },
+  {
+    "file": "App.vue",
+    "line": 7,
+    "name": "style",
+    "kind": "module",
+    "signature": "<style scoped>"
+  }
+]

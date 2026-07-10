@@ -1,0 +1,8 @@
+{
+  "name": "template",
+  "kind": "module",
+  "paths": [
+    "."
+  ],
+  "max_lines": 3
+}

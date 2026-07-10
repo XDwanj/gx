@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/XDwanj/gx/internal/lang"
 )
@@ -122,6 +123,21 @@ func TestParseAndExtractSupportedLanguageSmoke(t *testing.T) {
 			expected: map[string]SymbolKind{"User": SymbolKindClass, "build": SymbolKindFunc},
 		},
 		{
+			language: "vue",
+			path:     "Demo.vue",
+			source: `<template>
+  <main>{{ title }}</main>
+</template>
+<script setup lang="ts">
+const title = "gx"
+</script>
+<style scoped>
+.title { color: red; }
+</style>
+`,
+			expected: map[string]SymbolKind{"template": SymbolKindModule, "script": SymbolKindModule, "style": SymbolKindModule},
+		},
+		{
 			language: "zig",
 			path:     "demo.zig",
 			source:   "pub fn build() void {}\n",
@@ -193,6 +209,29 @@ message HelloReply {
 		"SayHello":     SymbolKindFunc,
 		"HelloReply":   SymbolKindStruct,
 	})
+}
+
+func TestParseAndExtractReportsParseTimeout(t *testing.T) {
+	ensureInstalled(t, "protobuf")
+
+	previousTimeout := parseTimeout
+	parseTimeout = time.Microsecond
+	t.Cleanup(func() {
+		parseTimeout = previousTimeout
+	})
+
+	var builder strings.Builder
+	builder.WriteString("syntax = \"proto3\";\n")
+	for i := range 5000 {
+		builder.WriteString("message Item")
+		builder.WriteString(string(rune('A' + i%26)))
+		builder.WriteString(" { string name = 1; }\n")
+	}
+
+	_, err := ParseAndExtract("protobuf", []byte(builder.String()), "large.proto")
+	if !IsParseTimedOut(err) {
+		t.Fatalf("ParseAndExtract error = %v, want parse timeout", err)
+	}
 }
 
 func TestParseAndExtractGoKinds(t *testing.T) {
@@ -446,6 +485,12 @@ func TestDetectLanguageKotlin(t *testing.T) {
 	}
 	if got := DetectLanguage("scripts/build.kts"); got != "kotlin" {
 		t.Fatalf("unexpected kotlin detection for .kts: %q", got)
+	}
+}
+
+func TestDetectLanguageVue(t *testing.T) {
+	if got := DetectLanguage("src/components/App.vue"); got != "vue" {
+		t.Fatalf("unexpected vue detection: %q", got)
 	}
 }
 

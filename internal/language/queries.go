@@ -427,6 +427,20 @@ const typeScriptQuery = `
   name: [(property_identifier) (string) (number)] @name) @definition.constant
 `
 
+const vueQuery = `
+(template_element
+  (start_tag
+    (tag_name) @name)) @definition.module
+
+(script_element
+  (start_tag
+    (tag_name) @name)) @definition.module
+
+(style_element
+  (start_tag
+    (tag_name) @name)) @definition.module
+`
+
 const zigQuery = `
 (function_declaration
   "fn"

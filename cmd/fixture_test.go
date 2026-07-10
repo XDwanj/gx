@@ -54,6 +54,18 @@ func TestLanguageFixtures(t *testing.T) {
 	if len(cases) == 0 {
 		t.Fatalf("expected fixture cases under %s", fixturesRoot)
 	}
+	languages := make([]string, 0)
+	seenLanguages := make(map[string]struct{})
+	for _, testCase := range cases {
+		if _, seen := seenLanguages[testCase.Language]; seen {
+			continue
+		}
+		seenLanguages[testCase.Language] = struct{}{}
+		languages = append(languages, testCase.Language)
+	}
+	if err := lang.Add(io.Discard, io.Discard, languages); err != nil {
+		t.Fatalf("install fixture grammars: %v", err)
+	}
 
 	for _, testCase := range cases {
 		testCase := testCase
@@ -249,10 +261,6 @@ func repoRootFromFixtureTest(t *testing.T) string {
 
 func runFixtureCase(t *testing.T, testCase fixtureCase) {
 	t.Helper()
-
-	if err := lang.Add(io.Discard, io.Discard, []string{testCase.Language}); err != nil {
-		t.Fatalf("install grammar %s: %v", testCase.Language, err)
-	}
 
 	query := readFixtureJSON[fixtureQuery](t, filepath.Join(testCase.Dir, "query.json"))
 	expected := readFixtureJSON[any](t, filepath.Join(testCase.Dir, "expected.json"))

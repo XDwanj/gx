@@ -20,7 +20,7 @@ This project is derived from `cx`, but its public command name in this repositor
 
 Current built-in language support includes:
 
-`bash`, `c`, `cpp`, `go`, `java`, `kotlin`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `zig`
+`bash`, `c`, `cpp`, `go`, `java`, `kotlin`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `vue`, `zig`
 
 Use `gx lang list` to see which grammars are currently enabled in your local cache.
 
@@ -200,6 +200,17 @@ TSX grammar, while `.ts` and `.js` use the TypeScript grammar.
 | `variable_declaration`                             | A named `var` declaration                                      | `const`     |
 | `enum_assignment`                                  | An enum member with an explicit assigned value                 | `const`     |
 | `enum_body` member name                            | An enum member without an explicit assigned value              | `const`     |
+
+### vue
+
+`vue` covers `.vue` single-file components. It indexes top-level SFC blocks as
+modules.
+
+| Declaration form  | What syntax it represents | `gx` kind |
+| ----------------- | ------------------------- | --------- |
+| `template_element` | A top-level template block | `module`  |
+| `script_element`   | A top-level script block   | `module`  |
+| `style_element`    | A top-level style block    | `module`  |
 
 ### zig
 

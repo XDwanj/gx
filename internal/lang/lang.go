@@ -26,6 +26,7 @@ var supportedLanguages = []string{
 	"rust",
 	"swift",
 	"typescript",
+	"vue",
 	"zig",
 }
 

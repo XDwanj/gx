@@ -12,7 +12,7 @@ require (
 )
 
 require (
-	github.com/odvcencio/gotreesitter v0.20.8
+	github.com/odvcencio/gotreesitter v0.22.4
 	github.com/openai/openai-go/v3 v3.32.0
 	github.com/spf13/pflag v1.0.9
 )

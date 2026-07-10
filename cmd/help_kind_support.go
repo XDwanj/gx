@@ -144,6 +144,12 @@ func languageKindSupportMatrix() []languageKindSupport {
 			},
 		},
 		{
+			Language: "vue",
+			Kinds: []index.SymbolKind{
+				index.SymbolKindModule,
+			},
+		},
+		{
 			Language: "zig",
 			Kinds: []index.SymbolKind{
 				index.SymbolKindFunc,

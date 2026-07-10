@@ -71,6 +71,7 @@ Current language coverage:
 - `rust`: `func`, `const`, `struct`, `enum`, `interface`, `module`, `type`
 - `swift`: `func`, `const`, `struct`, `enum`, `class`, `interface`, `module`, `type`
 - `typescript`: `func`, `const`, `class`, `enum`, `interface`, `module`, `type`
+- `vue`: `module`
 - `zig`: `func`, `struct`, `enum`
 
 ## Command Guide

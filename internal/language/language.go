@@ -2,11 +2,13 @@ package language
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	gts "github.com/odvcencio/gotreesitter"
 	"github.com/odvcencio/gotreesitter/grammars"
@@ -28,15 +30,18 @@ const (
 	languageNameRuby        = "ruby"
 	languageNameRust        = "rust"
 	languageNameSwift       = "swift"
+	languageNameVue         = "vue"
 	languageNameZig         = "zig"
 	grammarNameTSX          = "tsx"
 	grammarNameTypeScript   = "typescript"
 	langErrorNotInstalled   = "not-installed"
+	langErrorParseTimeout   = "parse-timeout"
 	nodeKindCall            = "call"
 	nodeKindCallExpression  = "call_expression"
 	nodeKindFieldIdentifier = "field_identifier"
 	nodeKindIdentifier      = "identifier"
 	nodeKindTypeIdentifier  = "type_identifier"
+	defaultParseTimeout     = 5 * time.Second
 )
 
 type KindOverride struct {
@@ -90,6 +95,9 @@ func (errorValue *LangError) Error() string {
 	if errorValue.Kind == langErrorNotInstalled {
 		return fmt.Sprintf("%s grammar not installed — run: gx lang enable %s", errorValue.Name, errorValue.Name)
 	}
+	if errorValue.Kind == langErrorParseTimeout {
+		return fmt.Sprintf("%s parse timed out", errorValue.Name)
+	}
 	return "parse failed"
 }
 
@@ -106,7 +114,14 @@ func newParseFailed() error {
 	return &LangError{Kind: "parse-failed"}
 }
 
-var queryCache sync.Map
+func newParseTimedOut(name string) error {
+	return &LangError{Name: name, Kind: langErrorParseTimeout}
+}
+
+var (
+	queryCache   sync.Map
+	parseTimeout = defaultParseTimeout
+)
 
 var languages = []*Config{
 	{
@@ -280,6 +295,14 @@ var languages = []*Config{
 		},
 		grammarName:  func(_ string) string { return languageNameSwift },
 		loadLanguage: func(_ string) *gts.Language { return grammars.SwiftLanguage() },
+	},
+	{
+		Name:         languageNameVue,
+		Extensions:   []string{languageNameVue},
+		Query:        vueQuery,
+		RefNodeTypes: []string{"tag_name", "attribute_name"},
+		grammarName:  func(_ string) string { return languageNameVue },
+		loadLanguage: func(_ string) *gts.Language { return grammars.VueLanguage() },
 	},
 }
 
@@ -461,6 +484,11 @@ func IsNotInstalled(err error) bool {
 	return isNotInstalled(err)
 }
 
+func IsParseTimedOut(err error) bool {
+	typed, ok := err.(*LangError)
+	return ok && typed.Kind == langErrorParseTimeout
+}
+
 func parseSource(languageName string, source []byte, path string) (*Config, *gts.Tree, *gts.Language, string, error) {
 	config := configFor(languageName)
 	if config == nil {
@@ -477,12 +505,26 @@ func parseSource(languageName string, source []byte, path string) (*Config, *gts
 	}
 
 	parser := gts.NewParser(languageValue)
-	tree, err := parser.Parse(source)
+	if parseTimeout > 0 {
+		parser.SetTimeoutMicros(parseTimeoutMicros(parseTimeout))
+	}
+	tree, err := parser.ParseStrict(source)
 	if err != nil || tree == nil {
+		if tree != nil {
+			tree.Release()
+		}
+		var stoppedEarly *gts.ParseStoppedEarlyError
+		if errors.As(err, &stoppedEarly) && stoppedEarly.Reason == gts.ParseStopTimeout {
+			return nil, nil, nil, "", newParseTimedOut(config.Name)
+		}
 		return nil, nil, nil, "", newParseFailed()
 	}
 
 	return config, tree, languageValue, config.grammarName(ext), nil
+}
+
+func parseTimeoutMicros(timeout time.Duration) uint64 {
+	return uint64((timeout + time.Microsecond - 1) / time.Microsecond)
 }
 
 func compiledQuery(config *Config, languageValue *gts.Language, grammarKey string) (*gts.Query, error) {

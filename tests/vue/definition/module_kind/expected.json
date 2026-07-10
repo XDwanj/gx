@@ -1,0 +1,7 @@
+[
+  {
+    "file": "App.vue",
+    "line": 1,
+    "body": "<template>\n  <main>{{ title }}</main>\n</template>"
+  }
+]
