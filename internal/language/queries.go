@@ -152,39 +152,40 @@ const javaQuery = `
 
 const kotlinQuery = `
 (class_declaration
-  "enum"
-  "class"
-  (type_identifier) @name) @definition.enum
+	(modifiers
+		(class_modifier) @class_modifier)
+	"class"
+	name: (identifier) @name) @definition.enum
+	(#eq? @class_modifier "enum")
 
 (class_declaration
-  "class"
-  (type_identifier) @name) @definition.class
+	"class"
+	name: (identifier) @name) @definition.class
 
 (class_declaration
-  "interface"
-  (type_identifier) @name) @definition.interface
+	"interface"
+	name: (identifier) @name) @definition.interface
 
 (object_declaration
-  "object"
-  (type_identifier) @name) @definition.class
+	name: (identifier) @name) @definition.class
 
 (function_declaration
-  (simple_identifier) @name) @definition.function
+	name: (identifier) @name) @definition.function
 
 (property_declaration
-  (variable_declaration
-    (simple_identifier) @name)) @definition.constant
+	(variable_declaration
+		(identifier) @name)) @definition.constant
 
 (property_declaration
-  (multi_variable_declaration
-    (variable_declaration
-      (simple_identifier) @name))) @definition.constant
+	(multi_variable_declaration
+		(variable_declaration
+			(identifier) @name))) @definition.constant
 
 (enum_entry
-  (simple_identifier) @name) @definition.constant
+	(identifier) @name) @definition.constant
 
 (type_alias
-  (type_identifier) @name) @definition.type
+	type: (identifier) @name) @definition.type
 `
 
 const luaQuery = `
@@ -428,12 +429,12 @@ const typeScriptQuery = `
 `
 
 const vueQuery = `
-(template_element
-  (start_tag
-    (tag_name) @name)) @definition.module
+(element
+	(start_tag
+		(tag_name) @name)) @definition.module
 
 (script_element
-  (start_tag
+	(start_tag
     (tag_name) @name)) @definition.module
 
 (style_element
@@ -442,23 +443,41 @@ const vueQuery = `
 `
 
 const zigQuery = `
-(function_declaration
-  "fn"
-  (identifier) @name) @definition.function
+(Decl
+	(FnProto
+		(IDENTIFIER) @name)) @definition.function
 
-(variable_declaration
-  (identifier) @name
-  (struct_declaration)) @definition.struct
+(Decl
+	(VarDecl
+		(IDENTIFIER) @name
+		(ErrorUnionExpr
+			(SuffixExpr
+				(ContainerDecl
+					(ContainerDeclType
+						"struct")))))) @definition.struct
 
-(variable_declaration
-  (identifier) @name
-  (enum_declaration)) @definition.enum
+(Decl
+	(VarDecl
+		(IDENTIFIER) @name
+		(ErrorUnionExpr
+			(SuffixExpr
+				(ContainerDecl
+					(ContainerDeclType
+						"enum")))))) @definition.enum
 
-(variable_declaration
-  (identifier) @name
-  (union_declaration)) @definition.struct
+(Decl
+	(VarDecl
+		(IDENTIFIER) @name
+		(ErrorUnionExpr
+			(SuffixExpr
+				(ContainerDecl
+					(ContainerDeclType
+						"union")))))) @definition.struct
 
-(variable_declaration
-  (identifier) @name
-  (error_set_declaration)) @definition.enum
+(Decl
+	(VarDecl
+		(IDENTIFIER) @name
+		(ErrorUnionExpr
+			(SuffixExpr
+				(ErrorSetDecl))))) @definition.enum
 `

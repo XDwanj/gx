@@ -2,7 +2,6 @@ package language
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -10,8 +9,22 @@ import (
 	"sync"
 	"time"
 
-	gts "github.com/odvcencio/gotreesitter"
-	"github.com/odvcencio/gotreesitter/grammars"
+	tree_sitter_swift "github.com/XDwanj/tree-sitter-swift/bindings/go"
+	tree_sitter_zig "github.com/XDwanj/tree-sitter-zig/bindings/go"
+	tree_sitter_proto "github.com/coder3101/tree-sitter-proto/bindings/go"
+	tree_sitter_kotlin "github.com/tree-sitter-grammars/tree-sitter-kotlin/bindings/go"
+	tree_sitter_lua "github.com/tree-sitter-grammars/tree-sitter-lua/bindings/go"
+	sitter "github.com/tree-sitter/go-tree-sitter"
+	tree_sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
+	tree_sitter_c "github.com/tree-sitter/tree-sitter-c/bindings/go"
+	tree_sitter_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
+	tree_sitter_go "github.com/tree-sitter/tree-sitter-go/bindings/go"
+	tree_sitter_html "github.com/tree-sitter/tree-sitter-html/bindings/go"
+	tree_sitter_java "github.com/tree-sitter/tree-sitter-java/bindings/go"
+	tree_sitter_python "github.com/tree-sitter/tree-sitter-python/bindings/go"
+	tree_sitter_ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
+	tree_sitter_rust "github.com/tree-sitter/tree-sitter-rust/bindings/go"
+	tree_sitter_typescript "github.com/tree-sitter/tree-sitter-typescript/bindings/go"
 
 	langpkg "github.com/XDwanj/gx/internal/lang"
 )
@@ -83,7 +96,7 @@ type Config struct {
 	RefNodeTypes  []string
 	CallNodeTypes []string
 	grammarName   func(ext string) string
-	loadLanguage  func(ext string) *gts.Language
+	loadLanguage  func(ext string) *sitter.Language
 }
 
 type LangError struct {
@@ -133,8 +146,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCallExpression,
 		},
-		grammarName:  func(_ string) string { return languageNameRust },
-		loadLanguage: func(_ string) *gts.Language { return grammars.RustLanguage() },
+		grammarName: func(_ string) string { return languageNameRust },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_rust.Language())
+		},
 	},
 	{
 		Name:         "typescript",
@@ -157,11 +172,11 @@ var languages = []*Config{
 			}
 			return grammarNameTypeScript
 		},
-		loadLanguage: func(ext string) *gts.Language {
+		loadLanguage: func(ext string) *sitter.Language {
 			if isTSXFamilyExtension(ext) {
-				return grammars.TsxLanguage()
+				return sitter.NewLanguage(tree_sitter_typescript.LanguageTSX())
 			}
-			return grammars.TypescriptLanguage()
+			return sitter.NewLanguage(tree_sitter_typescript.LanguageTypescript())
 		},
 	},
 	{
@@ -173,8 +188,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCall,
 		},
-		grammarName:  func(_ string) string { return languageNamePython },
-		loadLanguage: func(_ string) *gts.Language { return grammars.PythonLanguage() },
+		grammarName: func(_ string) string { return languageNamePython },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_python.Language())
+		},
 	},
 	{
 		Name:         languageNameProtobuf,
@@ -182,7 +199,9 @@ var languages = []*Config{
 		Query:        protobufQuery,
 		RefNodeTypes: []string{nodeKindIdentifier},
 		grammarName:  func(_ string) string { return languageNameProtobuf },
-		loadLanguage: func(_ string) *gts.Language { return grammars.ProtoLanguage() },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_proto.Language())
+		},
 	},
 	{
 		Name:         languageNameGo,
@@ -193,8 +212,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCallExpression,
 		},
-		grammarName:  func(_ string) string { return languageNameGo },
-		loadLanguage: func(_ string) *gts.Language { return grammars.GoLanguage() },
+		grammarName: func(_ string) string { return languageNameGo },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_go.Language())
+		},
 	},
 	{
 		Name:         "c",
@@ -206,7 +227,7 @@ var languages = []*Config{
 			nodeKindCallExpression,
 		},
 		grammarName:  func(_ string) string { return "c" },
-		loadLanguage: func(_ string) *gts.Language { return grammars.CLanguage() },
+		loadLanguage: func(_ string) *sitter.Language { return sitter.NewLanguage(tree_sitter_c.Language()) },
 	},
 	{
 		Name:         languageNameCPP,
@@ -217,8 +238,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCallExpression,
 		},
-		grammarName:  func(_ string) string { return languageNameCPP },
-		loadLanguage: func(_ string) *gts.Language { return grammars.CppLanguage() },
+		grammarName: func(_ string) string { return languageNameCPP },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_cpp.Language())
+		},
 	},
 	{
 		Name:         languageNameJava,
@@ -229,8 +252,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			"method_invocation",
 		},
-		grammarName:  func(_ string) string { return languageNameJava },
-		loadLanguage: func(_ string) *gts.Language { return grammars.JavaLanguage() },
+		grammarName: func(_ string) string { return languageNameJava },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_java.Language())
+		},
 	},
 	{
 		Name:         languageNameKotlin,
@@ -241,8 +266,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCallExpression,
 		},
-		grammarName:  func(_ string) string { return languageNameKotlin },
-		loadLanguage: func(_ string) *gts.Language { return grammars.KotlinLanguage() },
+		grammarName: func(_ string) string { return languageNameKotlin },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_kotlin.Language())
+		},
 	},
 	{
 		Name:         languageNameRuby,
@@ -252,8 +279,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			nodeKindCall,
 		},
-		grammarName:  func(_ string) string { return languageNameRuby },
-		loadLanguage: func(_ string) *gts.Language { return grammars.RubyLanguage() },
+		grammarName: func(_ string) string { return languageNameRuby },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_ruby.Language())
+		},
 	},
 	{
 		Name:         languageNameLua,
@@ -263,8 +292,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			"function_call",
 		},
-		grammarName:  func(_ string) string { return languageNameLua },
-		loadLanguage: func(_ string) *gts.Language { return grammars.LuaLanguage() },
+		grammarName: func(_ string) string { return languageNameLua },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_lua.Language())
+		},
 	},
 	{
 		Name:         languageNameZig,
@@ -273,7 +304,9 @@ var languages = []*Config{
 		SigDelimiter: '{',
 		RefNodeTypes: []string{nodeKindIdentifier},
 		grammarName:  func(_ string) string { return languageNameZig },
-		loadLanguage: func(_ string) *gts.Language { return grammars.ZigLanguage() },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_zig.Language())
+		},
 	},
 	{
 		Name:         languageNameBash,
@@ -282,7 +315,9 @@ var languages = []*Config{
 		SigDelimiter: '{',
 		RefNodeTypes: []string{"word"},
 		grammarName:  func(_ string) string { return languageNameBash },
-		loadLanguage: func(_ string) *gts.Language { return grammars.BashLanguage() },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_bash.Language())
+		},
 	},
 	{
 		Name:         languageNameSwift,
@@ -293,8 +328,10 @@ var languages = []*Config{
 		CallNodeTypes: []string{
 			"call_expression",
 		},
-		grammarName:  func(_ string) string { return languageNameSwift },
-		loadLanguage: func(_ string) *gts.Language { return grammars.SwiftLanguage() },
+		grammarName: func(_ string) string { return languageNameSwift },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_swift.Language())
+		},
 	},
 	{
 		Name:         languageNameVue,
@@ -302,7 +339,9 @@ var languages = []*Config{
 		Query:        vueQuery,
 		RefNodeTypes: []string{"tag_name", "attribute_name"},
 		grammarName:  func(_ string) string { return languageNameVue },
-		loadLanguage: func(_ string) *gts.Language { return grammars.VueLanguage() },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_html.Language())
+		},
 	},
 }
 
@@ -390,14 +429,14 @@ func ParseAndExtract(languageName string, source []byte, path string) ([]Symbol,
 	if err != nil {
 		return nil, err
 	}
-	defer tree.Release()
+	defer tree.Close()
 
 	query, err := compiledQuery(config, languageValue, grammarKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return extractSymbols(config, query, tree, languageValue, source), nil
+	return extractSymbols(config, query, tree, source), nil
 }
 
 func FindReferences(languageName string, source []byte, path string, name string) ([]Reference, error) {
@@ -405,11 +444,11 @@ func FindReferences(languageName string, source []byte, path string, name string
 }
 
 func FindReferencesForNames(languageName string, source []byte, path string, names []string) ([]Reference, error) {
-	config, tree, languageValue, _, err := parseSource(languageName, source, path)
+	config, tree, _, _, err := parseSource(languageName, source, path)
 	if err != nil {
 		return nil, err
 	}
-	defer tree.Release()
+	defer tree.Close()
 
 	nameSet := make(map[string]struct{}, len(names))
 	for _, name := range names {
@@ -423,13 +462,13 @@ func FindReferencesForNames(languageName string, source []byte, path string, nam
 	}
 
 	references := make([]Reference, 0)
-	walkReferenceLeaves(config, languageValue, tree.RootNode(), func(node *gts.Node) {
-		if _, ok := nameSet[node.Text(source)]; !ok {
+	walkReferenceLeaves(config, tree.RootNode(), func(node *sitter.Node) {
+		if _, ok := nameSet[node.Utf8Text(source)]; !ok {
 			return
 		}
 		references = append(references, Reference{
-			Line:       int(node.StartPoint().Row) + 1,
-			ByteOffset: uint(node.StartByte()),
+			Line:       int(node.StartPosition().Row) + 1,
+			ByteOffset: node.StartByte(),
 		})
 	})
 
@@ -437,16 +476,16 @@ func FindReferencesForNames(languageName string, source []byte, path string, nam
 }
 
 func FindReferenceNames(languageName string, source []byte, path string) ([]string, error) {
-	config, tree, languageValue, _, err := parseSource(languageName, source, path)
+	config, tree, _, _, err := parseSource(languageName, source, path)
 	if err != nil {
 		return nil, err
 	}
-	defer tree.Release()
+	defer tree.Close()
 
 	names := make([]string, 0)
 	seen := make(map[string]struct{})
-	walkReferenceLeaves(config, languageValue, tree.RootNode(), func(node *gts.Node) {
-		name := node.Text(source)
+	walkReferenceLeaves(config, tree.RootNode(), func(node *sitter.Node) {
+		name := node.Utf8Text(source)
 		if name == "" {
 			return
 		}
@@ -460,19 +499,19 @@ func FindReferenceNames(languageName string, source []byte, path string) ([]stri
 	return names, nil
 }
 
-func walkReferenceLeaves(config *Config, languageValue *gts.Language, root *gts.Node, visit func(node *gts.Node)) {
-	stack := []*gts.Node{root}
+func walkReferenceLeaves(config *Config, root *sitter.Node, visit func(node *sitter.Node)) {
+	stack := []*sitter.Node{root}
 	for len(stack) > 0 {
 		node := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
-		if node.ChildCount() == 0 && containsString(config.RefNodeTypes, node.Type(languageValue)) {
+		if node.ChildCount() == 0 && containsString(config.RefNodeTypes, node.Kind()) {
 			visit(node)
 			continue
 		}
 
-		for childIndex := node.ChildCount() - 1; childIndex >= 0; childIndex-- {
-			child := node.Child(childIndex)
+		for childIndex := int(node.ChildCount()) - 1; childIndex >= 0; childIndex-- {
+			child := node.Child(uint(childIndex))
 			if child != nil {
 				stack = append(stack, child)
 			}
@@ -489,7 +528,7 @@ func IsParseTimedOut(err error) bool {
 	return ok && typed.Kind == langErrorParseTimeout
 }
 
-func parseSource(languageName string, source []byte, path string) (*Config, *gts.Tree, *gts.Language, string, error) {
+func parseSource(languageName string, source []byte, path string) (*Config, *sitter.Tree, *sitter.Language, string, error) {
 	config := configFor(languageName)
 	if config == nil {
 		return nil, nil, nil, "", newNotInstalled(languageName)
@@ -504,42 +543,63 @@ func parseSource(languageName string, source []byte, path string) (*Config, *gts
 		return nil, nil, nil, "", newParseFailed()
 	}
 
-	parser := gts.NewParser(languageValue)
-	if parseTimeout > 0 {
-		parser.SetTimeoutMicros(parseTimeoutMicros(parseTimeout))
+	parser := sitter.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(languageValue); err != nil {
+		return nil, nil, nil, "", newParseFailed()
 	}
-	tree, err := parser.ParseStrict(source)
-	if err != nil || tree == nil {
+
+	tree, timedOut := parseWithTimeout(parser, source)
+	if timedOut {
 		if tree != nil {
-			tree.Release()
+			tree.Close()
 		}
-		var stoppedEarly *gts.ParseStoppedEarlyError
-		if errors.As(err, &stoppedEarly) && stoppedEarly.Reason == gts.ParseStopTimeout {
-			return nil, nil, nil, "", newParseTimedOut(config.Name)
-		}
+		return nil, nil, nil, "", newParseTimedOut(config.Name)
+	}
+	if tree == nil {
 		return nil, nil, nil, "", newParseFailed()
 	}
 
 	return config, tree, languageValue, config.grammarName(ext), nil
 }
 
-func parseTimeoutMicros(timeout time.Duration) uint64 {
-	return uint64((timeout + time.Microsecond - 1) / time.Microsecond)
-}
-
-func compiledQuery(config *Config, languageValue *gts.Language, grammarKey string) (*gts.Query, error) {
-	cacheKey := config.Name + ":" + grammarKey
-	if cached, ok := queryCache.Load(cacheKey); ok {
-		return cached.(*gts.Query), nil
+func parseWithTimeout(parser *sitter.Parser, source []byte) (*sitter.Tree, bool) {
+	if parseTimeout <= 0 {
+		return parser.Parse(source, nil), false
 	}
 
-	query, queryErr := gts.NewQuery(config.Query, languageValue)
+	deadline := time.Now().Add(parseTimeout)
+	timedOut := false
+	tree := parser.ParseWithOptions(func(offset int, _ sitter.Point) []byte {
+		if offset < 0 || offset >= len(source) {
+			return nil
+		}
+		return source[offset:]
+	}, nil, &sitter.ParseOptions{
+		ProgressCallback: func(_ sitter.ParseState) bool {
+			if time.Now().Before(deadline) {
+				return false
+			}
+			timedOut = true
+			return true
+		},
+	})
+	return tree, timedOut
+}
+
+func compiledQuery(config *Config, languageValue *sitter.Language, grammarKey string) (*sitter.Query, error) {
+	cacheKey := config.Name + ":" + grammarKey
+	if cached, ok := queryCache.Load(cacheKey); ok {
+		return cached.(*sitter.Query), nil
+	}
+
+	query, queryErr := sitter.NewQuery(languageValue, config.Query)
 	if queryErr != nil {
 		return nil, queryErr
 	}
 
 	actual, _ := queryCache.LoadOrStore(cacheKey, query)
-	return actual.(*gts.Query), nil
+	return actual.(*sitter.Query), nil
 }
 
 func configFor(languageName string) *Config {

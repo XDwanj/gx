@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	gts "github.com/odvcencio/gotreesitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 const (
@@ -13,7 +13,9 @@ const (
 	symbolKindPriorityValue     = 2
 	symbolKindPriorityCallable  = 3
 	symbolKindPriorityContainer = 4
-	definitionKindFunction      = "definition.function"
+	vueBlockTemplate            = "template"
+	vueBlockScript              = "script"
+	vueBlockStyle               = "style"
 )
 
 type Reference struct {
@@ -21,23 +23,29 @@ type Reference struct {
 	ByteOffset uint
 }
 
-func extractSymbols(config *Config, query *gts.Query, tree *gts.Tree, languageValue *gts.Language, source []byte) []Symbol {
-	cursor := query.Exec(tree.RootNode(), languageValue, source)
+func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, source []byte) []Symbol {
+	cursor := sitter.NewQueryCursor()
+	defer cursor.Close()
+
+	matches := cursor.Matches(query, tree.RootNode(), source)
+	captureNames := query.CaptureNames()
 	symbols := make([]Symbol, 0)
 
-	for match, ok := cursor.NextMatch(); ok; match, ok = cursor.NextMatch() {
-		nameNodes := make([]*gts.Node, 0, 1)
-		var definitionNode *gts.Node
+	for match := matches.Next(); match != nil; match = matches.Next() {
+		nameNodes := make([]sitter.Node, 0, 1)
+		var definitionNode *sitter.Node
 		definitionKind := ""
 
 		for _, capture := range match.Captures {
-			if capture.Name == "name" {
-				nameNodes = append(nameNodes, capture.Node)
+			name := captureNames[capture.Index]
+			node := capture.Node
+			if name == "name" {
+				nameNodes = append(nameNodes, node)
 				continue
 			}
-			if strings.HasPrefix(capture.Name, "definition.") {
-				definitionNode = capture.Node
-				definitionKind = capture.Name
+			if strings.HasPrefix(name, "definition.") {
+				definitionNode = &node
+				definitionKind = name
 			}
 		}
 
@@ -45,24 +53,27 @@ func extractSymbols(config *Config, query *gts.Query, tree *gts.Tree, languageVa
 			continue
 		}
 
-		kind, ok := resolveKind(config, definitionKind, definitionNode.Type(languageValue))
+		kind, ok := resolveKind(config, definitionKind, definitionNode.Kind())
 		if !ok {
 			continue
 		}
 
-		byteStart := symbolStartByte(config, languageValue, definitionKind, definitionNode)
-		signature := buildSignature(config, languageValue, definitionNode, source, byteStart)
-		isTest := detectTestSymbol(config.Name, languageValue, definitionNode, source)
-		position := definitionNode.StartPoint()
+		signature := buildSignature(config, definitionNode, source)
+		isTest := detectTestSymbol(config.Name, definitionNode, source)
+		position := definitionNode.StartPosition()
 		line := int(position.Row) + 1
 		for _, nameNode := range nameNodes {
+			name := nameNode.Utf8Text(source)
+			if config.Name == languageNameVue && !isVueTopLevelBlock(definitionNode, name) {
+				continue
+			}
 			symbols = append(symbols, Symbol{
-				Name:      nameNode.Text(source),
+				Name:      name,
 				Kind:      kind,
 				Signature: signature,
 				Line:      line,
-				ByteStart: uint(byteStart),
-				ByteEnd:   uint(definitionNode.EndByte()),
+				ByteStart: definitionNode.StartByte(),
+				ByteEnd:   definitionNode.EndByte(),
 				IsTest:    isTest,
 			})
 		}
@@ -71,16 +82,12 @@ func extractSymbols(config *Config, query *gts.Query, tree *gts.Tree, languageVa
 	return deduplicate(symbols)
 }
 
-func symbolStartByte(config *Config, languageValue *gts.Language, definitionKind string, node *gts.Node) uint32 {
-	if config.Name != languageNameZig || definitionKind != definitionKindFunction {
-		return node.StartByte()
+func isVueTopLevelBlock(node *sitter.Node, name string) bool {
+	parent := node.Parent()
+	if parent == nil || parent.Kind() != "document" {
+		return false
 	}
-	for _, child := range node.Children() {
-		if child.Type(languageValue) == "fn" {
-			return child.StartByte()
-		}
-	}
-	return node.StartByte()
+	return name == vueBlockTemplate || name == vueBlockScript || name == vueBlockStyle
 }
 
 func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKind, bool) {
@@ -96,7 +103,7 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 	}
 
 	switch captureName {
-	case definitionKindFunction, "definition.macro", "definition.method":
+	case "definition.function", "definition.macro", "definition.method":
 		return SymbolKindFunc, true
 	case "definition.struct":
 		return SymbolKindStruct, true
@@ -117,16 +124,19 @@ func resolveKind(config *Config, captureName string, nodeKind string) (SymbolKin
 	}
 }
 
-func buildSignature(config *Config, languageValue *gts.Language, node *gts.Node, source []byte, start uint32) string {
+func buildSignature(config *Config, node *sitter.Node, source []byte) string {
+	start := node.StartByte()
 	end := node.EndByte()
 	if int(end) > len(source) {
-		end = uint32(len(source))
+		end = uint(len(source))
 	}
 	text := source[start:end]
 
 	if config.SigBodyChild != "" {
-		for _, child := range node.Children() {
-			if child.Type(languageValue) == config.SigBodyChild {
+		cursor := node.Walk()
+		defer cursor.Close()
+		for _, child := range node.Children(cursor) {
+			if child.Kind() == config.SigBodyChild {
 				if int(child.StartByte()) <= len(source) {
 					signature := strings.TrimSpace(string(source[start:child.StartByte()]))
 					signature = strings.TrimSpace(strings.TrimSuffix(signature, ":"))
@@ -201,32 +211,32 @@ func symbolKindSpecificity(kind SymbolKind) int {
 	}
 }
 
-func detectTestSymbol(languageName string, languageValue *gts.Language, node *gts.Node, source []byte) bool {
+func detectTestSymbol(languageName string, node *sitter.Node, source []byte) bool {
 	if languageName != languageNameRust {
 		return false
 	}
-	return hasRustTestAttribute(languageValue, node, source)
+	return hasRustTestAttribute(node, source)
 }
 
-func hasRustTestAttribute(languageValue *gts.Language, node *gts.Node, source []byte) bool {
-	for sibling := previousNamedSibling(node); sibling != nil; sibling = previousNamedSibling(sibling) {
-		if sibling.Type(languageValue) != "attribute_item" {
+func hasRustTestAttribute(node *sitter.Node, source []byte) bool {
+	for sibling := node.PrevNamedSibling(); sibling != nil; sibling = sibling.PrevNamedSibling() {
+		if sibling.Kind() != "attribute_item" {
 			break
 		}
-		if isTestAttribute(sibling.Text(source)) {
+		if isTestAttribute(sibling.Utf8Text(source)) {
 			return true
 		}
 	}
 
 	for parent := node.Parent(); parent != nil; parent = parent.Parent() {
-		if parent.Type(languageValue) != "mod_item" {
+		if parent.Kind() != "mod_item" {
 			continue
 		}
-		for sibling := previousNamedSibling(parent); sibling != nil; sibling = previousNamedSibling(sibling) {
-			if sibling.Type(languageValue) != "attribute_item" {
+		for sibling := parent.PrevNamedSibling(); sibling != nil; sibling = sibling.PrevNamedSibling() {
+			if sibling.Kind() != "attribute_item" {
 				break
 			}
-			if strings.Contains(sibling.Text(source), "cfg(test)") {
+			if strings.Contains(sibling.Utf8Text(source), "cfg(test)") {
 				return true
 			}
 		}
@@ -244,13 +254,4 @@ func isTestAttribute(text string) bool {
 		return true
 	}
 	return strings.Contains(trimmed, "cfg(test)")
-}
-
-func previousNamedSibling(node *gts.Node) *gts.Node {
-	for sibling := node.PrevSibling(); sibling != nil; sibling = sibling.PrevSibling() {
-		if sibling.IsNamed() {
-			return sibling
-		}
-	}
-	return nil
 }

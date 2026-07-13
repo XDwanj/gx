@@ -16,7 +16,7 @@ import (
 	langpkg "github.com/XDwanj/gx/internal/lang"
 )
 
-const IndexVersion = 7
+const IndexVersion = 8
 
 const (
 	verboseProgressEveryFiles = 25
