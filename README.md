@@ -408,7 +408,8 @@ flowchart TD
     O --> P[Format output as TOON or JSON]
 
     D -->|lang| Q[Update or inspect grammar manifest]
-    D -->|cache| R[Inspect or remove index cache]
+    D -->|index| R[Build or refresh project index]
+    D -->|cache| T[Inspect or remove index cache]
     D -->|skill| S[Print embedded agent guide]
 ```
 
@@ -467,8 +468,9 @@ Pagination flags:
 - `gx lang enable <languages...>`: Mark one or more grammars as enabled in the local cache.
 - `gx lang disable <languages...>`: Disable grammars in the local cache manifest.
 
-### Cache management
+### Index and cache management
 
+- `gx index`: Build or incrementally refresh the project index before running navigation queries. Use `-C <dir>` to select another project.
 - `gx cache path`: Print the cache file path for the current project index.
 - `gx cache clean`: Remove the cached index for the current project.
 

@@ -354,7 +354,8 @@ flowchart TD
     O --> P[格式化为 TOON 或 JSON 输出]
 
     D -->|lang| Q[查看或更新 grammar 清单]
-    D -->|cache| R[查看或删除索引缓存]
+    D -->|index| R[构建或刷新项目索引]
+    D -->|cache| T[查看或删除索引缓存]
     D -->|skill| S[输出内置 agent 指南]
 ```
 
@@ -399,8 +400,9 @@ gx references --name login --define-in internal/domain/user.go .
 - `gx lang enable <languages...>`：在本地缓存中标记一个或多个 grammar 为已启用。
 - `gx lang disable <languages...>`：在本地缓存清单中禁用 grammar。
 
-### 缓存管理
+### 索引与缓存管理
 
+- `gx index`：在运行导航查询前构建或增量刷新项目索引；使用 `-C <dir>` 可以选择其他项目。
 - `gx cache path`：输出当前项目索引缓存的路径。
 - `gx cache clean`：删除当前项目的索引缓存。
 

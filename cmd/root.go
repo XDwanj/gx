@@ -65,6 +65,7 @@ func newRootCmd() *cobra.Command {
 	_ = command.Flags().MarkHidden("version-upper-short")
 
 	command.AddCommand(
+		newIndexCmd(),
 		newOverviewCmd(),
 		newSymbolsCmd(),
 		newDefinitionCmd(),

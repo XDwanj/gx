@@ -206,6 +206,15 @@ gx tree --name 'Search' --define-in internal/tmdb/search.go --direction out --de
 gx tree --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' --define-in internal/tmdb/search.go .
 ```
 
+### `gx index`
+
+Use `index` to build or incrementally refresh the project index before running queries.
+
+```bash
+gx index
+gx -C /path/to/project index
+```
+
 ### `gx cache`
 
 Use `cache` when the index seems stale.
