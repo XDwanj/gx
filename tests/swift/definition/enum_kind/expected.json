@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 9,
-    "body": "enum Status {\n    case open\n}"
-  }
-]

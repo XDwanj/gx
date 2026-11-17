@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.kt",
-    "line": 4,
-    "caller": "render",
-    "callee": "helper",
-    "context": "helper()"
-  }
-]

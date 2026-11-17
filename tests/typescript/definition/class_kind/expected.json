@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.ts",
-    "line": 3,
-    "body": "class User {\n  method(): number {\n    return 1;\n  }\n}"
-  }
-]

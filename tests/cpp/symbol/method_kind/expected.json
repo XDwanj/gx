@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.cpp",
-    "line": 18,
-    "name": "Load",
-    "kind": "func",
-    "signature": "int Service::Load()"
-  }
-]

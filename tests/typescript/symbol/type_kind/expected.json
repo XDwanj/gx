@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.ts",
-    "line": 17,
-    "name": "UserId",
-    "kind": "type",
-    "signature": "type UserId = number;"
-  }
-]

@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.kt",
-    "line": 1,
-    "body": "typealias UserId = String"
-  }
-]

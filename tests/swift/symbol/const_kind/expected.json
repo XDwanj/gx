@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 3,
-    "name": "limit",
-    "kind": "const",
-    "signature": "let limit: Int = 10"
-  }
-]

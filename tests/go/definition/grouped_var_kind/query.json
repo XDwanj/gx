@@ -1,7 +1,0 @@
-{
-  "name": "DefaultRegion",
-  "kind": "const",
-  "paths": [
-    "."
-  ]
-}

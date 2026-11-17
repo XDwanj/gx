@@ -9,9 +9,7 @@
 - 在读完整文件前，先给出文件或目录级别的结构概览。
 - 按符号名、符号类型、文件路径在整个项目里检索符号。
 - 直接输出某个符号的定义体，避免为了看一个函数或类型而打开整个文件。
-- 列出匹配函数体内部、且在同一源码作用域内有定义的出调用。
 - 查找某个符号的引用位置，并支持按调用者去重，便于估算重构影响范围。
-- 通过 `gx tree` 生成经过 AI 剪枝的函数 in/out 树。
 - 管理语言 grammar 的启用状态，以及项目索引缓存。
 - 通过 `skill` 子命令输出内置的 agent 使用说明。
 
@@ -219,8 +217,8 @@ gx -v
 运行标准校验：
 
 ```bash
-make test
 make lint
+make test
 ```
 
 通过版本 tag 自动发布 GitHub Release：
@@ -289,38 +287,19 @@ gx symbols --name 'new*' --limit 20 --offset 20
 直接读取某个符号定义：
 
 ```bash
-gx definition --name buildRuntime --limit 1 --max-lines 40
-```
-
-查看某个函数内部调用了哪些同目录、当前查询范围内已定义的函数：
-
-```bash
-gx callees --name buildRuntime
+gx definition --name buildService --limit 1 --max-lines 40
 ```
 
 查找某个符号的所有引用：
 
 ```bash
-gx references --name buildRuntime
+gx references --name buildService
 ```
 
 按调用者去重，估算影响范围：
 
 ```bash
-gx references --name buildRuntime --unique
-```
-
-生成经过 AI 剪枝的 in/out 树。`tree` 只连接同目录、当前查询范围内已定义的函数。
-默认深度是 8，AI 剪枝会并行执行，
-进程内 API 请求并发上限是 256，并要求用 `--define-in` 指明根函数所在文件。
-使用 `--verbose` 可以查看 tree 展开和 AI cache/API 剪枝进度。输出按 `in` /
-`out` 嵌套；每个节点包含显示为 `path/to/file:line` 的 `file` 和 `symbol`。
-使用 `--depth` 控制输出大小，不使用分页 flags：
-
-```bash
-gx tree --name buildRuntime --define-in cmd/root.go
-gx tree --name buildRuntime --define-in cmd/root.go --direction in
-gx tree --name buildRuntime --define-in cmd/root.go --direction out --depth 2
+gx references --name buildService --unique
 ```
 
 ## 工作原理
@@ -331,7 +310,7 @@ gx tree --name buildRuntime --define-in cmd/root.go --direction out --depth 2
 2. 从 SQLite 读取项目索引缓存；如果缓存缺失或文件已变化，就重建或增量更新。
 3. 建索引时遍历项目文件，按扩展名识别语言，并用 Tree-sitter 解析受支持的源码文件。
 4. 提取函数、方法、结构体、接口、类型等符号，并连同行列坐标与文件 mtime 一起写入索引。
-5. 最后由 `overview`、`symbols`、`definition`、`callees`、`references`、`tree` 在内存索引上执行查询，并输出 TOON 或 JSON。
+5. 最后由 `overview`、`symbols`、`definition`、`references` 在内存索引上执行查询，并输出 TOON 或 JSON。
 
 ```mermaid
 flowchart TD
@@ -339,7 +318,7 @@ flowchart TD
     B --> C[解析项目根目录]
     C --> D{命令类型}
 
-    D -->|overview / symbols /\ndefinition / callees /\nreferences| E[加载 SQLite 索引缓存]
+    D -->|overview / symbols /\ndefinition / references| E[加载 SQLite 索引缓存]
     E --> F{缓存是否有效}
     F -->|是| G[直接使用缓存条目]
     F -->|否| H[遍历项目文件]
@@ -359,7 +338,7 @@ flowchart TD
     D -->|skill| S[输出内置 agent 指南]
 ```
 
-索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号，包括源码坐标。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`callees` 会重新解析命中的函数体，只输出目标名字在同一源码目录、当前查询范围内有函数定义的调用；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
+索引以“文件”为单位保存：每个文件会记录语言、修改时间和抽取出的符号，包括源码坐标。`definition` 会利用索引里保存的字节范围，直接从原始源码切出目标定义；`references` 则会重新解析候选文件，在语法树中查找与目标名字匹配的引用节点。因此 `gx` 比纯文本 grep 更快也更结构化，但它仍然是一个基于语法分析的轻量导航器，不是完整的类型检查型 language server。
 
 ## 命令说明
 
@@ -368,11 +347,10 @@ flowchart TD
 - `gx overview [path ...]`：输出一个或多个文件或目录的目录式概览；Markdown 大纲包含 `line`、`level`、`heading`；省略路径时默认使用当前工作目录。
 - `gx overview --full <dir>`：输出更完整的目录级逐文件概览。
 - `gx symbols [--name GLOB] [--kind KIND] [path ...]`：在项目范围内搜索符号，并输出带 `file`、`name`、`kind`、`signature` 的声明索引；终端输出里的 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
-- `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体；终端头部使用可点击的 `file:line`。
-- `gx callees --name NAME [path ...]`：输出匹配 `func` 符号体内部、且目标名字在同一源码目录和当前查询范围内有函数定义的调用列表；终端字段为 `file`、`caller`、`callee`、`context`，其中 `file` 会显示为 `path/to/file:line`，`--json` 仍保留独立的 `file` 和 `line`。
+- `gx definition --name NAME [--kind KIND] [--max-lines N] [path ...]`：输出符号定义体，行格式为 `{file, line, body}`。
 - `gx references --name NAME [--unique] [path ...]`：查找符号引用。
 
-`symbols`、`definition`、`callees` 和 `references` 还支持 `--define-in FILE`，用于让 AI 按 `FILE` 中定义的符号对候选结果做消歧。该功能需要设置 `GX_OPENAI_API_KEY` 和 `GX_OPENAI_BASE_URL`；`GX_OPENAI_MODEL` 可选，默认是 `gpt-4o-mini`。AI 筛选结果会缓存到项目 SQLite 缓存中。
+`symbols`、`definition` 和 `references` 还支持 `--define-in FILE`，用于让 AI 按 `FILE` 中定义的符号对候选结果做消歧。该功能需要设置 `GX_AI_API_KEY` 和 `GX_AI_BASE_URL`；`GX_AI_MODEL` 可选，默认是 `gpt-4o-mini`。任何 OpenAI 兼容端点都可以使用，例如 OpenRouter 配置 `GX_AI_BASE_URL=https://openrouter.ai/api/v1`。AI 筛选结果会缓存到项目 SQLite 缓存中。
 
 ```bash
 gx references --name login --define-in internal/domain/user.go .
@@ -387,12 +365,14 @@ gx references --name login --define-in internal/domain/user.go .
 分页相关 flags：
 
 - `--limit N`：覆盖命令默认结果上限。
+- `--limit all`：完全绕过默认结果上限。
 - `--offset N`：跳过前 `N` 条结果。
-- `--all`：完全绕过默认结果上限。
-- 默认上限为 `definition=5`、`symbols=100`、`callees=50`、`references=50`。
+- 默认上限为 `definition=5`、`symbols=100`、`references=50`。
 - `overview` 的目录模式默认不限量，但显式传入 `--limit` 和 `--offset` 仍会生效。
 - `overview` 的文件模式和 Markdown 大纲模式会忽略分页 flags。
-- 当结果被截断时，`gx` 会在 `stderr` 输出紧凑的翻页提示。
+- 结果输出为信封结构：`rows` 是结果列表，`page` 包含 `total`、`offset`、`next_offset`（还有更多结果时出现）和 `out_of_range`（`offset` 越界时出现）。TOON 与 `--json` 输出同一结构。。
+- `gx overview` 多路径时输出 `sections`：每个 section 含 `target`、`target_kind`、`rows` 和自己的 `page`。
+- 当结果被截断时，`gx` 还会在 `stderr` 输出紧凑的翻页提示。
 
 ### 语言管理
 
@@ -421,10 +401,6 @@ gx references --name login --define-in internal/domain/user.go .
 gx symbols --name 'new*' --json
 ```
 
-```bash
-gx callees --name buildRuntime --json
-```
-
 版本命令和版本标志同样支持 JSON 输出：
 
 ```bash
@@ -441,6 +417,5 @@ gx --json --version
 1. 先运行 `gx overview .` 或 `gx overview <dir>`。
 2. 再用 `gx symbols` 缩小范围。
 3. 用 `gx definition` 精确读取目标符号。
-4. 用 `gx callees` 看目标函数内部都调用了谁。
-5. 用 `gx references --unique` 评估修改影响面。
-6. 只有在确实需要更大上下文时，再回退到直接读完整文件。
+4. 用 `gx references --unique` 评估修改影响面。
+5. 只有在确实需要更大上下文时，再回退到直接读完整文件。

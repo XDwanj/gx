@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.kt",
-    "line": 1,
-    "body": "fun buildUser(): User {\n  println(\"build\")\n  return User(\"Ada\")\n}"
-  }
-]

@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 14,
-    "name": "UserId",
-    "kind": "type",
-    "signature": "type UserId = i64;"
-  }
-]

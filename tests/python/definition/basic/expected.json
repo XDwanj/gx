@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.py",
-    "line": 5,
-    "body": "def build_user():\n    return User()"
-  }
-]

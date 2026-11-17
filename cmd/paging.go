@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/XDwanj/gx/internal/query"
 
@@ -11,34 +12,28 @@ import (
 const (
 	defaultDefinitionLimit        = 5
 	defaultSymbolsLimit           = 100
-	defaultCalleesLimit           = 50
 	defaultReferencesLimit        = 50
 	defaultDirectoryOverviewLimit = 0
 )
 
-func resolvePageRequest(cmd *cobra.Command, defaultLimit int) (query.PageRequest, error) {
+func resolvePageRequest(cmd *cobra.Command, defaultLimit int) (query.Page, error) {
 	if rootFlags.Offset < 0 {
-		return query.PageRequest{}, fmt.Errorf("gx: --offset must be greater than or equal to 0")
+		return query.Page{}, fmt.Errorf("gx: --offset must be greater than or equal to 0")
 	}
 
-	limitChanged := pagingFlagChanged(cmd, "limit")
-	if limitChanged && rootFlags.Limit <= 0 {
-		return query.PageRequest{}, fmt.Errorf("gx: --limit must be greater than 0")
+	if !pagingFlagChanged(cmd, "limit") || rootFlags.Limit == "" {
+		return query.Page{Limit: defaultLimit, Offset: rootFlags.Offset}, nil
 	}
 
-	if rootFlags.All {
-		return query.PageRequest{Offset: rootFlags.Offset}, nil
+	if rootFlags.Limit == "all" {
+		return query.Page{Limit: 0, Offset: rootFlags.Offset}, nil
 	}
 
-	limit := defaultLimit
-	if limitChanged {
-		limit = rootFlags.Limit
+	limit, err := strconv.Atoi(rootFlags.Limit)
+	if err != nil || limit <= 0 {
+		return query.Page{}, fmt.Errorf("gx: --limit must be a positive number or 'all'")
 	}
-
-	return query.PageRequest{
-		Limit:  limit,
-		Offset: rootFlags.Offset,
-	}, nil
+	return query.Page{Limit: limit, Offset: rootFlags.Offset}, nil
 }
 
 func pagingFlagChanged(cmd *cobra.Command, name string) bool {

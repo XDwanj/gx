@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.cpp",
-    "line": 13,
-    "body": "enum Status {\n  StatusOpen,\n  StatusClosed\n}"
-  }
-]

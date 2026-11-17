@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.cpp",
-    "line": 22,
-    "name": "BuildUser",
-    "kind": "func",
-    "signature": "int BuildUser()"
-  }
-]

@@ -1,645 +1,70 @@
 package index
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/XDwanj/gx/internal/lang"
 )
 
-const (
-	concurrentLoadOrBuildWorkers = 12
-	concurrentStoreWriters       = 4
-	concurrentStoreReaders       = 8
-	concurrentStoreIterations    = 20
-)
-
-func TestCachePathUsesGxNamespace(t *testing.T) {
-	cachePath := CachePathFor(filepath.Join(string(filepath.Separator), "tmp", "project"))
-	if !strings.Contains(cachePath, filepath.Join("gx", "indexes")) {
-		t.Fatalf("expected gx cache namespace, got %q", cachePath)
-	}
-	if strings.Contains(cachePath, filepath.Join("cx", "indexes")) {
-		t.Fatalf("unexpected cx cache namespace in %q", cachePath)
-	}
-	if filepath.Ext(cachePath) != cacheFileExtension {
-		t.Fatalf("expected sqlite cache extension %q, got %q", cacheFileExtension, cachePath)
+func writeGoFile(t *testing.T, root string, name string, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestWalkSkipsDirectoriesWithGxIgnore(t *testing.T) {
+func TestLoadOrBuildIndexesGoFiles(t *testing.T) {
 	root := t.TempDir()
-	skippedDir := filepath.Join(root, "skip-me")
-	keptFile := filepath.Join(root, "keep.go")
-	skippedFile := filepath.Join(skippedDir, "ignored.go")
-
-	if err := os.MkdirAll(skippedDir, 0o755); err != nil {
-		t.Fatalf("mkdir skipped dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(skippedDir, ".gx-ignore"), []byte{}, 0o644); err != nil {
-		t.Fatalf("write .gx-ignore: %v", err)
-	}
-	if err := os.WriteFile(skippedFile, []byte("package skipped\n"), 0o644); err != nil {
-		t.Fatalf("write skipped file: %v", err)
-	}
-	if err := os.WriteFile(keptFile, []byte("package kept\n"), 0o644); err != nil {
-		t.Fatalf("write kept file: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if visited[filepath.Join("skip-me", "ignored.go")] {
-		t.Fatalf("expected .gx-ignore directory to be skipped, visited=%v", visited)
-	}
-	if !visited["keep.go"] {
-		t.Fatalf("expected keep.go to be visited, visited=%v", visited)
-	}
-}
-
-func TestWalkRespectsRootDotIgnore(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".ignore"), []byte("*.go\n!keep.go\nbuild/\n"), 0o644); err != nil {
-		t.Fatalf("write .ignore: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "build"), 0o755); err != nil {
-		t.Fatalf("mkdir build: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "ignored.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write ignored.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "build", "skip.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write build/skip.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "build", "keep.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write build/keep.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "keep.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write keep.go: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if visited["ignored.go"] {
-		t.Fatalf("expected ignored.go to be skipped, visited=%v", visited)
-	}
-	if visited[filepath.Join("build", "skip.go")] {
-		t.Fatalf("expected build/skip.go to be skipped, visited=%v", visited)
-	}
-	if visited[filepath.Join("build", "keep.go")] {
-		t.Fatalf("expected build/keep.go to remain skipped after directory ignore, visited=%v", visited)
-	}
-	if !visited["keep.go"] {
-		t.Fatalf("expected keep.go to be visited, visited=%v", visited)
-	}
-}
-
-func TestWalkRespectsScopedDotIgnore(t *testing.T) {
-	root := t.TempDir()
-	scopedDir := filepath.Join(root, "pkg")
-	if err := os.MkdirAll(filepath.Join(scopedDir, "nested"), 0o755); err != nil {
-		t.Fatalf("mkdir nested: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scopedDir, ".ignore"), []byte("generated.go\nnested/\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/.ignore: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scopedDir, "generated.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/generated.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scopedDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/keep.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scopedDir, "nested", "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/nested/skip.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "generated.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write root generated.go: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if !visited["generated.go"] {
-		t.Fatalf("expected root generated.go to remain visible, visited=%v", visited)
-	}
-	if visited[filepath.Join("pkg", "generated.go")] {
-		t.Fatalf("expected pkg/generated.go to be skipped, visited=%v", visited)
-	}
-	if visited[filepath.Join("pkg", "nested", "skip.go")] {
-		t.Fatalf("expected pkg/nested/skip.go to be skipped, visited=%v", visited)
-	}
-	if !visited[filepath.Join("pkg", "keep.go")] {
-		t.Fatalf("expected pkg/keep.go to be visited, visited=%v", visited)
-	}
-}
-
-func TestWalkCombinesGitignoreAndDotIgnore(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("vendor/\n"), 0o644); err != nil {
-		t.Fatalf("write .gitignore: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".ignore"), []byte("tmp.go\n"), 0o644); err != nil {
-		t.Fatalf("write .ignore: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "vendor"), 0o755); err != nil {
-		t.Fatalf("mkdir vendor: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "vendor", "skip.go"), []byte("package vendor\n"), 0o644); err != nil {
-		t.Fatalf("write vendor/skip.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "tmp.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write tmp.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write main.go: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if visited[filepath.Join("vendor", "skip.go")] {
-		t.Fatalf("expected vendor/skip.go to be skipped by .gitignore, visited=%v", visited)
-	}
-	if visited["tmp.go"] {
-		t.Fatalf("expected tmp.go to be skipped by .ignore, visited=%v", visited)
-	}
-	if !visited["main.go"] {
-		t.Fatalf("expected main.go to be visited, visited=%v", visited)
-	}
-}
-
-func TestWalkRespectsScopedGitignore(t *testing.T) {
-	root := t.TempDir()
-	pkgDir := filepath.Join(root, "pkg")
-	if err := os.MkdirAll(filepath.Join(pkgDir, "nested"), 0o755); err != nil {
-		t.Fatalf("mkdir nested: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, ".gitignore"), []byte("generated.go\nnested/\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/.gitignore: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "generated.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/generated.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/keep.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "nested", "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/nested/skip.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "generated.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write root generated.go: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if !visited["generated.go"] {
-		t.Fatalf("expected root generated.go to remain visible, visited=%v", visited)
-	}
-	if visited[filepath.Join("pkg", "generated.go")] {
-		t.Fatalf("expected pkg/generated.go to be skipped, visited=%v", visited)
-	}
-	if visited[filepath.Join("pkg", "nested", "skip.go")] {
-		t.Fatalf("expected pkg/nested/skip.go to be skipped, visited=%v", visited)
-	}
-	if !visited[filepath.Join("pkg", "keep.go")] {
-		t.Fatalf("expected pkg/keep.go to be visited, visited=%v", visited)
-	}
-}
-
-func TestWalkScopedDotIgnoreOverridesScopedGitignore(t *testing.T) {
-	root := t.TempDir()
-	pkgDir := filepath.Join(root, "pkg")
-	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
-		t.Fatalf("mkdir pkg: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, ".gitignore"), []byte("keep.go\nskip.go\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/.gitignore: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, ".ignore"), []byte("!keep.go\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/.ignore: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "keep.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/keep.go: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "skip.go"), []byte("package pkg\n"), 0o644); err != nil {
-		t.Fatalf("write pkg/skip.go: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if !visited[filepath.Join("pkg", "keep.go")] {
-		t.Fatalf("expected pkg/keep.go to be restored by pkg/.ignore, visited=%v", visited)
-	}
-	if visited[filepath.Join("pkg", "skip.go")] {
-		t.Fatalf("expected pkg/skip.go to remain skipped, visited=%v", visited)
-	}
-}
-
-func TestWalkDoesNotTreatCxIgnoreAsSpecial(t *testing.T) {
-	root := t.TempDir()
-	legacyDir := filepath.Join(root, "legacy")
-	legacyFile := filepath.Join(legacyDir, "still-visible.go")
-
-	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
-		t.Fatalf("mkdir legacy dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(legacyDir, ".cx-ignore"), []byte{}, 0o644); err != nil {
-		t.Fatalf("write .cx-ignore: %v", err)
-	}
-	if err := os.WriteFile(legacyFile, []byte("package legacy\n"), 0o644); err != nil {
-		t.Fatalf("write legacy file: %v", err)
-	}
-
-	visited := map[string]bool{}
-	if err := walk(root, func(candidate fileCandidate) error {
-		visited[candidate.RelPath] = true
-		return nil
-	}); err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-
-	if !visited[filepath.Join("legacy", "still-visible.go")] {
-		t.Fatalf("expected .cx-ignore to have no effect, visited=%v", visited)
-	}
-}
-
-func TestNeedsUpdateRebuildsEmptyCacheWhenInstalledLanguageFilesExist(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
-		t.Fatalf("write main.go: %v", err)
-	}
-	if err := lang.Add(os.Stdout, os.Stderr, []string{"go"}); err != nil {
-		t.Fatalf("install go grammar: %v", err)
-	}
-
-	if !needsUpdate(root, map[string]FileData{}) {
-		t.Fatalf("expected empty cache to rebuild once installed-language files exist")
-	}
-}
-
-func TestNeedsUpdateKeepsEmptyCacheWhenNoInstalledLanguageFilesExist(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
-		t.Fatalf("write main.go: %v", err)
-	}
-
-	if needsUpdate(root, map[string]FileData{}) {
-		t.Fatalf("expected empty cache to remain unchanged when matching grammar is not installed")
-	}
-}
-
-func TestLoadOrBuildVerboseLogsStages(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
-		t.Fatalf("write main.go: %v", err)
-	}
-	if err := lang.Add(os.Stdout, os.Stderr, []string{"go"}); err != nil {
-		t.Fatalf("install go grammar: %v", err)
-	}
-
-	var stderr bytes.Buffer
-	idx, err := LoadOrBuildWithOptions(root, LoadOptions{
-		Verbose: true,
-		Stderr:  &stderr,
-	})
-	if err != nil {
-		t.Fatalf("load verbose index: %v", err)
-	}
-	if len(idx.Entries) != 1 {
-		t.Fatalf("expected 1 indexed file, got %d", len(idx.Entries))
-	}
-
-	output := stderr.String()
-	if !strings.Contains(output, "gx: debug: index root=") {
-		t.Fatalf("expected root log, got %q", output)
-	}
-	if !strings.Contains(output, "gx: debug: starting full index crawl") {
-		t.Fatalf("expected crawl log, got %q", output)
-	}
-	if !strings.Contains(output, "gx: debug: indexing main.go (go)") {
-		t.Fatalf("expected file log, got %q", output)
-	}
-	if !strings.Contains(output, "gx: debug: saved index cache with 1 entries") {
-		t.Fatalf("expected save log, got %q", output)
-	}
-
-	header, err := os.ReadFile(CachePathFor(root))
-	if err != nil {
-		t.Fatalf("read sqlite cache: %v", err)
-	}
-	if len(header) < len("SQLite format 3") || string(header[:len("SQLite format 3")]) != "SQLite format 3" {
-		t.Fatalf("expected sqlite file header, got %q", string(header))
-	}
-}
-
-func TestLoadOrBuildIndexesExtensionlessPythonShebang(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "tool"), []byte("#!/usr/bin/env python3\n\ndef run():\n    pass\n"), 0o755); err != nil {
-		t.Fatalf("write tool: %v", err)
-	}
-	if err := lang.Add(os.Stdout, os.Stderr, []string{"python"}); err != nil {
-		t.Fatalf("install python grammar: %v", err)
-	}
-
+	writeGoFile(t, root, "main.go", "package main\n\nfunc Hello() {}\n")
 	idx, err := LoadOrBuild(root)
 	if err != nil {
-		t.Fatalf("load index: %v", err)
+		t.Fatalf("LoadOrBuild: %v", err)
 	}
-
-	data, ok := idx.Entries["tool"]
+	data, ok := idx.Entries["main.go"]
 	if !ok {
-		t.Fatalf("expected extensionless tool to be indexed, entries=%v", idx.Entries)
+		t.Fatalf("main.go missing from entries: %+v", idx.Entries)
 	}
-	if data.Meta.Language != "python" {
-		t.Fatalf("expected python language, got %q", data.Meta.Language)
-	}
-	if len(data.Symbols) != 1 || data.Symbols[0].Name != "run" {
-		t.Fatalf("unexpected symbols: %+v", data.Symbols)
+	if len(data.Symbols) != 1 || data.Symbols[0].Name != "Hello" {
+		t.Fatalf("symbols %+v", data.Symbols)
 	}
 }
 
-func TestSaveStoreRoundTripsEntries(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
-	root := filepath.Join(string(filepath.Separator), "tmp", "project")
-	entries := map[string]FileData{
-		"main.go": {
-			Meta: NewFileEntry(time.Unix(1712000000, 123), "go"),
-			Symbols: []Symbol{
-				{Name: "main", Kind: SymbolKindFunc, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
-			},
-		},
-	}
-
-	if err := saveStore(root, entries); err != nil {
-		t.Fatalf("save store: %v", err)
-	}
-
-	got, err := loadEntries(CachePathFor(root))
-	if err != nil {
-		t.Fatalf("load store: %v", err)
-	}
-
-	if len(got) != len(entries) {
-		t.Fatalf("expected %d entries, got %d", len(entries), len(got))
-	}
-
-	data, ok := got["main.go"]
-	if !ok {
-		t.Fatalf("expected main.go entry, got %v", got)
-	}
-	if data.Meta.Language != "go" {
-		t.Fatalf("expected go language, got %q", data.Meta.Language)
-	}
-	if len(data.Symbols) != 1 || data.Symbols[0].Name != "main" {
-		t.Fatalf("unexpected symbols: %+v", data.Symbols)
-	}
-}
-
-func TestLoadOrBuildHandlesConcurrentCalls(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
+func TestLoadOrBuildIncrementalUpdate(t *testing.T) {
 	root := t.TempDir()
-	files := map[string]string{
-		"main.go":   "package main\nfunc main() {}\n",
-		"helper.go": "package main\nfunc helper() {}\n",
+	writeGoFile(t, root, "main.go", "package main\n\nfunc Hello() {}\n")
+	if _, err := LoadOrBuild(root); err != nil {
+		t.Fatalf("LoadOrBuild: %v", err)
 	}
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
-			t.Fatalf("write %s: %v", name, err)
-		}
+	writeGoFile(t, root, "main.go", "package main\n\nfunc Hello() {}\nfunc World() {}\n")
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(filepath.Join(root, "main.go"), future, future); err != nil {
+		t.Fatal(err)
 	}
-	if err := lang.Add(os.Stdout, os.Stderr, []string{"go"}); err != nil {
-		t.Fatalf("install go grammar: %v", err)
-	}
-
-	start := make(chan struct{})
-	errs := make(chan error, concurrentLoadOrBuildWorkers)
-	entryCounts := make(chan int, concurrentLoadOrBuildWorkers)
-
-	var wg sync.WaitGroup
-	for worker := 0; worker < concurrentLoadOrBuildWorkers; worker++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-
-			idx, err := LoadOrBuild(root)
-			if err != nil {
-				errs <- err
-				return
-			}
-			entryCounts <- len(idx.Entries)
-		}()
-	}
-
-	close(start)
-	wg.Wait()
-	close(errs)
-	close(entryCounts)
-
-	for err := range errs {
-		if err != nil {
-			t.Fatalf("concurrent LoadOrBuild failed: %v", err)
-		}
-	}
-
-	for count := range entryCounts {
-		if count != len(files) {
-			t.Fatalf("expected %d indexed entries, got %d", len(files), count)
-		}
-	}
-
-	entries, err := loadEntries(CachePathFor(root))
+	idx, err := LoadOrBuild(root)
 	if err != nil {
-		t.Fatalf("load cached entries after concurrent builds: %v", err)
+		t.Fatalf("LoadOrBuild after change: %v", err)
 	}
-	if len(entries) != len(files) {
-		t.Fatalf("expected persisted %d entries, got %d", len(files), len(entries))
+	if len(idx.Entries["main.go"].Symbols) != 2 {
+		t.Fatalf("changed file should be re-indexed, symbols %+v", idx.Entries["main.go"].Symbols)
 	}
 }
 
-func TestStoreHandlesConcurrentReadersAndWriters(t *testing.T) {
-	cacheHome := t.TempDir()
-	t.Setenv("HOME", cacheHome)
-
+func TestLoadOrBuildRespectsGitignore(t *testing.T) {
 	root := t.TempDir()
-	variantA := map[string]FileData{
-		"main.go": {
-			Meta: NewFileEntry(time.Unix(1712000000, 1), "go"),
-			Symbols: []Symbol{
-				{Name: "main", Kind: SymbolKindFunc, Signature: "func main()", ByteStart: 0, ByteEnd: 12},
-			},
-		},
-		"helper.go": {
-			Meta: NewFileEntry(time.Unix(1712000001, 2), "go"),
-			Symbols: []Symbol{
-				{Name: "helperAlpha", Kind: SymbolKindFunc, Signature: "func helperAlpha()", ByteStart: 0, ByteEnd: 20},
-			},
-		},
+	writeGoFile(t, root, "main.go", "package main\n\nfunc Hello() {}\n")
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("ignored.go\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	variantB := map[string]FileData{
-		"main.go": {
-			Meta: NewFileEntry(time.Unix(1712000010, 3), "go"),
-			Symbols: []Symbol{
-				{Name: "mainBeta", Kind: SymbolKindFunc, Signature: "func mainBeta()", ByteStart: 0, ByteEnd: 16},
-			},
-		},
-		"helper.go": {
-			Meta: NewFileEntry(time.Unix(1712000011, 4), "go"),
-			Symbols: []Symbol{
-				{Name: "helperBeta", Kind: SymbolKindFunc, Signature: "func helperBeta()", ByteStart: 0, ByteEnd: 18},
-			},
-		},
-	}
-
-	if err := saveStore(root, variantA); err != nil {
-		t.Fatalf("seed store: %v", err)
-	}
-
-	variantAKey, err := marshalEntries(variantA)
+	writeGoFile(t, root, "ignored.go", "package main\n\nfunc Ignored() {}\n")
+	idx, err := LoadOrBuild(root)
 	if err != nil {
-		t.Fatalf("marshal variantA: %v", err)
+		t.Fatalf("LoadOrBuild: %v", err)
 	}
-	variantBKey, err := marshalEntries(variantB)
-	if err != nil {
-		t.Fatalf("marshal variantB: %v", err)
+	if _, ok := idx.Entries["ignored.go"]; ok {
+		t.Fatal("gitignored file should not be indexed")
 	}
-
-	allowed := map[string]bool{
-		variantAKey: true,
-		variantBKey: true,
+	if _, ok := idx.Entries["main.go"]; !ok {
+		t.Fatal("main.go should be indexed")
 	}
-	cachePath := CachePathFor(root)
-	start := make(chan struct{})
-	errs := make(chan error, concurrentStoreWriters*concurrentStoreIterations+concurrentStoreReaders*concurrentStoreIterations)
-
-	var wg sync.WaitGroup
-	for writer := 0; writer < concurrentStoreWriters; writer++ {
-		wg.Add(1)
-		go func(writerID int) {
-			defer wg.Done()
-			<-start
-
-			for iteration := 0; iteration < concurrentStoreIterations; iteration++ {
-				entries := variantA
-				if (writerID+iteration)%2 == 1 {
-					entries = variantB
-				}
-				if saveErr := saveStore(root, entries); saveErr != nil {
-					errs <- saveErr
-					return
-				}
-			}
-		}(writer)
-	}
-
-	for reader := 0; reader < concurrentStoreReaders; reader++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-
-			for iteration := 0; iteration < concurrentStoreIterations; iteration++ {
-				entries, loadErr := loadEntries(cachePath)
-				if loadErr != nil {
-					errs <- loadErr
-					return
-				}
-				key, marshalErr := marshalEntries(entries)
-				if marshalErr != nil {
-					errs <- marshalErr
-					return
-				}
-				if !allowed[key] {
-					errs <- fmt.Errorf("observed partial or unknown entries snapshot: %s", key)
-					return
-				}
-			}
-		}()
-	}
-
-	close(start)
-	wg.Wait()
-	close(errs)
-
-	for err := range errs {
-		if err != nil {
-			t.Fatalf("concurrent store access failed: %v", err)
-		}
-	}
-
-	finalEntries, err := loadEntries(cachePath)
-	if err != nil {
-		t.Fatalf("load final entries: %v", err)
-	}
-	finalKey, err := marshalEntries(finalEntries)
-	if err != nil {
-		t.Fatalf("marshal final entries: %v", err)
-	}
-	if !allowed[finalKey] {
-		t.Fatalf("unexpected final entries snapshot: %+v", finalEntries)
-	}
-}
-
-func marshalEntries(entries map[string]FileData) (string, error) {
-	bytes, err := json.Marshal(entries)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
 }

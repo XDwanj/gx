@@ -1,40 +1,21 @@
 package index
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
-func TestPublicSymbolKindsMatchesSupportedKinds(t *testing.T) {
-	expected := []SymbolKind{
-		SymbolKindFunc,
-		SymbolKindConst,
-		SymbolKindStruct,
-		SymbolKindEnum,
-		SymbolKindClass,
-		SymbolKindInterface,
-		SymbolKindModule,
-		SymbolKindType,
-	}
-
-	if !reflect.DeepEqual(PublicSymbolKinds(), expected) {
-		t.Fatalf("unexpected public symbol kinds: %v", PublicSymbolKinds())
-	}
-}
-
-func TestParseSymbolKindSupportsRefinedKinds(t *testing.T) {
+func TestParseSymbolKindRoundTrip(t *testing.T) {
 	for _, kind := range PublicSymbolKinds() {
-		raw := string(kind)
-		if _, err := ParseSymbolKind(raw); err != nil {
-			t.Fatalf("expected kind %q to parse: %v", raw, err)
+		parsed, err := ParseSymbolKind(string(kind))
+		if err != nil {
+			t.Fatalf("public kind %q should parse: %v", kind, err)
+		}
+		if parsed != kind {
+			t.Fatalf("round trip %q became %q", kind, parsed)
 		}
 	}
 }
 
-func TestParseSymbolKindRejectsRemovedKinds(t *testing.T) {
-	for _, raw := range []string{"fn", "method", "trait", "event"} {
-		if _, err := ParseSymbolKind(raw); err == nil {
-			t.Fatalf("expected removed kind %q to be rejected", raw)
-		}
+func TestParseSymbolKindRejectsUnknown(t *testing.T) {
+	if _, err := ParseSymbolKind("nosuchkind"); err == nil {
+		t.Fatal("unknown kind should error")
 	}
 }

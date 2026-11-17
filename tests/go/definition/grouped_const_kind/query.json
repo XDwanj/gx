@@ -1,7 +1,0 @@
-{
-  "name": "DefaultRetryLimit",
-  "kind": "const",
-  "paths": [
-    "."
-  ]
-}

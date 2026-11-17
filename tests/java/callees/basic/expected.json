@@ -1,9 +1,0 @@
-[
-  {
-    "file": "App.java",
-    "line": 4,
-    "caller": "A",
-    "callee": "helper",
-    "context": "helper();"
-  }
-]

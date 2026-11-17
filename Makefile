@@ -23,16 +23,16 @@ CC_LINUX_AMD64 ?= zig cc -target x86_64-linux-gnu
 CC_LINUX_ARM64 ?= zig cc -target aarch64-linux-gnu
 CC_WINDOWS_AMD64 ?= zig cc -target x86_64-windows-gnu
 
-.PHONY: build test lint clean cross cross-darwin
+.PHONY: build lint clean cross cross-darwin
 
 build:
 	$(GO) build -ldflags "$(GO_LDFLAGS)" -o $(LOCAL_BINARY) .
 
-test:
-	$(GO) test ./... -timeout 60s
-
 lint:
 	$(GOLANGCI_LINT) run ./...
+
+test:
+	$(GO) test ./... -timeout 60s
 
 clean:
 	rm -rf $(LOCAL_BINARY) $(DIST_DIR)

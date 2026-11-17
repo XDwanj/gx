@@ -89,11 +89,6 @@ linters:
       - linters:
           - lll
         source: "`"
-      # goconst: 仅在测试文件中放宽 goconst 规则，因为测试数据中的重复字面量通常是可接受的，并且过度提取常量可能反而降低测试代码的可读性。
-      - linters:
-          - goconst # 测试文件中常见重复字面量（测试数据）通常可接受，因此对 goconst 放宽。
-        # path 使用正则匹配 *_test.go 文件。
-        path: (.+)_test\.go
     # paths: 整个路径层面的全量排除（正则）。
     # 这些目录通常是外部、内建或示例代码，不作为主业务质量门禁对象。
     paths:

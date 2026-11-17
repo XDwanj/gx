@@ -1,4 +1,0 @@
-enum Color {
-  Red,
-  Blue,
-};

@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 9,
-    "body": "func buildUser() -> User {\n    return User(id: 1)\n}"
-  }
-]

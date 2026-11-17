@@ -1,7 +1,0 @@
-{
-  "name": "Service",
-  "kind": "module",
-  "paths": [
-    "."
-  ]
-}

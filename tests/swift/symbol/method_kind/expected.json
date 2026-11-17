@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 2,
-    "name": "load",
-    "kind": "func",
-    "signature": "func load()"
-  }
-]

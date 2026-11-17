@@ -1,11 +1,11 @@
 ---
 name: gx
-description: "ALWAYS activate this skill for any task that requires reading, understanding, locating, tracing, reviewing, debugging, or modifying an existing codebase. `gx` is the default first tool for semantic code navigation and must be used before text-based tools for symbol structure, definitions, references, package layout, and architecture exploration. Only do not activate it for non-code files or pure literal text search such as logs, docs, comments, YAML, JSON, SQL, and Markdown."
+description: "Semantic code navigation tool. Use only when the user explicitly requests gx or asks to use semantic symbol navigation."
 ---
 
 # GX
 
-`gx` is a semantic code navigation tool for AI agents. Use it when the task is about code structure, declarations, definitions, callees, references, or package layout. Do not use it for plain text lookup in logs, comments, Markdown, YAML, JSON, SQL, or arbitrary strings.
+`gx` is a semantic code navigation tool for AI agents. Use it when the task is about code structure, declarations, definitions, references, or package layout. Do not use it for plain text lookup in logs, comments, Markdown, YAML, JSON, SQL, or arbitrary strings.
 
 ## Default Workflow
 
@@ -14,9 +14,7 @@ Use the usual narrowing loop:
 1. `overview` for package or file surface.
 2. `symbols` to find the exact declaration.
 3. `definition` to read the implementation body.
-4. `callees` to inspect outgoing calls.
-5. `references` to inspect impact.
-6. `tree` with `--define-in` when you need an AI-pruned in/out tree.
+4. `references` to inspect impact.
 
 Default examples:
 
@@ -24,16 +22,15 @@ Default examples:
 gx overview internal/tmdb
 gx symbols --kind func --name 'Search' .
 gx definition --name 'Search' internal/tmdb
-gx callees --name 'Search' internal/tmdb
 gx references --unique --name 'Search' .
-gx tree --name 'Search' --define-in internal/tmdb/search.go .
 ```
 
-Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_OPENAI_API_KEY` and `GX_OPENAI_BASE_URL`, accepts optional `GX_OPENAI_MODEL`, and applies to `symbols`, `definition`, `callees`, `references`, and `tree`. The `tree` command requires `--define-in`.
+To answer "who does F call", run `gx definition` on F and read the body.
+
+Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_AI_API_KEY` and `GX_AI_BASE_URL`, accepts optional `GX_AI_MODEL`, and applies to `symbols`, `definition`, and `references`.
 
 ```bash
 gx references --name 'login' --define-in internal/domain/user.go .
-gx tree --name 'login' --define-in internal/domain/user.go .
 ```
 
 ## Kinds And Coverage
@@ -52,7 +49,7 @@ Public `--kind` values:
 Rules:
 
 - Treat these as `gx` extraction kinds, not as a promise that every language supports every kind.
-- `symbols` and `definition` support `--kind`; `callees` and `references` do not.
+- `symbols` and `definition` support `--kind`; `references` does not.
 - Narrow by `--name` first, then add `--kind` to reduce noise.
 - If a `--kind` query returns nothing, retry without `--kind`.
 
@@ -83,7 +80,7 @@ Use `overview` before reading code.
 - Accepts multiple paths and returns one section per target when more than one path is supplied.
 - Directory mode returns per-file symbol summaries.
 - File mode returns top-level symbols for that file.
-- Directory mode supports `--limit`, `--offset`, and `--all`.
+- Directory mode supports `--limit` and `--offset`.
 - In multi-path mode, pagination applies independently to each directory target.
 - File mode and Markdown outline mode ignore pagination flags.
 - Markdown outline rows include `line`, `level`, and `heading`.
@@ -108,7 +105,7 @@ Use `symbols` to find declarations.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - `--name` uses glob matching.
 - Default result limit is `100`.
-- Use `--limit`, `--offset`, and `--all` for broad matches.
+- Use `--limit <N|all>` and `--offset` for broad matches.
 
 Examples:
 
@@ -123,7 +120,7 @@ gx symbols --name '*Search*' --limit 20 --offset 20 internal/tmdb
 
 Use `definition` when you already know the symbol and want the body immediately.
 
-- Returns the symbol body with a `file:line` header in terminal output. `--json` keeps separate `file` and `line` fields.
+- Returns `{file, line, body}` rows. `body` holds the symbol source; `truncated` and `lines` appear when `--max-lines` cuts the body.
 - Accepts files, directories, path globs, or a mix.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - Default result limit is `5`.
@@ -151,7 +148,7 @@ Use `references` to find usages and impact.
 - `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
 - `--unique` deduplicates by enclosing function.
 - Default result limit is `50`.
-- Use `--limit`, `--offset`, and `--all` when a common name fans out widely.
+- Use `--limit <N|all>` and `--offset` when a common name fans out widely.
 
 Examples:
 
@@ -160,50 +157,6 @@ gx references --name 'Search' .
 gx references --unique --name 'Search' .
 gx references --include 'internal/**' --exclude '**/*_test.go' --name 'Search' .
 gx references --name 'Search' --limit 25 --offset 25 .
-```
-
-### `gx callees`
-
-Use `callees` to inspect calls made inside a function body when the callee is defined in the same source directory and current query scope.
-
-- Returns scoped call sites, not resolved definitions.
-- Accepts files, directories, path globs, or a mix.
-- `--include` and `--exclude` filter indexed file paths using glob matching. `--include` can temporarily bring back matching files hidden by `.gitignore` or `.ignore`.
-- Default result limit is `50`.
-- Terminal output fields are `file`, `caller`, `callee`, and `context`, with `file` rendered as `path/to/file:line`. `--json` keeps separate `file` and `line` fields.
-
-Examples:
-
-```bash
-gx callees --name 'Search' .
-gx callees --name '*Search*' internal/tmdb
-gx callees --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' .
-gx callees --name 'Search' --limit 25 --offset 25 .
-```
-
-### `gx tree`
-
-Use `tree` to inspect AI-pruned incoming calls, outgoing calls, or both for a function.
-
-- Requires `--name` and `--define-in`.
-- Defaults to `--direction both` and `--depth 8`.
-- Runs AI pruning in parallel with an in-process limit of 256 API requests.
-- `--direction in` shows functions that call into the target.
-- `--direction out` shows scoped project functions called by the target.
-- Tree expansion only links functions defined in the same source directory and current query scope.
-- `--verbose` shows tree expansion plus AI cache/API pruning progress.
-- Does not support `--limit`, `--offset`, or `--all`; use `--depth` to control output size.
-- Accepts files, directories, path globs, or a mix.
-- `--include` and `--exclude` filter indexed file paths using glob matching.
-- Terminal and `--json` output use nested `in` / `out` objects. Each node includes `file` as `path/to/file:line` and `symbol`; `cycle` appears only when recursion finds a cycle. Call context is used for AI pruning but is not printed.
-
-Examples:
-
-```bash
-gx tree --name 'Search' --define-in internal/tmdb/search.go .
-gx tree --name 'Search' --define-in internal/tmdb/search.go --direction in .
-gx tree --name 'Search' --define-in internal/tmdb/search.go --direction out --depth 2 .
-gx tree --exclude '{**/*_test.go,**/mocks/**}' --name 'Search' --define-in internal/tmdb/search.go .
 ```
 
 ### `gx index`
@@ -266,9 +219,9 @@ Why they are bad:
 
 ## Path Rules
 
-- `overview`, `symbols`, `definition`, `callees`, and `references` accept multiple paths.
+- `overview`, `symbols`, `definition`, and `references` accept multiple paths.
 - Those paths may be directories, files, path globs, or a mix.
-- `symbols`, `definition`, `callees`, and `references` also accept repeatable `--include` and `--exclude` glob filters over indexed file paths. `--include` can temporarily re-index matching ignored files for the current query.
+- `symbols`, `definition`, and `references` also accept repeatable `--include` and `--exclude` glob filters over indexed file paths. `--include` can temporarily re-index matching ignored files for the current query.
 - Prefer the smallest scope that answers the question.
 - Use `-C` when you need to run `gx` against another directory context.
 
@@ -281,7 +234,6 @@ gx -C /path/to/project symbols --name 'Search' .
 gx symbols --include 'internal/**' --exclude '**/*_test.go' --name 'Search' .
 gx symbols --name 'Search' internal/tmdb/search.go internal/tools
 gx definition --name 'Search' internal/tmdb/search.go
-gx callees --name 'Search' internal/tmdb/search.go internal/tools
 gx references --unique --name 'Search' internal/tmdb/search.go internal/tools
 ```
 
@@ -289,11 +241,12 @@ gx references --unique --name 'Search' internal/tmdb/search.go internal/tools
 
 Use default output for terminal reading. Use `--json` when another tool or script will consume the result, or when an agent needs structured fields.
 
+List results are wrapped in an envelope: `{"rows": [...], "page": {...}}`. The `page` object carries `total`, `offset`, `next_offset` (absent or 0 when no next page), and `out_of_range` (true when `--offset` exceeds `total`). Use `next_offset` for machine pagination instead of parsing stderr hints.
+
 Examples:
 
 ```bash
 gx definition --json --name 'Search' internal/tmdb
-gx callees --json --name 'Search' .
 gx references --json --unique --name 'Search' .
 ```
 
@@ -301,13 +254,11 @@ gx references --json --unique --name 'Search' .
 
 - Start from a package directory, not the repo root, when using `overview`.
 - Use `symbols` before `definition` if the name or `kind` may be ambiguous.
-- Use `callees` after `definition` when you need the outgoing call list for one implementation.
 - Treat `--kind` as a precision filter, not as the primary lookup mechanism.
 - When results are unexpectedly empty, check help output before assuming the symbol is absent.
 - Use `references --unique` for quick impact analysis.
-- Narrow the query before reaching for `--all`.
-- Use `--offset` to move forward through a large result set.
-- Expect a compact paging hint on `stderr` when results are truncated.
+- Narrow the query before reaching for `--limit all`.
+- Read `page.next_offset` from the output envelope to move forward through a large result set.
 
 ## Response Style
 

@@ -18,12 +18,13 @@ func newOverviewCmd() *cobra.Command {
 		Short:   "Table of contents for a file or directory",
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtime, err := buildRuntime()
+			service, err := buildService(cmd)
+			root := service.Root()
 			if err != nil {
 				return err
 			}
 
-			targets, err := resolveTargetPaths(runtime.Root, args)
+			targets, err := resolveTargetPaths(root, args)
 			if err != nil {
 				return err
 			}
@@ -39,13 +40,13 @@ func newOverviewCmd() *cobra.Command {
 
 			var idx *index.Index
 			if overviewTargetsRequireIndex(targets) {
-				idx, err = loadIndex(runtime.Root, rootCmd.ErrOrStderr())
+				idx, err = loadIndex(root, rootCmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
 			}
 
-			return runtime.Query.Overview(idx, targets, full, page)
+			return service.Overview(idx, targets, full, page)
 		},
 	}
 
@@ -53,7 +54,7 @@ func newOverviewCmd() *cobra.Command {
 	return command
 }
 
-func resolveOverviewPageRequest(cmd *cobra.Command, targets []string) (query.PageRequest, error) {
+func resolveOverviewPageRequest(cmd *cobra.Command, targets []string) (query.Page, error) {
 	if len(targets) > 1 {
 		return resolvePageRequest(cmd, defaultDirectoryOverviewLimit)
 	}
@@ -62,7 +63,7 @@ func resolveOverviewPageRequest(cmd *cobra.Command, targets []string) (query.Pag
 		return resolvePageRequest(cmd, defaultDirectoryOverviewLimit)
 	}
 
-	return query.PageRequest{}, nil
+	return query.Page{}, nil
 }
 
 func overviewTargetsRequireIndex(targets []string) bool {

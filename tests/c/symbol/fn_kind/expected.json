@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.c",
-    "line": 12,
-    "name": "BuildUser",
-    "kind": "func",
-    "signature": "int BuildUser(void)"
-  }
-]

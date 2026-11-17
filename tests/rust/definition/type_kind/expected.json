@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 14,
-    "body": "type UserId = i64;"
-  }
-]

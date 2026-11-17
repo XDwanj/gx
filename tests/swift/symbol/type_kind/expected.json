@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 19,
-    "name": "UserID",
-    "kind": "type",
-    "signature": "typealias UserID = Int"
-  }
-]

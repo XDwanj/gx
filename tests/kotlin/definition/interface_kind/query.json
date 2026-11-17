@@ -1,7 +1,0 @@
-{
-  "name": "Repository",
-  "kind": "interface",
-  "paths": [
-    "."
-  ]
-}

@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.lua",
-    "line": 1,
-    "body": "function build_user()\n  return {}\nend"
-  }
-]

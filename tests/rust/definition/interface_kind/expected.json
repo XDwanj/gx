@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 1,
-    "body": "pub trait Reader {\n    fn read(&self);\n}"
-  }
-]

@@ -19,7 +19,8 @@ func newDefinitionCmd() *cobra.Command {
 		Short:   "Get a function or type body without reading the whole file",
 		Long:    definitionLongDescription(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtime, err := buildRuntime()
+			service, err := buildService(cmd)
+			root := service.Root()
 			if err != nil {
 				return err
 			}
@@ -34,18 +35,18 @@ func newDefinitionCmd() *cobra.Command {
 				return err
 			}
 
-			paths, err := resolveTargetPaths(runtime.Root, args)
+			paths, err := resolveTargetPaths(root, args)
 			if err != nil {
 				return err
 			}
-			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			resolvedDefineIn, err := resolveDefineInPath(root, defineIn)
 			if err != nil {
 				return err
 			}
 
 			debugf(rootCmd.ErrOrStderr(), "definition name=%s paths=%v define_in=%s", name, paths, resolvedDefineIn)
 
-			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
+			idx, err := loadIndex(root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
@@ -59,14 +60,11 @@ func newDefinitionCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Definition(idx, query.DefinitionOptions{
-				Paths:    pathFilters.query(paths),
-				NameGlob: name,
-				Kind:     kindPtr,
-				MaxLines: maxLines,
-				Page:     page,
-				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
-			})
+			return service.Definition(idx, query.Intent{
+				Name:      name,
+				Kind:      kindPtr,
+				DefinedIn: resolvedDefineIn,
+			}, pathFilters.scope(paths), page, maxLines)
 		},
 	}
 

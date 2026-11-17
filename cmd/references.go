@@ -16,7 +16,8 @@ func newReferencesCmd() *cobra.Command {
 		Aliases: []string{"r"},
 		Short:   "Find all usages of a symbol across the project",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtime, err := buildRuntime()
+			service, err := buildService(cmd)
+			root := service.Root()
 			if err != nil {
 				return err
 			}
@@ -31,29 +32,26 @@ func newReferencesCmd() *cobra.Command {
 				return err
 			}
 
-			paths, err := resolveTargetPaths(runtime.Root, args)
+			paths, err := resolveTargetPaths(root, args)
 			if err != nil {
 				return err
 			}
-			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			resolvedDefineIn, err := resolveDefineInPath(root, defineIn)
 			if err != nil {
 				return err
 			}
 
 			debugf(rootCmd.ErrOrStderr(), "references name=%s paths=%v unique=%t define_in=%s", name, paths, unique, resolvedDefineIn)
 
-			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
+			idx, err := loadIndex(root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
 
-			return runtime.Query.References(idx, query.ReferencesOptions{
-				Paths:    pathFilters.query(paths),
-				NameGlob: name,
-				Unique:   unique,
-				Page:     page,
-				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
-			})
+			return service.References(idx, query.Intent{
+				Name:      name,
+				DefinedIn: resolvedDefineIn,
+			}, pathFilters.scope(paths), page, unique)
 		},
 	}
 

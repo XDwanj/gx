@@ -7,8 +7,8 @@ type pathFilterFlags struct {
 	exclude []string
 }
 
-func (flags pathFilterFlags) query(targets []string) query.PathQuery {
-	return query.PathQuery{
+func (flags pathFilterFlags) scope(targets []string) query.Scope {
+	return query.Scope{
 		Targets: targets,
 		Include: flags.include,
 		Exclude: flags.exclude,

@@ -8,9 +8,9 @@ import (
 )
 
 type IndexResult struct {
-	Root         string `json:"root"`
-	Cache        string `json:"cache"`
-	IndexedFiles int    `json:"indexed_files"`
+	Root         string `json:"root" toon:"root"`
+	Cache        string `json:"cache" toon:"cache"`
+	IndexedFiles int    `json:"indexed_files" toon:"indexed_files"`
 }
 
 func Preindex(root string, json bool, verbose bool, stdout io.Writer, stderr io.Writer) error {

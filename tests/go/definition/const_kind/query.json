@@ -1,7 +1,0 @@
-{
-  "name": "DefaultStatus",
-  "kind": "const",
-  "paths": [
-    "."
-  ]
-}

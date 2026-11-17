@@ -1,7 +1,0 @@
-[
-  {
-    "file": "App.java",
-    "line": 2,
-    "body": "static final int LIMIT = 10;"
-  }
-]

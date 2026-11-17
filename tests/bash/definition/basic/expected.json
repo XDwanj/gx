@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.sh",
-    "line": 1,
-    "body": "greet() {\n  echo \"hi\"\n}"
-  }
-]

@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.py",
-    "line": 5,
-    "caller": "A",
-    "callee": "helper",
-    "context": "helper()"
-  }
-]

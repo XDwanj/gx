@@ -1,7 +1,0 @@
-{
-  "name": "BuildUser",
-  "kind": "func",
-  "paths": [
-    "."
-  ]
-}

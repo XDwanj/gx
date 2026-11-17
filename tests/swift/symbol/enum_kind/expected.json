@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 9,
-    "name": "Status",
-    "kind": "enum",
-    "signature": "enum Status"
-  }
-]

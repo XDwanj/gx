@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.proto",
-    "line": 3,
-    "body": "message HelloRequest {\n  string name = 1;\n}"
-  }
-]

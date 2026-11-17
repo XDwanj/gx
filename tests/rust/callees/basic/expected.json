@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 4,
-    "caller": "A",
-    "callee": "helper",
-    "context": "helper();"
-  }
-]

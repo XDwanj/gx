@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.swift",
-    "line": 21,
-    "name": "buildUser",
-    "kind": "func",
-    "signature": "func buildUser()"
-  }
-]

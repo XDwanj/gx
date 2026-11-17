@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 21,
-    "name": "load",
-    "kind": "func",
-    "signature": "fn load(\u0026self)"
-  }
-]

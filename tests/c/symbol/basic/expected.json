@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.c",
-    "line": 1,
-    "name": "User",
-    "kind": "struct",
-    "signature": "struct User"
-  }
-]

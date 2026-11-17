@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/XDwanj/gx/internal/query"
 	"github.com/XDwanj/gx/internal/util/git"
 )
 
@@ -12,9 +11,8 @@ type Flags struct {
 	Directory string
 	JSON      bool
 	Verbose   bool
-	Limit     int
+	Limit     string
 	Offset    int
-	All       bool
 }
 
 func ResolveRoot(directory string) (string, error) {
@@ -35,8 +33,4 @@ func ResolveRoot(directory string) (string, error) {
 		cwd = "."
 	}
 	return git.FindProjectRoot(cwd), nil
-}
-
-func NewQuery(root string, json bool, verbose bool) *query.Runtime {
-	return query.NewRuntime(root, json, verbose)
 }

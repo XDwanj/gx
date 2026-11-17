@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.cpp",
-    "line": 1,
-    "name": "Count",
-    "kind": "type",
-    "signature": "typedef int Count;"
-  }
-]

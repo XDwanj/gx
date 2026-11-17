@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.rs",
-    "line": 5,
-    "body": "enum Status {\n    Open,\n    Closed,\n}"
-  }
-]

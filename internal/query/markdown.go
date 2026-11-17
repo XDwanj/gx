@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/XDwanj/gx/internal/output"
 )
 
 const (
@@ -20,9 +18,9 @@ const (
 )
 
 type markdownOverviewRow struct {
-	Line    int    `json:"line"`
-	Level   int    `json:"level"`
-	Heading string `json:"heading"`
+	Line    int    `json:"line" toon:"line"`
+	Level   int    `json:"level" toon:"level"`
+	Heading string `json:"heading" toon:"heading"`
 }
 
 type markdownHeading struct {
@@ -57,10 +55,8 @@ func (service *Service) MarkdownOverview(path string) error {
 		return nil
 	}
 
-	if service.json {
-		return output.PrintJSON(service.stdout, rows)
-	}
-	return output.PrintTOON(service.stdout, rows)
+	info := pageInfo{Total: len(rows)}
+	return service.writeRows(rows, info)
 }
 
 func (service *Service) markdownOverviewRows(path string) ([]markdownOverviewRow, error) {

@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.zig",
-    "line": 5,
-    "body": "fn buildUser() User {\n    return .{ .id = 1 };\n}"
-  }
-]

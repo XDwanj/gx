@@ -1,7 +1,0 @@
-[
-  {
-    "file": "main.go",
-    "line": 17,
-    "body": "func (User) Load() User {\n\treturn User{}\n}"
-  }
-]

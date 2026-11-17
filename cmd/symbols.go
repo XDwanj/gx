@@ -19,7 +19,8 @@ func newSymbolsCmd() *cobra.Command {
 		Short:   "Search symbols across project",
 		Long:    symbolsLongDescription(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtime, err := buildRuntime()
+			service, err := buildService(cmd)
+			root := service.Root()
 			if err != nil {
 				return err
 			}
@@ -29,25 +30,20 @@ func newSymbolsCmd() *cobra.Command {
 				return err
 			}
 
-			paths, err := resolveTargetPaths(runtime.Root, args)
+			paths, err := resolveTargetPaths(root, args)
 			if err != nil {
 				return err
 			}
-			resolvedDefineIn, err := resolveDefineInPath(runtime.Root, defineIn)
+			resolvedDefineIn, err := resolveDefineInPath(root, defineIn)
 			if err != nil {
 				return err
 			}
 
 			debugf(rootCmd.ErrOrStderr(), "symbols paths=%v name=%s kind=%s define_in=%s", paths, name, kind, resolvedDefineIn)
 
-			idx, err := loadIndex(runtime.Root, rootCmd.ErrOrStderr())
+			idx, err := loadIndex(root, rootCmd.ErrOrStderr())
 			if err != nil {
 				return err
-			}
-
-			var namePtr *string
-			if name != "" {
-				namePtr = &name
 			}
 
 			var kindPtr *index.SymbolKind
@@ -59,13 +55,11 @@ func newSymbolsCmd() *cobra.Command {
 				kindPtr = &value
 			}
 
-			return runtime.Query.Symbols(idx, query.SymbolsOptions{
-				Paths:    pathFilters.query(paths),
-				NameGlob: namePtr,
-				Kind:     kindPtr,
-				Page:     page,
-				AI:       query.AIOptions{DefineIn: resolvedDefineIn},
-			})
+			return service.Symbols(idx, query.Intent{
+				Name:      name,
+				Kind:      kindPtr,
+				DefinedIn: resolvedDefineIn,
+			}, pathFilters.scope(paths), page)
 		},
 	}
 

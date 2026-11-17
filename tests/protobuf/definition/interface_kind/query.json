@@ -1,7 +1,0 @@
-{
-  "name": "Greeter",
-  "kind": "interface",
-  "paths": [
-    "."
-  ]
-}

@@ -54,9 +54,8 @@ func newRootCmd() *cobra.Command {
 	command.PersistentFlags().StringVarP(&rootFlags.Directory, "chdir", "C", "", "Run as if gx was started in this directory")
 	command.PersistentFlags().BoolVar(&rootFlags.JSON, "json", false, "Emit JSON instead of TOON")
 	command.PersistentFlags().BoolVar(&rootFlags.Verbose, "verbose", false, "Emit debug progress to stderr")
-	command.PersistentFlags().IntVar(&rootFlags.Limit, "limit", 0, "Override the default result limit")
+	command.PersistentFlags().StringVar(&rootFlags.Limit, "limit", "", "Override the default result limit (number or 'all')")
 	command.PersistentFlags().IntVar(&rootFlags.Offset, "offset", 0, "Skip the first N results")
-	command.PersistentFlags().BoolVar(&rootFlags.All, "all", false, "Bypass the default result limit")
 
 	command.Flags().BoolVar(&showVersion, "version", false, "Print gx version and exit")
 	command.Flags().BoolVarP(&showVersion, "version-lower-short", "v", false, "Print gx version and exit")
@@ -69,9 +68,7 @@ func newRootCmd() *cobra.Command {
 		newOverviewCmd(),
 		newSymbolsCmd(),
 		newDefinitionCmd(),
-		newCalleesCmd(),
 		newReferencesCmd(),
-		newTreeCmd(),
 		newLangCmd(),
 		newVersionCmd(),
 		newSkillCmd(),
@@ -118,13 +115,13 @@ func resolveTargetBase(root string) (string, error) {
 	return cwd, nil
 }
 
-func buildRuntime() (*query.Runtime, error) {
+func buildService(cmd *cobra.Command) (*query.Service, error) {
 	root, err := resolveRoot()
 	if err != nil {
 		return nil, err
 	}
 	debugf(rootCmd.ErrOrStderr(), "resolved root %s", root)
-	return query.NewRuntime(root, rootFlags.JSON, rootFlags.Verbose), nil
+	return query.NewService(root, cmd.OutOrStdout(), cmd.ErrOrStderr(), rootFlags.JSON, rootFlags.Verbose), nil
 }
 
 func loadIndex(root string, stderr io.Writer) (*index.Index, error) {

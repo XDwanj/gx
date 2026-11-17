@@ -1,9 +1,0 @@
-[
-  {
-    "file": "main.zig",
-    "line": 5,
-    "name": "Status",
-    "kind": "enum",
-    "signature": "const Status = enum"
-  }
-]
