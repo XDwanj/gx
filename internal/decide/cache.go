@@ -12,7 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	// Register the SQLite driver used by the AI selection cache.
+	// 注册 AI 选择缓存使用的 SQLite 驱动。
 	_ "modernc.org/sqlite"
 )
 

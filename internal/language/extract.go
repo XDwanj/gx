@@ -83,13 +83,12 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 	return deduplicate(symbols)
 }
 
-// leadingTriviaStart extends a definition's start byte to cover the contiguous
-// block of doc comments and attributes (#[derive], @decorator) directly above
-// it, so `definition` bodies include them.
+// leadingTriviaStart 把定义的起始字节向前扩展，覆盖紧贴其上的连续
+// 文档注释与属性（#[derive]、@decorator），让 definition 输出带上它们。
 func leadingTriviaStart(node *sitter.Node, source []byte) uint {
 	anchor := node
-	// Some queries capture an inner spec node (Go type_spec) or the def inside
-	// decorated_definition; comments and keywords like `type` sit on the parent.
+	// 部分 query 捕获的是内层 spec 节点（Go 的 type_spec）或
+	// decorated_definition 里的定义；注释和 `type` 这类关键字挂在父节点上。
 	for parent := anchor.Parent(); parent != nil && parent.StartByte() < anchor.StartByte(); parent = anchor.Parent() {
 		sameRowPrefix := parent.StartPosition().Row == anchor.StartPosition().Row
 		if !sameRowPrefix && !strings.Contains(parent.Kind(), "decorat") {
@@ -126,8 +125,8 @@ func startsOwnLine(source []byte, offset uint) bool {
 	return true
 }
 
-// blankLineFree reports whether the gap between two siblings is whitespace
-// with at most one newline, meaning the earlier node sits directly above.
+// blankLineFree 判断两个兄弟节点之间是否只有至多一个换行的空白，
+// 即前一个节点是否紧邻位于上方。
 func blankLineFree(gap []byte) bool {
 	newlines := 0
 	for _, b := range gap {

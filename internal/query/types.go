@@ -24,23 +24,22 @@ const (
 	aiCandidateSnippetMaxRune = 2_000
 )
 
-// Intent describes which symbol the user is looking for.
-// A non-empty DefinedIn points at the file holding the intended
-// declaration and enables AI disambiguation for the query.
+// Intent 描述用户要查找的符号。
+// DefinedIn 非空时指向目标声明所在的文件，并为查询开启 AI 消歧。
 type Intent struct {
 	Name      string
 	Kind      *index.SymbolKind
 	DefinedIn string
 }
 
-// Scope describes where the query runs.
+// Scope 描述查询的运行范围。
 type Scope struct {
 	Targets []string
 	Include []string
 	Exclude []string
 }
 
-// Page describes how many rows to return. Limit 0 returns all rows.
+// Page 描述返回的行数。Limit 为 0 时返回全部行。
 type Page struct {
 	Limit  int
 	Offset int
