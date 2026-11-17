@@ -79,3 +79,146 @@ func TestFindReferencesGo(t *testing.T) {
 		t.Fatalf("call sites on lines 6 and 7 missing: %+v", references)
 	}
 }
+
+func TestLeadingTriviaStart(t *testing.T) {
+	tests := []struct {
+		name     string
+		lang     string
+		source   string
+		symbol   string
+		wantBody string
+	}{
+		{
+			name:     "go doc comment",
+			lang:     "go",
+			source:   "package demo\n\n// NewServer builds a server.\nfunc NewServer() {}\n",
+			symbol:   "NewServer",
+			wantBody: "// NewServer builds a server.\nfunc NewServer() {}",
+		},
+		{
+			name:     "go detached comment",
+			lang:     "go",
+			source:   "package demo\n\n// not a doc comment.\n\nfunc NewServer() {}\n",
+			symbol:   "NewServer",
+			wantBody: "func NewServer() {}",
+		},
+		{
+			name:     "go trailing comment",
+			lang:     "go",
+			source:   "package demo\n\nfunc helper() {} // note\nfunc NewServer() {}\n",
+			symbol:   "NewServer",
+			wantBody: "func NewServer() {}",
+		},
+		{
+			name:     "rust doc plus derive",
+			lang:     "rust",
+			source:   "/// A server.\n#[derive(Debug)]\nstruct Server {\n}\n",
+			symbol:   "Server",
+			wantBody: "/// A server.\n#[derive(Debug)]\nstruct Server {\n}",
+		},
+		{
+			name:     "python decorated",
+			lang:     "python",
+			source:   "# cached getter\n@cache\ndef get():\n    pass\n",
+			symbol:   "get",
+			wantBody: "# cached getter\n@cache\ndef get():\n    pass",
+		},
+		{
+			name:     "bash shebang",
+			lang:     "bash",
+			source:   "#!/usr/bin/env bash\nhello() {\n  echo hi\n}\n",
+			symbol:   "hello",
+			wantBody: "hello() {\n  echo hi\n}",
+		},
+		{
+			name:     "typescript jsdoc",
+			lang:     "typescript",
+			source:   "/** Adds a and b. */\nfunction add(a: number, b: number) {\n  return a + b;\n}\n",
+			symbol:   "add",
+			wantBody: "/** Adds a and b. */\nfunction add(a: number, b: number) {\n  return a + b;\n}",
+		},
+		{
+			name:     "c block comment",
+			lang:     "c",
+			source:   "/* Adds. */\nint add(int a, int b) {\n  return a + b;\n}\n",
+			symbol:   "add",
+			wantBody: "/* Adds. */\nint add(int a, int b) {\n  return a + b;\n}",
+		},
+		{
+			name:     "java method doc",
+			lang:     "java",
+			source:   "class A {\n  /** Adds. */\n  int add(int a, int b) { return a + b; }\n}\n",
+			symbol:   "add",
+			wantBody: "/** Adds. */\n  int add(int a, int b) { return a + b; }",
+		},
+		{
+			name:     "kotlin kdoc",
+			lang:     "kotlin",
+			source:   "/** Adds. */\nfun add(a: Int, b: Int) = a + b\n",
+			symbol:   "add",
+			wantBody: "/** Adds. */\nfun add(a: Int, b: Int) = a + b",
+		},
+		{
+			name:     "ruby comment",
+			lang:     "ruby",
+			source:   "# Adds.\ndef add(a, b)\n  a + b\nend\n",
+			symbol:   "add",
+			wantBody: "# Adds.\ndef add(a, b)\n  a + b\nend",
+		},
+		{
+			name:     "lua doc comment",
+			lang:     "lua",
+			source:   "--- Adds.\nlocal function add(a, b)\n  return a + b\nend\n",
+			symbol:   "add",
+			wantBody: "--- Adds.\nlocal function add(a, b)\n  return a + b\nend",
+		},
+		{
+			name:     "zig doc comment",
+			lang:     "zig",
+			source:   "/// Adds.\nfn add(a: i32, b: i32) i32 {\n  return a + b;\n}\n",
+			symbol:   "add",
+			wantBody: "/// Adds.\nfn add(a: i32, b: i32) i32 {\n  return a + b;\n}",
+		},
+		{
+			name:     "swift doc comment",
+			lang:     "swift",
+			source:   "/// Adds.\nfunc add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+			symbol:   "add",
+			wantBody: "/// Adds.\nfunc add(a: Int, b: Int) -> Int {\n  return a + b\n}",
+		},
+		{
+			name:     "protobuf comment",
+			lang:     "protobuf",
+			source:   "syntax = \"proto3\";\n\n// A message.\nmessage Foo {\n  int32 a = 1;\n}\n",
+			symbol:   "Foo",
+			wantBody: "// A message.\nmessage Foo {\n  int32 a = 1;\n}",
+		},
+		{
+			name:     "vue block comment",
+			lang:     "vue",
+			source:   "<!-- app root -->\n<template>\n  <div/>\n</template>\n",
+			symbol:   "template",
+			wantBody: "<!-- app root -->\n<template>\n  <div/>\n</template>",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			symbols, err := ParseAndExtract(test.lang, []byte(test.source), "x")
+			if err != nil {
+				t.Fatalf("ParseAndExtract: %v", err)
+			}
+			for _, symbol := range symbols {
+				if symbol.Name != test.symbol {
+					continue
+				}
+				body := test.source[symbol.ByteStart:symbol.ByteEnd]
+				if body != test.wantBody {
+					t.Fatalf("body = %q, want %q", body, test.wantBody)
+				}
+				return
+			}
+			t.Fatalf("symbol %q not found in %+v", test.symbol, symbols)
+		})
+	}
+}

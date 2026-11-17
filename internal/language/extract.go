@@ -62,6 +62,7 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 		isTest := detectTestSymbol(config.Name, definitionNode, source)
 		position := definitionNode.StartPosition()
 		line := int(position.Row) + 1
+		byteStart := leadingTriviaStart(definitionNode, source)
 		for _, nameNode := range nameNodes {
 			name := nameNode.Utf8Text(source)
 			if config.Name == languageNameVue && !isVueTopLevelBlock(definitionNode, name) {
@@ -72,7 +73,7 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 				Kind:      kind,
 				Signature: signature,
 				Line:      line,
-				ByteStart: definitionNode.StartByte(),
+				ByteStart: byteStart,
 				ByteEnd:   definitionNode.EndByte(),
 				IsTest:    isTest,
 			})
@@ -80,6 +81,72 @@ func extractSymbols(config *Config, query *sitter.Query, tree *sitter.Tree, sour
 	}
 
 	return deduplicate(symbols)
+}
+
+// leadingTriviaStart extends a definition's start byte to cover the contiguous
+// block of doc comments and attributes (#[derive], @decorator) directly above
+// it, so `definition` bodies include them.
+func leadingTriviaStart(node *sitter.Node, source []byte) uint {
+	anchor := node
+	// Some queries capture an inner spec node (Go type_spec) or the def inside
+	// decorated_definition; comments and keywords like `type` sit on the parent.
+	for parent := anchor.Parent(); parent != nil && parent.StartByte() < anchor.StartByte(); parent = anchor.Parent() {
+		sameRowPrefix := parent.StartPosition().Row == anchor.StartPosition().Row
+		if !sameRowPrefix && !strings.Contains(parent.Kind(), "decorat") {
+			break
+		}
+		anchor = parent
+	}
+
+	start := anchor.StartByte()
+	next := anchor
+	for sibling := next.PrevNamedSibling(); sibling != nil; sibling = next.PrevNamedSibling() {
+		kind := sibling.Kind()
+		isTrivia := strings.Contains(kind, "comment") ||
+			strings.Contains(kind, "attribute") ||
+			strings.Contains(kind, "decorat")
+		if !isTrivia ||
+			!blankLineFree(source[sibling.EndByte():next.StartByte()]) ||
+			hasShebangPrefix(source, sibling.StartByte()) ||
+			!startsOwnLine(source, sibling.StartByte()) {
+			break
+		}
+		start = sibling.StartByte()
+		next = sibling
+	}
+	return start
+}
+
+func startsOwnLine(source []byte, offset uint) bool {
+	for i := int(offset) - 1; i >= 0 && source[i] != '\n'; i-- {
+		if source[i] != ' ' && source[i] != '\t' && source[i] != '\r' {
+			return false
+		}
+	}
+	return true
+}
+
+// blankLineFree reports whether the gap between two siblings is whitespace
+// with at most one newline, meaning the earlier node sits directly above.
+func blankLineFree(gap []byte) bool {
+	newlines := 0
+	for _, b := range gap {
+		switch b {
+		case '\n':
+			newlines++
+			if newlines > 1 {
+				return false
+			}
+		case ' ', '\t', '\r':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func hasShebangPrefix(source []byte, offset uint) bool {
+	return int(offset)+1 < len(source) && source[offset] == '#' && source[offset+1] == '!'
 }
 
 func isVueTopLevelBlock(node *sitter.Node, name string) bool {
