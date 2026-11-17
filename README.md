@@ -407,6 +407,8 @@ Markdown support is intentionally limited to `gx overview` for file outlines wit
 
 `symbols`, `definition`, and `references` also accept `--define-in FILE` to ask AI to disambiguate matches against the symbol defined in `FILE`. This requires `GX_AI_API_KEY` and `GX_AI_BASE_URL`; `GX_AI_MODEL` is optional and defaults to `gpt-4o-mini`. Any OpenAI-compatible endpoint works, for example OpenRouter via `GX_AI_BASE_URL=https://openrouter.ai/api/v1`. AI selections are cached in the project SQLite cache.
 
+Set `GX_AI_MODEL` to a TypeSafe System One model such as `typesafe/jev-1.13` (or `jev-*`) to route decisions through OpenRouter's structured decisions API instead of chat completions.
+
 ```bash
 gx references --name login --define-in internal/domain/user.go .
 ```

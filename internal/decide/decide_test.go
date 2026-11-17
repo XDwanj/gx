@@ -83,6 +83,38 @@ func TestDecideRejectsUnknownID(t *testing.T) {
 	}
 }
 
+func fakeSystemOne(t *testing.T, nouls map[string]float64, hits *atomic.Int32) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/alpha/decisions" {
+			t.Errorf("unexpected path %s", request.URL.Path)
+		}
+		hits.Add(1)
+		answers := map[string]any{}
+		for key, value := range nouls {
+			answers[key] = map[string]any{"type": "noul", "noul": value}
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{"answers": answers})
+	}))
+}
+
+func TestDecideSystemOne(t *testing.T) {
+	var hits atomic.Int32
+	server := fakeSystemOne(t, map[string]float64{"q0": 0.9, "q1": 0.1}, &hits)
+	defer server.Close()
+
+	client := NewClient(Config{APIKey: "k", BaseURL: server.URL, Model: "typesafe/jev-1.13"}, t.TempDir())
+
+	verdict, err := client.Decide(context.Background(), testRequest())
+	if err != nil {
+		t.Fatalf("Decide: %v", err)
+	}
+	if len(verdict.SelectedIDs) != 1 || verdict.SelectedIDs[0] != "c0" {
+		t.Fatalf("selected %v", verdict.SelectedIDs)
+	}
+}
+
 func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("GX_AI_API_KEY", "")
 	t.Setenv("GX_AI_BASE_URL", "")

@@ -1,11 +1,15 @@
 package decide
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +24,12 @@ const (
 	requestTimeout      = 60 * time.Second
 	concurrencyLimit    = 256
 	providerCacheKeySep = "\x00"
+	systemOnePath       = "/api/alpha/decisions"
+	systemOneThreshold  = 0.5
+	errorBodyLimit      = 500
 )
+
+var systemOneClient = &http.Client{Timeout: requestTimeout}
 
 type Config struct {
 	APIKey  string
@@ -28,7 +37,7 @@ type Config struct {
 	Model   string
 }
 
-// Intent describes which symbol the user wants.
+// Intent 描述用户要找的符号。
 type Intent struct {
 	Command string `json:"command"`
 	Name    string `json:"name"`
@@ -71,7 +80,7 @@ type Decider interface {
 	Decide(ctx context.Context, req Request) (Verdict, error)
 }
 
-// Debugf receives cache and request progress; nil means silent.
+// Debugf 接收缓存与请求进度；为 nil 表示静默。
 type Debugf func(format string, args ...any)
 
 type Client struct {
@@ -180,6 +189,9 @@ func (client *Client) Decide(ctx context.Context, request Request) (Verdict, err
 }
 
 func (client *Client) selectIDs(ctx context.Context, request Request) ([]string, error) {
+	if client.usesSystemOne() {
+		return client.selectIDsSystemOne(ctx, request)
+	}
 	response, err := client.openai.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model: client.config.Model,
 		Messages: []openai.ChatCompletionMessageParamUnion{
@@ -196,6 +208,108 @@ func (client *Client) selectIDs(ctx context.Context, request Request) ([]string,
 		return nil, fmt.Errorf("gx: AI response did not include choices")
 	}
 	return decodeSelectedIDs(response.Choices[0].Message.Content)
+}
+
+// usesSystemOne 判断配置的模型是否为 TypeSafe System One 模型（Jev），
+// 它在 OpenRouter 上走 decisions API，而不是 chat completions。
+func (client *Client) usesSystemOne() bool {
+	return strings.HasPrefix(client.config.Model, "typesafe/") ||
+		strings.HasPrefix(client.config.Model, "jev-")
+}
+
+func (client *Client) selectIDsSystemOne(ctx context.Context, request Request) ([]string, error) {
+	questions := make(map[string]any, len(request.Candidates))
+	for i, candidate := range request.Candidates {
+		questions[systemOneQuestionKey(i)] = map[string]any{
+			"type": "noul",
+			"instructions": fmt.Sprintf(
+				"For command %q, does the candidate with id %q at %s:%d (%s) match the target %q? %s",
+				request.Intent.Command, candidate.ID, candidate.File, candidate.Line,
+				candidate.Signature, request.Intent.Target.Name, systemOneRule(request.Intent.Command)),
+			"criteria": map[string]string{
+				"true":  "the candidate matches the target under the stated rule",
+				"false": "the candidate is a different declaration or an unrelated reference",
+			},
+		}
+	}
+	payload, err := json.Marshal(map[string]any{
+		"model":     client.config.Model,
+		"state":     request,
+		"questions": questions,
+	})
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err := client.systemOneURL()
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+client.config.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := systemOneClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gx: system one decision failed: %s: %s", resp.Status, truncateForError(raw))
+	}
+	var decoded struct {
+		Answers map[string]struct {
+			Noul float64 `json:"noul"`
+		} `json:"answers"`
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil, fmt.Errorf("gx: system one response was not JSON: %w", err)
+	}
+	selected := make([]string, 0, len(request.Candidates))
+	for i, candidate := range request.Candidates {
+		if decoded.Answers[systemOneQuestionKey(i)].Noul >= systemOneThreshold {
+			selected = append(selected, candidate.ID)
+		}
+	}
+	return selected, nil
+}
+
+func (client *Client) systemOneURL() (string, error) {
+	parsed, err := url.Parse(normalizeBaseURL(client.config.BaseURL))
+	if err != nil || parsed.Host == "" {
+		return "", fmt.Errorf("gx: invalid GX_AI_BASE_URL %q", client.config.BaseURL)
+	}
+	parsed.Path = systemOnePath
+	parsed.RawQuery, parsed.Fragment = "", ""
+	return parsed.String(), nil
+}
+
+func systemOneQuestionKey(index int) string {
+	return fmt.Sprintf("q%d", index)
+}
+
+func systemOneRule(command string) string {
+	if command == "references" {
+		return "Select candidates that refer to the target, including the target " +
+			"definition site when present. Do not match the same method name on " +
+			"another receiver, class, struct, object, or type."
+	}
+	return "Select candidates that are the same declaration as the target. When " +
+		"the target is a method, do not match the same method name on another " +
+		"receiver, class, struct, object, or type."
+}
+
+func truncateForError(raw []byte) string {
+	text := strings.TrimSpace(string(raw))
+	if len(text) > errorBodyLimit {
+		return text[:errorBodyLimit]
+	}
+	return text
 }
 
 func (client *Client) logf(format string, args ...any) {

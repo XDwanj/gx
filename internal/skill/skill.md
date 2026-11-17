@@ -27,7 +27,7 @@ gx references --unique --name 'Search' .
 
 To answer "who does F call", run `gx definition` on F and read the body.
 
-Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_AI_API_KEY` and `GX_AI_BASE_URL`, accepts optional `GX_AI_MODEL`, and applies to `symbols`, `definition`, and `references`.
+Use `--define-in FILE` when a common symbol name needs AI disambiguation against the definition in a specific file. This requires `GX_AI_API_KEY` and `GX_AI_BASE_URL`, accepts optional `GX_AI_MODEL` (set to `typesafe/jev-1.13` to use OpenRouter's decisions API instead of chat completions), and applies to `symbols`, `definition`, and `references`.
 
 ```bash
 gx references --name 'login' --define-in internal/domain/user.go .
