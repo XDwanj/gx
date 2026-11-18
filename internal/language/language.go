@@ -44,6 +44,7 @@ const (
 	languageNameRust        = "rust"
 	languageNameSwift       = "swift"
 	languageNameVue         = "vue"
+	languageNameWXML        = "wxml"
 	languageNameZig         = "zig"
 	grammarNameTSX          = "tsx"
 	grammarNameTypeScript   = "typescript"
@@ -94,6 +95,7 @@ type Config struct {
 	SigDelimiter  byte
 	KindOverrides []KindOverride
 	RefNodeTypes  []string
+	Embedded      *embeddedSpec
 	grammarName   func(ext string) string
 	loadLanguage  func(ext string) *sitter.Language
 }
@@ -304,7 +306,19 @@ var languages = []*Config{
 		Extensions:   []string{languageNameVue},
 		Query:        vueQuery,
 		RefNodeTypes: []string{"tag_name", "attribute_name"},
+		Embedded:     &embeddedSpec{language: grammarNameTypeScript, collect: vueExpressionRanges},
 		grammarName:  func(_ string) string { return languageNameVue },
+		loadLanguage: func(_ string) *sitter.Language {
+			return sitter.NewLanguage(tree_sitter_html.Language())
+		},
+	},
+	{
+		Name:         languageNameWXML,
+		Extensions:   []string{languageNameWXML},
+		Query:        "",
+		RefNodeTypes: []string{"tag_name", "attribute_name"},
+		Embedded:     &embeddedSpec{language: grammarNameTypeScript, collect: wxmlExpressionRanges},
+		grammarName:  func(_ string) string { return languageNameWXML },
 		loadLanguage: func(_ string) *sitter.Language {
 			return sitter.NewLanguage(tree_sitter_html.Language())
 		},
@@ -402,7 +416,16 @@ func ParseAndExtract(languageName string, source []byte, path string) ([]Symbol,
 		return nil, err
 	}
 
-	return extractSymbols(config, query, tree, source), nil
+	symbols := extractSymbols(config, query, tree, source)
+	eachEmbeddedTree(config, source, tree, func(embeddedTree *sitter.Tree, embeddedConfig *Config, embeddedLanguage *sitter.Language) {
+		embeddedQuery, queryErr := compiledQuery(embeddedConfig, embeddedLanguage, embeddedConfig.grammarName(""))
+		if queryErr != nil {
+			return
+		}
+		symbols = append(symbols, extractSymbols(embeddedConfig, embeddedQuery, embeddedTree, source)...)
+	})
+	sort.Slice(symbols, func(i, j int) bool { return symbols[i].ByteStart < symbols[j].ByteStart })
+	return symbols, nil
 }
 
 func FindReferences(languageName string, source []byte, path string, name string) ([]Reference, error) {
@@ -428,7 +451,7 @@ func FindReferencesForNames(languageName string, source []byte, path string, nam
 	}
 
 	references := make([]Reference, 0)
-	walkReferenceLeaves(config, tree.RootNode(), func(node *sitter.Node) {
+	visit := func(node *sitter.Node) {
 		if _, ok := nameSet[node.Utf8Text(source)]; !ok {
 			return
 		}
@@ -436,7 +459,12 @@ func FindReferencesForNames(languageName string, source []byte, path string, nam
 			Line:       int(node.StartPosition().Row) + 1,
 			ByteOffset: node.StartByte(),
 		})
+	}
+	walkReferenceLeaves(config, tree.RootNode(), visit)
+	eachEmbeddedTree(config, source, tree, func(embeddedTree *sitter.Tree, embeddedConfig *Config, _ *sitter.Language) {
+		walkReferenceLeaves(embeddedConfig, embeddedTree.RootNode(), visit)
 	})
+	sort.Slice(references, func(i, j int) bool { return references[i].ByteOffset < references[j].ByteOffset })
 
 	return references, nil
 }
@@ -450,7 +478,7 @@ func FindReferenceNames(languageName string, source []byte, path string) ([]stri
 
 	names := make([]string, 0)
 	seen := make(map[string]struct{})
-	walkReferenceLeaves(config, tree.RootNode(), func(node *sitter.Node) {
+	visit := func(node *sitter.Node) {
 		name := node.Utf8Text(source)
 		if name == "" {
 			return
@@ -460,6 +488,10 @@ func FindReferenceNames(languageName string, source []byte, path string) ([]stri
 		}
 		seen[name] = struct{}{}
 		names = append(names, name)
+	}
+	walkReferenceLeaves(config, tree.RootNode(), visit)
+	eachEmbeddedTree(config, source, tree, func(embeddedTree *sitter.Tree, embeddedConfig *Config, _ *sitter.Language) {
+		walkReferenceLeaves(embeddedConfig, embeddedTree.RootNode(), visit)
 	})
 	sort.Strings(names)
 	return names, nil

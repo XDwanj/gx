@@ -18,7 +18,7 @@ This project is derived from `cx`, but its public command name in this repositor
 
 Current built-in language support includes:
 
-`bash`, `c`, `cpp`, `go`, `java`, `kotlin`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `vue`, `zig`
+`bash`, `c`, `cpp`, `go`, `java`, `kotlin`, `lua`, `python`, `protobuf`, `ruby`, `rust`, `swift`, `typescript`, `vue`, `wxml`, `zig`
 
 Use `gx lang list` to see which grammars are currently enabled in your local cache.
 
@@ -201,14 +201,27 @@ TSX grammar, while `.ts` and `.js` use the TypeScript grammar.
 
 ### vue
 
-`vue` covers `.vue` single-file components. It indexes top-level SFC blocks as
-modules.
+`vue` covers `.vue` single-file components. Top-level SFC blocks are indexed as
+modules, and `<script>` content is parsed with the TypeScript grammar, so
+symbols and references inside `<script>` behave like a `.ts` file.
 
 | Declaration form  | What syntax it represents | `gx` kind |
 | ----------------- | ------------------------- | --------- |
 | `template_element` | A top-level template block | `module`  |
 | `script_element`   | A top-level script block   | `module`  |
 | `style_element`    | A top-level style block    | `module`  |
+
+`references` also resolves template expressions: `@event`/`v-on:event`/`:`/`v-*`
+attribute values and `{{ }}` interpolations are parsed as TypeScript
+expressions. The embedded extraction requires the `typescript` grammar to be
+enabled.
+
+### wxml
+
+`wxml` covers `.wxml` WeChat Mini Program markup. It produces no symbols;
+`references` resolves `bind*`/`catch*`/`mut-bind`/`capture-*` event-binding
+attribute values and `{{ }}` expressions, parsed with the TypeScript grammar.
+Requires `typescript` enabled.
 
 ### zig
 

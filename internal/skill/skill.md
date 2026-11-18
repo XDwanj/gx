@@ -68,7 +68,8 @@ Current language coverage:
 - `rust`: `func`, `const`, `struct`, `enum`, `interface`, `module`, `type`
 - `swift`: `func`, `const`, `struct`, `enum`, `class`, `interface`, `module`, `type`
 - `typescript`: `func`, `const`, `class`, `enum`, `interface`, `module`, `type`
-- `vue`: `module`
+- `vue`: `module` for the top-level `template`/`script`/`style` blocks, plus `typescript` kinds extracted from `<script>` (requires `typescript` enabled). `references` also resolves `@`/`v-on:`/`:`/`v-*` attribute expressions and `{{ }}` interpolations.
+- `wxml`: no symbols. `references` resolves `bind*`/`catch*`/`mut-bind`/`capture-*` event bindings and `{{ }}` expressions (requires `typescript` enabled).
 - `zig`: `func`, `struct`, `enum`
 
 ## Command Guide
@@ -223,7 +224,8 @@ Why they are bad:
 - Those paths may be directories, files, path globs, or a mix.
 - `symbols`, `definition`, and `references` also accept repeatable `--include` and `--exclude` glob filters over indexed file paths. `--include` can temporarily re-index matching ignored files for the current query.
 - Prefer the smallest scope that answers the question.
-- Use `-C` when you need to run `gx` against another directory context.
+- `-C DIR` runs `gx` as if started in `DIR`.
+- A directory excluded by `.gitignore`/`.ignore` (for example `frontend/` at a repo root) silently returns zero results at the parent root. Run `gx -C path/to/subdir` to query inside it, or add `--include 'subdir/**'` to bring the matching files back inside the current query.
 
 Examples:
 

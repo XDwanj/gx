@@ -17,7 +17,7 @@
 
 当前内置支持的语言包括：
 
-`bash`、`c`、`cpp`、`go`、`java`、`lua`、`python`、`protobuf`、`ruby`、`rust`、`swift`、`typescript`、`zig`
+`bash`、`c`、`cpp`、`go`、`java`、`kotlin`、`lua`、`python`、`protobuf`、`ruby`、`rust`、`swift`、`typescript`、`vue`、`wxml`、`zig`
 
 可以通过 `gx lang list` 查看本机缓存中哪些 grammar 已启用。
 
@@ -180,6 +180,28 @@ Tree-sitter query 匹配语法节点，再由 `gx` 把这些 capture 映射到�
 | `variable_declaration`                          | 具名 `var` 声明                          | `const`     |
 | `enum_assignment`                               | 带显式赋值的枚举成员                     | `const`     |
 | `enum_body` 的成员名                            | 不带显式赋值的枚举成员                   | `const`     |
+
+### vue
+
+`vue` 覆盖 `.vue` 单文件组件。顶层 SFC 块索引为 `module`，`<script>` 内容
+交给 TypeScript grammar 解析，因此 `<script>` 内的符号和引用行为与 `.ts`
+文件一致。
+
+| 声明形式          | 具体语法         | `gx` kind |
+| ----------------- | ---------------- | --------- |
+| `template_element` | 顶层 template 块 | `module`  |
+| `script_element`   | 顶层 script 块   | `module`  |
+| `style_element`    | 顶层 style 块    | `module`  |
+
+`references` 还会解析模板表达式：`@event`/`v-on:event`/`:`/`v-*` 属性值和
+`{{ }}` 插值按 TypeScript 表达式解析。嵌入提取要求 `typescript` grammar
+已启用。
+
+### wxml
+
+`wxml` 覆盖微信小程序的 `.wxml` 标记文件。不产出符号；`references` 解析
+`bind*`/`catch*`/`mut-bind`/`capture-*` 事件绑定属性值和 `{{ }}` 表达式，
+按 TypeScript grammar 解析。要求 `typescript` 已启用。
 
 ### zig
 

@@ -222,3 +222,109 @@ func TestLeadingTriviaStart(t *testing.T) {
 		})
 	}
 }
+
+const vueSource = `<template>
+  <a-modal @ok="handleDelete(record.id)" :visible="showModal">
+    {{ formatName(user.name) }}
+  </a-modal>
+</template>
+<script lang="ts" setup>
+import { deleteBanner } from '@/api/banner'
+
+const handleDelete = (id: string) => {
+  deleteBanner({ id })
+}
+</script>
+<style scoped></style>
+`
+
+func skipUnlessInstalled(t *testing.T, languageName string) {
+	t.Helper()
+	if _, _, _, _, err := parseSource(languageName, nil, "probe"); err != nil {
+		t.Skipf("%s not installed: %v", languageName, err)
+	}
+	// 嵌入解析依赖 typescript grammar，缺省时 Vue/WXML 退化为块级结果。
+	if _, _, _, _, err := parseSource("typescript", nil, "probe.ts"); err != nil {
+		t.Skipf("typescript not installed: %v", err)
+	}
+}
+
+func TestVueEmbeddedScriptSymbols(t *testing.T) {
+	skipUnlessInstalled(t, "vue")
+	symbols, err := ParseAndExtract("vue", []byte(vueSource), "index.vue")
+	if err != nil {
+		t.Fatalf("ParseAndExtract: %v", err)
+	}
+
+	kinds := map[string]SymbolKind{}
+	for _, symbol := range symbols {
+		kinds[symbol.Name] = symbol.Kind
+	}
+	if kinds["handleDelete"] != SymbolKindFunc {
+		t.Fatalf("handleDelete kind = %q, want func (symbols: %+v)", kinds["handleDelete"], symbols)
+	}
+	for _, block := range []string{"template", "script", "style"} {
+		if kinds[block] != SymbolKindModule {
+			t.Fatalf("%s block missing (symbols: %+v)", block, symbols)
+		}
+	}
+}
+
+func TestVueEmbeddedReferences(t *testing.T) {
+	skipUnlessInstalled(t, "vue")
+	source := []byte(vueSource)
+
+	references, err := FindReferencesForNames("vue", source, "index.vue", []string{"deleteBanner"})
+	if err != nil {
+		t.Fatalf("FindReferencesForNames: %v", err)
+	}
+	lines := map[int]bool{}
+	for _, reference := range references {
+		lines[reference.Line] = true
+	}
+	if !lines[7] || !lines[10] {
+		t.Fatalf("expected deleteBanner import (line 7) and call (line 10), got %+v", references)
+	}
+
+	references, err = FindReferencesForNames("vue", source, "index.vue", []string{"handleDelete"})
+	if err != nil {
+		t.Fatalf("FindReferencesForNames: %v", err)
+	}
+	lines = map[int]bool{}
+	for _, reference := range references {
+		lines[reference.Line] = true
+	}
+	if !lines[2] || !lines[9] {
+		t.Fatalf("expected @ok binding (line 2) and const (line 9), got %+v", references)
+	}
+}
+
+func TestWxmlEmbeddedReferences(t *testing.T) {
+	skipUnlessInstalled(t, "wxml")
+	source := []byte(`<view wx:for="{{addresslist}}" wx:key="index">
+  <button class="delete-btn" catchtap="deleteAddress" data-id="{{item.id}}">删除</button>
+</view>
+`)
+
+	references, err := FindReferencesForNames("wxml", source, "address.wxml", []string{"deleteAddress"})
+	if err != nil {
+		t.Fatalf("FindReferencesForNames: %v", err)
+	}
+	if len(references) != 1 || references[0].Line != 2 {
+		t.Fatalf("expected catchtap binding on line 2, got %+v", references)
+	}
+
+	names, err := FindReferenceNames("wxml", source, "address.wxml")
+	if err != nil {
+		t.Fatalf("FindReferenceNames: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, name := range names {
+		seen[name] = true
+	}
+	for _, want := range []string{"item", "addresslist", "deleteAddress"} {
+		if !seen[want] {
+			t.Fatalf("expected reference name %q in %v", want, names)
+		}
+	}
+}

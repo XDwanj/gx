@@ -27,6 +27,7 @@ var supportedLanguages = []string{
 	"swift",
 	"typescript",
 	"vue",
+	"wxml",
 	"zig",
 }
 
