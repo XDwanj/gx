@@ -22,6 +22,7 @@ const (
 	aiTargetBodyMaxRunes      = 8_000
 	aiCandidateBodyMaxRunes   = 4_000
 	aiCandidateSnippetMaxRune = 2_000
+	aiMaxSiblings             = 100
 )
 
 // Intent 描述用户要查找的符号。

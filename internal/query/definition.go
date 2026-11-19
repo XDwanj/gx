@@ -42,7 +42,11 @@ func (service *Service) Definition(idx *index.Index, intent Intent, scope Scope,
 		if err != nil {
 			return err
 		}
-		matches, err = service.filterDefsWithDecide(resolvedIdx, intent.Name, target, matches)
+		siblings, err := service.collectSiblings(resolvedIdx, intent)
+		if err != nil {
+			return err
+		}
+		matches, err = service.filterDefsWithDecide(resolvedIdx, intent.Name, target, siblings, matches)
 		if err != nil {
 			return err
 		}

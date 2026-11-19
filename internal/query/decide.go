@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/XDwanj/gx/internal/decide"
@@ -74,6 +75,43 @@ func (service *Service) resolveTarget(idx *index.Index, intent Intent) (decide.T
 	}, nil
 }
 
+// collectSiblings 收集与 --name 匹配的全部声明作为 AI 判定的对照组。
+// 结果按文件与行号排序，保证 Request 序列化稳定、decide 缓存键可复用。
+func (service *Service) collectSiblings(idx *index.Index, intent Intent) ([]decide.Target, error) {
+	paths := make([]string, 0, len(idx.Entries))
+	for relPath := range idx.Entries {
+		paths = append(paths, relPath)
+	}
+	sort.Strings(paths)
+
+	siblings := make([]decide.Target, 0)
+	for _, relPath := range paths {
+		for _, symbol := range idx.Entries[relPath].Symbols {
+			matched, err := globMatch(intent.Name, symbol.Name)
+			if err != nil {
+				return nil, err
+			}
+			if !matched {
+				continue
+			}
+			if intent.Kind != nil && symbol.Kind != *intent.Kind {
+				continue
+			}
+			siblings = append(siblings, decide.Target{
+				File:      displayPath(relPath),
+				Line:      symbol.Line,
+				Name:      symbol.Name,
+				Kind:      string(symbol.Kind),
+				Signature: symbol.Signature,
+			})
+			if len(siblings) >= aiMaxSiblings {
+				return siblings, nil
+			}
+		}
+	}
+	return siblings, nil
+}
+
 func (service *Service) selectCandidateIDs(intent decide.Intent, candidates []decide.Candidate) (map[string]bool, error) {
 	decider, err := service.deciderFor()
 	if err != nil {
@@ -103,7 +141,7 @@ func filterBySelection[Row any](rows []Row, selected map[string]bool) []Row {
 	return filtered
 }
 
-func (service *Service) filterSymbolRowsWithDecide(idx *index.Index, name string, target decide.Target, rows []SymbolRow) ([]SymbolRow, error) {
+func (service *Service) filterSymbolRowsWithDecide(idx *index.Index, name string, target decide.Target, siblings []decide.Target, rows []SymbolRow) ([]SymbolRow, error) {
 	candidates := make([]decide.Candidate, 0, len(rows))
 	for indexValue, row := range rows {
 		snippet, err := snippetForLine(idx.Root, row.File, row.Line)
@@ -121,7 +159,7 @@ func (service *Service) filterSymbolRowsWithDecide(idx *index.Index, name string
 		})
 	}
 
-	selected, err := service.selectCandidateIDs(decide.Intent{Command: "symbols", Name: name, Target: target}, candidates)
+	selected, err := service.selectCandidateIDs(decide.Intent{Command: "symbols", Name: name, Target: target, Siblings: siblings}, candidates)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +167,7 @@ func (service *Service) filterSymbolRowsWithDecide(idx *index.Index, name string
 }
 
 func (service *Service) filterDefsWithDecide(
-	idx *index.Index, name string, target decide.Target, matches []definitionMatch,
+	idx *index.Index, name string, target decide.Target, siblings []decide.Target, matches []definitionMatch,
 ) ([]definitionMatch, error) {
 	candidates := make([]decide.Candidate, 0, len(matches))
 	for indexValue, match := range matches {
@@ -149,14 +187,14 @@ func (service *Service) filterDefsWithDecide(
 		})
 	}
 
-	selected, err := service.selectCandidateIDs(decide.Intent{Command: "definition", Name: name, Target: target}, candidates)
+	selected, err := service.selectCandidateIDs(decide.Intent{Command: "definition", Name: name, Target: target, Siblings: siblings}, candidates)
 	if err != nil {
 		return nil, err
 	}
 	return filterBySelection(matches, selected), nil
 }
 
-func (service *Service) filterReferenceRowsWithDecide(idx *index.Index, name string, target decide.Target, rows []ReferenceRow) ([]ReferenceRow, error) {
+func (service *Service) filterReferenceRowsWithDecide(idx *index.Index, name string, target decide.Target, siblings []decide.Target, rows []ReferenceRow) ([]ReferenceRow, error) {
 	candidates := make([]decide.Candidate, 0, len(rows))
 	for indexValue, row := range rows {
 		snippet, err := snippetForLine(idx.Root, row.File, row.Line)
@@ -174,7 +212,7 @@ func (service *Service) filterReferenceRowsWithDecide(idx *index.Index, name str
 		})
 	}
 
-	selected, err := service.selectCandidateIDs(decide.Intent{Command: "references", Name: name, Target: target}, candidates)
+	selected, err := service.selectCandidateIDs(decide.Intent{Command: "references", Name: name, Target: target, Siblings: siblings}, candidates)
 	if err != nil {
 		return nil, err
 	}

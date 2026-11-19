@@ -99,7 +99,11 @@ func (service *Service) References(idx *index.Index, intent Intent, scope Scope,
 		if err != nil {
 			return err
 		}
-		deduped, err = service.filterReferenceRowsWithDecide(resolvedIdx, intent.Name, target, deduped)
+		siblings, err := service.collectSiblings(resolvedIdx, intent)
+		if err != nil {
+			return err
+		}
+		deduped, err = service.filterReferenceRowsWithDecide(resolvedIdx, intent.Name, target, siblings, deduped)
 		if err != nil {
 			return err
 		}

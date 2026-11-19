@@ -20,13 +20,14 @@ import (
 
 const (
 	defaultModel        = "gpt-4o-mini"
-	promptVersion       = 4
+	promptVersion       = 7
 	requestTimeout      = 60 * time.Second
 	concurrencyLimit    = 256
 	providerCacheKeySep = "\x00"
 	systemOnePath       = "/api/alpha/decisions"
 	systemOneThreshold  = 0.5
 	errorBodyLimit      = 500
+	siblingSigMaxRunes  = 160
 )
 
 var systemOneClient = &http.Client{Timeout: requestTimeout}
@@ -39,9 +40,11 @@ type Config struct {
 
 // Intent 描述用户要找的符号。
 type Intent struct {
-	Command string `json:"command"`
-	Name    string `json:"name"`
-	Target  Target `json:"target"`
+	Command  string   `json:"command"`
+	Name     string   `json:"name"`
+	Target   Target   `json:"target"`
+	Siblings []Target `json:"siblings,omitempty"`
+	Digest   string   `json:"digest,omitempty"`
 }
 
 type Target struct {
@@ -218,23 +221,29 @@ func (client *Client) usesSystemOne() bool {
 }
 
 func (client *Client) selectIDsSystemOne(ctx context.Context, request Request) ([]string, error) {
+	state := request
+	state.Intent.Digest = siblingsDigest(request)
 	questions := make(map[string]any, len(request.Candidates))
 	for i, candidate := range request.Candidates {
 		questions[systemOneQuestionKey(i)] = map[string]any{
 			"type": "noul",
 			"instructions": fmt.Sprintf(
-				"For command %q, does the candidate with id %q at %s:%d (%s) match the target %q? %s",
+				"For command %q, does candidate %q at %s:%d resolve to the target "+
+					"declaration and not to a sibling? Candidate context: %s "+
+					"Declarations are listed in state.intent.digest with the target "+
+					"marked; judge by the receiver, qualifier, and type names in the "+
+					"candidate's context and snippet. %s",
 				request.Intent.Command, candidate.ID, candidate.File, candidate.Line,
-				candidate.Signature, request.Intent.Target.Name, systemOneRule(request.Intent.Command)),
+				strings.TrimSpace(candidate.Context), systemOneRule(request.Intent.Command)),
 			"criteria": map[string]string{
-				"true":  "the candidate matches the target under the stated rule",
-				"false": "the candidate is a different declaration or an unrelated reference",
+				"true":  "the candidate resolves to the target declaration",
+				"false": "the candidate resolves to a different sibling declaration or is unrelated",
 			},
 		}
 	}
 	payload, err := json.Marshal(map[string]any{
 		"model":     client.config.Model,
-		"state":     request,
+		"state":     state,
 		"questions": questions,
 	})
 	if err != nil {
@@ -272,11 +281,44 @@ func (client *Client) selectIDsSystemOne(ctx context.Context, request Request) (
 	}
 	selected := make([]string, 0, len(request.Candidates))
 	for i, candidate := range request.Candidates {
-		if decoded.Answers[systemOneQuestionKey(i)].Noul >= systemOneThreshold {
+		score := decoded.Answers[systemOneQuestionKey(i)].Noul
+		client.logf("noul id=%s score=%.3f %s:%d", candidate.ID, score, candidate.File, candidate.Line)
+		if score >= systemOneThreshold {
 			selected = append(selected, candidate.ID)
 		}
 	}
 	return selected, nil
+}
+
+// siblingsDigest 把同名声明压缩成单行列表嵌进每个判定问题，
+// 避免模型忽略 state 里的结构化 siblings 字段。
+func siblingsDigest(request Request) string {
+	target := request.Intent.Target
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "Declarations named %q:\n", request.Intent.Name)
+	fmt.Fprintf(&builder, "- %s at %s:%d (target)\n",
+		flattenSignature(target.Signature), target.File, target.Line)
+	for _, sibling := range request.Intent.Siblings {
+		if sibling.File == target.File && sibling.Line == target.Line {
+			continue
+		}
+		label := sibling.Signature
+		if label == "" {
+			label = sibling.Name
+		}
+		fmt.Fprintf(&builder, "- %s at %s:%d\n",
+			flattenSignature(label), sibling.File, sibling.Line)
+	}
+	return builder.String()
+}
+
+func flattenSignature(signature string) string {
+	flat := strings.Join(strings.Fields(signature), " ")
+	runes := []rune(flat)
+	if len(runes) > siblingSigMaxRunes {
+		return string(runes[:siblingSigMaxRunes]) + "..."
+	}
+	return flat
 }
 
 func (client *Client) systemOneURL() (string, error) {
@@ -294,14 +336,18 @@ func systemOneQuestionKey(index int) string {
 }
 
 func systemOneRule(command string) string {
+	rule := "state.intent.digest lists every declaration that shares the query " +
+		"name; the one marked target is the intended declaration. A receiver, " +
+		"qualifier, or type name that matches a different sibling is a " +
+		"different declaration, even when the names differ only by a " +
+		"prefix or suffix."
 	if command == "references" {
-		return "Select candidates that refer to the target, including the target " +
-			"definition site when present. Do not match the same method name on " +
-			"another receiver, class, struct, object, or type."
+		return "Select candidates that resolve to the target declaration " +
+			"rather than to any sibling, including the target definition " +
+			"site when present. " + rule
 	}
-	return "Select candidates that are the same declaration as the target. When " +
-		"the target is a method, do not match the same method name on another " +
-		"receiver, class, struct, object, or type."
+	return "Select candidates that are the target declaration itself, " +
+		"not any sibling. " + rule
 }
 
 func truncateForError(raw []byte) string {
@@ -342,9 +388,10 @@ func selectionPrompt(request Request) string {
 		encoded = []byte("{}")
 	}
 	return "Given this JSON request, return {\"selected_ids\":[...]}.\n" +
-		"Use intent.target as the intended symbol. For symbols and definition, select candidates that are the same declaration as the target. " +
-		"For references, select only candidates that refer to the target, including target definition sites when they are present. " +
-		"When the target is a method, do not select the same method name on another receiver, class, struct, object, or type. " +
+		"intent.siblings lists every declaration sharing the query name; intent.target is the intended declaration. " +
+		"For symbols and definition, select candidates that are the target declaration itself rather than a sibling. " +
+		"For references, select only candidates that resolve to the target declaration rather than to any sibling, including the target definition site when present. " +
+		"A receiver, qualifier, or type name that matches a different sibling is a different declaration, even when the names differ only by a prefix or suffix. " +
 		"Preserve candidate IDs exactly. " +
 		"If no candidate matches, return an empty array.\n\n" +
 		string(encoded)

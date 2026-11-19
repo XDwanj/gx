@@ -24,7 +24,11 @@ func (service *Service) Symbols(idx *index.Index, intent Intent, scope Scope, pa
 		if err != nil {
 			return err
 		}
-		rows, err = service.filterSymbolRowsWithDecide(resolvedIdx, intent.Name, target, rows)
+		siblings, err := service.collectSiblings(resolvedIdx, intent)
+		if err != nil {
+			return err
+		}
+		rows, err = service.filterSymbolRowsWithDecide(resolvedIdx, intent.Name, target, siblings, rows)
 		if err != nil {
 			return err
 		}
